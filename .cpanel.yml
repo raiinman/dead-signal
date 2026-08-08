@@ -5,5 +5,4 @@ deployment:
     - /bin/mkdir -p $DEPLOYPATH
     - /bin/cat deploy/site.b64.part* | /usr/bin/base64 -d > /tmp/dead-signal-site.zip
     - /usr/bin/unzip -o /tmp/dead-signal-site.zip -d $DEPLOYPATH
-    - /bin/sh -c 'PY=$(command -v python3 || command -v python); test -n "$PY" || { echo "Python is required for the Dead Signal v1.0.2 deployment patch"; exit 1; }; "$PY" deploy/patch-v1.0.2.py "$DEPLOYPATH"'
     - /bin/rm -f /tmp/dead-signal-site.zip
