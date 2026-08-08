@@ -1,0 +1,7 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=$HOME/public_html/
+    - /bin/cat deploy/site.b64.part* | /usr/bin/base64 -d > /tmp/dead-signal-site.zip
+    - /usr/bin/unzip -o /tmp/dead-signal-site.zip -d $DEPLOYPATH
+    - /bin/rm -f /tmp/dead-signal-site.zip
