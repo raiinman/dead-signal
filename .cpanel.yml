@@ -5,12 +5,5 @@ deployment:
     - /bin/mkdir -p $DEPLOYPATH
     - /bin/cat deploy/site.b64.part* | /usr/bin/base64 -d > /tmp/dead-signal-site.zip
     - /usr/bin/unzip -o /tmp/dead-signal-site.zip -d $DEPLOYPATH
-    - >-
-      /bin/sed -i 's|<span>Tier</span>|<span>Gear Tier</span>|g; s|<span>Blueprint</span>|<span>Blueprint Stars</span>|g' "$DEPLOYPATH/app.js"
-    - >-
-      /bin/sed -i '/^[[:space:]]*const stars=/c\  const item=scope==="weapon"?byId(D.weapons,state.weapons[slot]):byId(D.armor,state.armor[slot]),starCap=({Legendary:6,Epic:5,Rare:4,Common:3}[item?.rarity]||6); cfg.stars=Math.min(Number(cfg.stars)||1,starCap); const stars=Array.from({length:starCap},(_,i)=>i+1).map(n=>`<option value="${n}" ${Number(cfg.stars)===n?"selected":""}>${n}★</option>`).join("");' "$DEPLOYPATH/app.js"
-    - >-
-      /bin/sed -i 's|<a class="source-pill" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.site)}</a>|<span class="source-pill">Source: ${esc(s.site)}</span>|g' "$DEPLOYPATH/app.js"
-    - >-
-      /bin/sed -i 's|COMMUNITY v1.0|COMMUNITY v1.0.1|g' "$DEPLOYPATH/index.html"
+    - /bin/sh -c 'PY=$(command -v python3 || command -v python); test -n "$PY" || { echo "Python is required for the Dead Signal v1.0.2 deployment patch"; exit 1; }; "$PY" deploy/patch-v1.0.2.py "$DEPLOYPATH"'
     - /bin/rm -f /tmp/dead-signal-site.zip
