@@ -1,7 +1,7 @@
 ---
 deployment:
   tasks:
-    - export DEPLOYPATH=$HOME/public_html/build-lab-preview/
+    - export DEPLOYPATH=$HOME/public_html/build-planner/
     - /bin/mkdir -p $DEPLOYPATH
     - /bin/cp -f preview/build-lab/index.html $DEPLOYPATH/index.html
     - /bin/cp -f preview/build-lab/build-lab.css $DEPLOYPATH/build-lab.css
