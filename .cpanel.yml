@@ -11,4 +11,5 @@ deployment:
     - /bin/sh -c 'PY=$(command -v python3 || command -v python); test -n "$PY" || { echo "Python is required for the Dead Signal v1.2.4 deployment patch"; exit 1; }; "$PY" deploy/patch-v1.2.4.py "$DEPLOYPATH"'
     - /bin/sh -c 'PY=$(command -v python3 || command -v python); test -n "$PY" || { echo "Python is required for the Dead Signal v1.2.5 deployment patch"; exit 1; }; "$PY" deploy/patch-v1.2.5.py "$DEPLOYPATH"'
     - /bin/sh -c 'PY=$(command -v python3 || command -v python); test -n "$PY" || { echo "Python is required for the Dead Signal v1.2.6 deployment patch"; exit 1; }; "$PY" deploy/patch-v1.2.6.py "$DEPLOYPATH"'
+    - /bin/sh -c 'PY=$(command -v python3 || command -v python); test -n "$PY" || { echo "Python is required for the Dead Signal v1.2.7 deployment patch"; exit 1; }; "$PY" deploy/patch-v1.2.7.py "$DEPLOYPATH"'
     - /bin/rm -f /tmp/dead-signal-site-v1.2.zip
