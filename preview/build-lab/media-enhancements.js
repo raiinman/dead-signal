@@ -1,12 +1,17 @@
 (()=>{
 'use strict';
 const D=window.DS_COMMUNITY||{};
-const pools=['weapons','armor','mods','attachments','deviations','consumables','ammo','calibrations','armorSets'];
+const pools=['weapons','armor','mods','attachments','deviations','cradles','consumables','ammo','calibrations','armorSets'];
 const byId=new Map();
 const byName=new Map();
 for(const key of pools){for(const x of (D[key]||[])){if(x?.id&&!byId.has(x.id))byId.set(x.id,x);if(x?.name&&!byName.has(x.name))byName.set(x.name,x)}}
 const clean=s=>String(s||'').trim();
-function mediaUrl(x){const raw=x?.imageUrl||x?.image||x?.iconUrl||x?.icon||x?.assetPath||x?.imagePath||x?.media?.image||x?.media?.icon||'';if(!raw)return '';const v=clean(raw).replace(/\\/g,'/');return /^(https?:\/\/|data:image\/|\/|\.\.?\/|assets\/)/i.test(v)?v:''}
+function mediaUrl(x){
+ const raw=x?.imageUrl||x?.imageAsset||x?.image||x?.iconUrl||x?.icon||x?.assetPath||x?.imagePath||x?.media?.image||x?.media?.icon||'';
+ if(!raw)return '';
+ const v=clean(raw).replace(/\\/g,'/');
+ return /^(https?:\/\/|data:image\/|\/|\.\.?\/|assets\/)/i.test(v)?v:'';
+}
 function codeFor(x,fallback='ITEM'){
  const source=clean(x?.type||x?.slot||x?.category||fallback);
  const map={'Assault Rifle':'AR','Submachine Gun':'SMG','Light Machine Gun':'LMG','Sniper Rifle':'SR','Shotgun':'SG','Pistol':'HG','Crossbow':'XBOW','Melee':'MELEE','Helmet':'HEAD','Mask':'MASK','Top':'TOP','Gloves':'HANDS','Pants':'LEGS','Shoes':'FEET'};
@@ -15,8 +20,8 @@ function codeFor(x,fallback='ITEM'){
  return ((bits.length>1?bits.map(v=>v[0]).join(''):source.slice(0,5))||'DS').toUpperCase().slice(0,5)
 }
 function mediaNode(x,kind,size){
- const el=document.createElement('div');el.className=`item-media item-media-${size} ${mediaUrl(x)?'has-image':'no-image'}`;el.dataset.mediaKind=kind;
  const src=mediaUrl(x);
+ const el=document.createElement('div');el.className=`item-media item-media-${size} ${src?'has-image':'no-image'}`;el.dataset.mediaKind=kind;
  if(src){const img=document.createElement('img');img.src=src;img.alt=x?.name||kind;img.loading='lazy';img.addEventListener('error',()=>{img.hidden=true;el.classList.add('media-error')});el.append(img)}
  const fb=document.createElement('div');fb.className='media-fallback';fb.innerHTML=`<b>${codeFor(x,kind)}</b><small>${src?'IMAGE UNAVAILABLE':'IMAGE SLOT READY'}</small>`;el.append(fb);return el
 }
