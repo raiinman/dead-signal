@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#06080a">
+<meta name="description" content="Dead Signal Build Lab — the Ultimate Once Human loadout planner.">
+<title>Dead Signal // Build Lab // Ultimate Planner</title>
+<link rel="stylesheet" href="styles.css?v=build-lab-preview-1">
+</head>
+<body>
+<aside class="ds-sidebar" aria-label="Build Lab navigation">
+  <a class="ds-logo" href="#top" aria-label="Dead Signal Build Lab home">
+    <img class="ds-logo-image" src="assets/dead-signal-logo-v1.png" alt="Dead Signal">
+    <span class="ds-logo-sub">ONCE HUMAN INTELLIGENCE NETWORK</span>
+  </a>
+
+  <nav class="ds-side-nav">
+    <div class="ds-side-heading">BUILD LAB</div>
+    <ul class="ds-menu">
+      <li><a class="active" href="#section-plan"><span class="ds-nav-icon">⌁</span><span>Planner</span><b>LIVE</b></a></li>
+      <li><a href="#section-weapons"><span class="ds-nav-icon">⌖</span><span>Weapons</span></a></li>
+      <li><a href="#section-armor"><span class="ds-nav-icon">◇</span><span>Armor + Mods</span></a></li>
+      <li><a href="#section-systems"><span class="ds-nav-icon">◉</span><span>Build Systems</span></a></li>
+      <li><a href="#section-notes"><span class="ds-nav-icon">≡</span><span>Build Notes</span></a></li>
+    </ul>
+  </nav>
+
+  <section class="ds-live" aria-label="Planner status">
+    <div class="ds-live-head"><span>SIGNAL STATUS</span><span class="ds-live-count">ONLINE</span></div>
+    <div class="ds-radar" aria-hidden="true"></div>
+    <div class="ds-status">
+      <span class="ds-status-label">ACTIVE MODULE</span>
+      <strong>ULTIMATE PLANNER</strong>
+      <p>Community corpus linked</p>
+    </div>
+    <div class="ds-channel">BUILD LAB // SCHEMA 14<div class="ds-channel-wave" aria-hidden="true"></div></div>
+  </section>
+
+  <div class="ds-side-foot">DEAD SIGNAL // INDEPENDENT COMMUNITY TOOL</div>
+</aside>
+
+<div class="ds-page" id="top">
+<header class="topbar">
+  <div class="brand">
+    <div class="eyebrow">DEAD SIGNAL // BUILD LAB</div>
+    <h1>ULTIMATE PLANNER <span>COMMUNITY v1.2.8</span></h1>
+  </div>
+  <div class="actions">
+    <button id="presetBtn">Templates</button>
+    <button id="saveBtn">Save</button>
+    <button id="loadBtn">My Builds</button>
+    <button id="cloneBtn">Clone</button>
+    <button id="importBtn">Import</button>
+    <button id="exportBtn">Export</button>
+    <button id="shareBtn" class="primary">Copy Share Link</button>
+    <button id="resetBtn" class="danger-ghost">New</button>
+    <input id="importFile" type="file" accept="application/json,.json" hidden>
+  </div>
+</header>
+
+<section class="lab-hero" aria-labelledby="lab-title">
+  <div class="lab-hero-copy">
+    <div class="lab-kicker">TACTICAL LOADOUT WORKSTATION // CURRENT BUILD ENVIRONMENT</div>
+    <h2 id="lab-title">BUILD LAB</h2>
+    <p>Assemble weapons, armor, mods, Deviations, Cradles and consumables in one connected Once Human planning workspace.</p>
+    <div class="lab-status-row">
+      <span><i></i> PLANNER CORE ONLINE</span>
+      <span>COMPATIBILITY FILTERING ACTIVE</span>
+      <span>8 CRADLE SLOTS</span>
+      <span>RAW STAT REPORTING</span>
+    </div>
+  </div>
+  <div class="lab-mark" aria-hidden="true"><img src="assets/dead-signal-mark-v1.png" alt=""></div>
+</section>
+
+<div id="catalogStrip" class="catalog-strip"></div>
+
+<main>
+  <section class="planner-shell">
+    <div class="stack">
+      <section class="panel hero-panel" id="section-plan">
+        <div class="section-title"><span>00</span><div><small>BUILD IDENTITY</small><h2>Plan</h2></div></div>
+        <div class="meta-grid">
+          <label><span>Build name</span><input id="buildName" placeholder="Name this build"></label>
+          <label><span>Author</span><input id="buildAuthor" placeholder="Your name / handle"></label>
+          <label><span>Build type</span><select id="buildType"><option>PvE</option><option>PvP</option><option>Hybrid</option><option>Boss</option><option>Farming / Utility</option><option>Experimental</option></select></label>
+          <label><span>Tags</span><input id="buildTags" placeholder="Power Surge, AR, Solo"></label>
+        </div>
+        <label class="wide-field"><span>Short description</span><input id="buildDescription" placeholder="What this build is trying to do"></label>
+      </section>
+
+      <section class="panel" id="section-weapons">
+        <div class="section-title"><span>01</span><div><small>WEAPONS</small><h2>Loadout</h2></div></div>
+        <div id="weapons" class="weapon-grid"></div>
+      </section>
+
+      <section class="panel" id="section-armor">
+        <div class="section-title"><span>02</span><div><small>ARMOR</small><h2>Gear + Mods</h2></div></div>
+        <div class="section-toolbar"><button data-pick="armorSet" class="primary-soft">Equip Armor Set</button><button id="clearArmorBtn">Clear Armor</button><span>Quick-equip fills every available piece in a set; key armor can still replace individual slots.</span></div>
+        <div id="armor" class="armor-grid"></div>
+      </section>
+
+      <section class="panel" id="section-systems">
+        <div class="section-title"><span>03</span><div><small>BUILD SYSTEMS</small><h2>Deviation, Cradles & Consumables</h2></div></div>
+        <div class="systems-grid">
+          <div id="deviationSlot"></div>
+          <div id="foodSlot"></div>
+          <div id="drinkSlot"></div>
+          <div id="whimSlot"></div>
+        </div>
+        <div class="subheading-row"><h3>Cradle Overrides</h3><span id="cradleCount"></span></div>
+        <div id="cradles" class="cradles"></div>
+      </section>
+
+      <section class="panel" id="section-notes">
+        <div class="section-title"><span>04</span><div><small>BUILD NOTES</small><h2>Rotation, alternatives & farming notes</h2></div></div>
+        <textarea id="buildNotes" rows="7" placeholder="Rotation, alternate pieces, desired mod suffixes, farming notes, unresolved community information..."></textarea>
+      </section>
+    </div>
+
+    <aside class="panel summary-panel">
+      <div class="sticky">
+        <div class="section-title"><span>DS</span><div><small>BUILD OVERVIEW</small><h2>Loadout Report</h2></div></div>
+        <div id="completion"></div>
+        <div id="summary"></div>
+      </div>
+    </aside>
+  </section>
+</main>
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div>
+      <b>DEAD SIGNAL</b>
+      <span>Independent Once Human community planner.</span>
+    </div>
+    <p><strong>Community &amp; reference resources:</strong> Once Human Official · OnceHumanDB · Wikily. Resource names are provided as plain-text attribution only. Dead Signal is not affiliated with or endorsed by these services.</p>
+  </div>
+</footer>
+</div>
+
+<dialog id="picker">
+  <div class="dialog-head"><div><small id="pickerKicker">SELECT</small><h2 id="pickerTitle">Choose</h2></div><button id="pickerClose" aria-label="Close">×</button></div>
+  <div class="picker-tools">
+    <input id="pickerSearch" placeholder="Search community corpus..." autocomplete="off">
+    <select id="pickerRarity" aria-label="Filter by rarity"><option value="All">All rarities</option></select>
+    <button id="pickerFavorites">★ Favorites</button>
+    <button id="pickerRecent">Recent</button>
+    <button id="pickerClear">Clear slot</button>
+  </div>
+  <div id="pickerFilters" class="filters"></div>
+  <div id="pickerList" class="picker-list"></div>
+</dialog>
+
+<dialog id="savedDialog">
+  <div class="dialog-head"><div><small>THIS BROWSER</small><h2>My Builds</h2></div><button id="savedClose" aria-label="Close">×</button></div>
+  <div id="savedList" class="saved-list"></div>
+</dialog>
+
+<dialog id="presetDialog">
+  <div class="dialog-head"><div><small>STARTING POINTS</small><h2>Templates</h2></div><button id="presetClose" aria-label="Close">×</button></div>
+  <div id="presetList" class="preset-list"></div>
+</dialog>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script src="data/community-data.js?v=1.2.8"></script>
+<script src="app.js?v=1.2.8"></script>
+</body>
+</html>
