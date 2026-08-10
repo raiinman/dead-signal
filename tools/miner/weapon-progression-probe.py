@@ -38,6 +38,10 @@ STAT_TERMS = (
     "attack", "atk", "damage", "dmg", "baseattack", "base_attack", "basedamage", "base_damage",
     "firepower", "weaponattack", "weapon_attack", "weapondamage", "weapon_damage",
 )
+WEAPON_TERMS = ("weapon", "gun", "firearm", "equipweapon", "equip_weapon")
+PROGRESSION_TERMS = STAR_TERMS + TIER_TERMS + STAT_TERMS + (
+    "progression", "upgrade", "multiplier", "coefficient", "ratio", "rarity", "blueprint",
+)
 
 ROMAN = {"i": 1, "ii": 2, "iii": 3, "iv": 4, "v": 5}
 
@@ -45,10 +49,9 @@ ROMAN = {"i": 1, "ii": 2, "iii": 3, "iv": 4, "v": 5}
 def norm_key(value: Any) -> str:
     return re.sub(r"[^a-z0-9]+", "", str(value).lower())
 
-
 STAR_KEYS = {norm_key(x) for x in STAR_TERMS} | {
     "star", "stars", "starlevel", "starrank", "blueprintstars", "enhancelevel", "enhancementlevel",
-    "blueprintlevel", "quality", "qualitylevel",
+    "blueprintlevel", "qualitylevel",
 }
 TIER_KEYS = {norm_key(x) for x in TIER_TERMS} | {"tier", "leveltier", "craftlevel"}
 STAT_KEYS = {norm_key(x) for x in STAT_TERMS}
@@ -229,6 +232,7 @@ def scan_json_file(path: Path, root: Path, max_bytes: int) -> tuple[list[Evidenc
             evidence.append(Evidence(rel, jp, "high_score_candidate", score, wid, wname, tier, stars, None, None, rarity, keys_str, preview))
             counts["high_score_candidate"] += 1
 
+        # Capture likely multiplier/curve arrays in relevant objects.
         for k, v in node.items():
             nk = norm_key(k)
             if isinstance(v, list) and 3 <= len(v) <= 12 and any(t in nk for t in ("star", "tier", "scale", "mult", "coeff", "ratio", "enhance", "quality")):
@@ -241,7 +245,7 @@ def scan_json_file(path: Path, root: Path, max_bytes: int) -> tuple[list[Evidenc
 
 
 def iter_json_files(root: Path) -> Iterable[Path]:
-    ignore_dirs = {".git", "node_modules", "venv", ".venv", "__pycache__", "assets", "reference-images"}
+    ignore_dirs = {".git", "node_modules", "venv", ".venv", "__pycache__", "assets", "reference-images", "investigations"}
     for p in root.rglob("*.json"):
         if not p.is_file():
             continue
@@ -303,6 +307,7 @@ def tracer_search(db_path: Path, terms: list[str], per_term_limit: int = 250) ->
             cols = list(con.execute(f'PRAGMA table_info("{table.replace(chr(34), chr(34)*2)}")'))
             out["schema"][table] = [{"name": r[1], "type": r[2]} for r in cols]
             text_cols = [r[1] for r in cols if (r[2] or "").upper() in ("", "TEXT", "VARCHAR", "CHAR", "CLOB")]
+            # Prefer provenance columns used by the Dead Signal reference tracer.
             preferred = [c for c in text_cols if norm_key(c) in {"value", "field", "jsonlocation", "sourcefile", "sourcetable", "recordid", "gamelayer", "path"}]
             query_cols = preferred or text_cols[:4]
             if not query_cols:
