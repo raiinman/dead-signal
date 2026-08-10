@@ -11,5 +11,6 @@ deployment:
     - /bin/cp -f preview/build-lab/density-enhancements.css $DEPLOYPATH/density-enhancements.css
     - /bin/cp -f preview/build-lab/player-images.js $DEPLOYPATH/player-images.js
     - /bin/rm -f $DEPLOYPATH/media-enhancements.js
+    - /bin/rm -f $DEPLOYPATH/cpanel-deploy-test.txt
     - /bin/echo 'OK copy Build Lab files' >> $DEPLOYPATH/deploy-status.txt
     - /bin/echo 'COMPLETE static image deployment' >> $DEPLOYPATH/deploy-status.txt
