@@ -2,6 +2,7 @@
 'use strict';
 
 const D=window.DS_COMMUNITY||{};
+const armorImageMap=window.DS_ARMOR_IMAGE_MAP||{};
 const pools=['weapons','armor','mods','attachments','deviations','cradles','consumables','ammo','calibrations','armorSets'];
 const byId=new Map();
 const byName=new Map();
@@ -15,8 +16,7 @@ for(const key of pools){
 
 const clean=v=>String(v||'').trim();
 
-function imageUrl(item){
-  const raw=item?.imageUrl||item?.imageAsset||item?.image||item?.iconUrl||item?.icon||item?.assetPath||item?.imagePath||item?.media?.image||item?.media?.icon||'';
+function normalizeAsset(raw){
   const v=clean(raw).replace(/\\/g,'/');
   if(!v)return '';
   if(/^(https?:\/\/|data:image\/)/i.test(v))return v;
@@ -28,6 +28,13 @@ function imageUrl(item){
   const pos=v.toLowerCase().indexOf(marker);
   if(pos>=0)return '/build-planner/assets/'+v.slice(pos);
   return '';
+}
+
+function imageUrl(item){
+  const raw=item?.imageUrl||item?.imageAsset||item?.image||item?.iconUrl||item?.icon||item?.assetPath||item?.imagePath||item?.media?.image||item?.media?.icon||'';
+  const direct=normalizeAsset(raw);
+  if(direct)return direct;
+  return normalizeAsset(armorImageMap[item?.id]||'');
 }
 
 function codeFor(item,fallback='DS'){
