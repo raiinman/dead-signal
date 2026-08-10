@@ -3,17 +3,13 @@ deployment:
   tasks:
     - export DEPLOYPATH=$HOME/public_html/build-planner/
     - /bin/mkdir -p $DEPLOYPATH
-    - export STATUS=$DEPLOYPATH/deploy-status.txt
-    - /bin/echo 'Dead Signal targeted image deployment' > $STATUS
-    - /bin/echo 'RUN direct player media renderer' >> $STATUS
-    - /bin/sh -c 'PY=$(command -v python3 || command -v python); test -n "$PY" || { echo "Python is required for the Dead Signal player media renderer"; exit 1; }; "$PY" deploy/patch-player-media-v1.3.py "$DEPLOYPATH"'
-    - /bin/echo 'OK direct player media renderer' >> $STATUS
-    - /bin/echo 'RUN Build Lab presentation layer' >> $STATUS
+    - /bin/echo 'Dead Signal static image deployment' > $DEPLOYPATH/deploy-status.txt
+    - /bin/echo 'RUN copy Build Lab files' >> $DEPLOYPATH/deploy-status.txt
     - /bin/cp -f preview/build-lab/index.html $DEPLOYPATH/index.html
     - /bin/cp -f preview/build-lab/build-lab.css $DEPLOYPATH/build-lab.css
     - /bin/cp -f preview/build-lab/media-enhancements.css $DEPLOYPATH/media-enhancements.css
     - /bin/cp -f preview/build-lab/density-enhancements.css $DEPLOYPATH/density-enhancements.css
+    - /bin/cp -f preview/build-lab/player-images.js $DEPLOYPATH/player-images.js
     - /bin/rm -f $DEPLOYPATH/media-enhancements.js
-    - /bin/echo 'OK Build Lab presentation layer' >> $STATUS
-    - /bin/rm -f $DEPLOYPATH/cpanel-deploy-test.txt
-    - /bin/echo 'COMPLETE targeted image deployment' >> $STATUS
+    - /bin/echo 'OK copy Build Lab files' >> $DEPLOYPATH/deploy-status.txt
+    - /bin/echo 'COMPLETE static image deployment' >> $DEPLOYPATH/deploy-status.txt
