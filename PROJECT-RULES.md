@@ -8,6 +8,14 @@ These are the working constraints for the Ultimate Planner.
 - Mined game data is integrated and should be preferred for extractable factual data; community and official references are used to validate, fill gaps, and correct current-patch behavior.
 - Do not invent mechanics or numeric relationships that are not verified.
 
+## Deployment architecture
+- Production deploys use the existing `main` branch and cPanel Git Version Control workflow only.
+- Namecheap shared-hosting deployment must remain **copy-only**.
+- Build, normalize, patch, transform, validate, unzip, scan, or generate files before deployment; do not perform those operations inside `.cpanel.yml`.
+- `.cpanel.yml` should only create the destination directory, copy already-prepared files into `/public_html/build-planner/`, remove explicitly obsolete presentation files when necessary, and write lightweight status markers.
+- Persistent hosted game imagery under `/public_html/build-planner/assets/reference-images/` is not rebuilt or scanned during normal deploys.
+- Do not add server-side Python, recursive `find`, archive reconstruction/extraction, external downloads, or other runtime build steps back into normal cPanel deployment.
+
 ## Provenance / transparency
 - Preserve source provenance internally on records.
 - Show plain-text attribution to users when useful (for example: `Source: Wikily`, `Source: OnceHumanDB`, `Source: Once Human Official`).
