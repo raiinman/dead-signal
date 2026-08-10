@@ -94,12 +94,18 @@ function calibrationDisplay(card,block,trigger){
   return {name:label,rarity:''};
 }
 function makeProxy(card,panel,trigger,block){
-  panel.querySelector('.ds-wm-cal-picker')?.remove();
   const calBox=panel.querySelector('.ds-wm-cal');
   if(!calBox)return;
   const display=calibrationDisplay(card,block,trigger);
+  const signature=`${display.name}|${display.rarity}|${trigger?'active':'disabled'}`;
+  const existing=panel.querySelector('.ds-wm-cal-picker');
+  if(existing&&existing.dataset.signature===signature&&existing._dsNativeTrigger===trigger)return;
+  existing?.remove();
+
   const wrap=document.createElement('div');
   wrap.className='ds-wm-cal-picker';
+  wrap.dataset.signature=signature;
+  wrap._dsNativeTrigger=trigger;
   wrap.innerHTML=`
     <div class="ds-wm-cal-picker-label">
       <small>CRAFTING CALIBRATION</small>
@@ -126,14 +132,26 @@ function placePanel(card,panel){
   if(head&&head.nextElementSibling!==panel)head.after(panel);
 }
 function reorderPanel(panel){
-  const head=panel.querySelector('.ds-wm-head');
-  const controls=panel.querySelector('.ds-wm-controls');
-  const picker=panel.querySelector('.ds-wm-cal-picker');
-  const cal=panel.querySelector('.ds-wm-cal');
-  const proof=panel.querySelector('.ds-wm-proof');
-  const stats=panel.querySelector('.ds-wm-stats');
-  const result=panel.querySelector('.ds-wm-result');
-  [head,controls,picker,cal,proof,stats,result].filter(Boolean).forEach(node=>panel.append(node));
+  const desired=[
+    panel.querySelector('.ds-wm-head'),
+    panel.querySelector('.ds-wm-controls'),
+    panel.querySelector('.ds-wm-cal-picker'),
+    panel.querySelector('.ds-wm-cal'),
+    panel.querySelector('.ds-wm-proof'),
+    panel.querySelector('.ds-wm-stats'),
+    panel.querySelector('.ds-wm-result')
+  ].filter(node=>node&&node.parentElement===panel);
+
+  const children=[...panel.children];
+  let last=-1;
+  let ordered=true;
+  for(const node of desired){
+    const idx=children.indexOf(node);
+    if(idx<last){ordered=false;break;}
+    last=idx;
+  }
+  if(ordered)return;
+  desired.forEach(node=>panel.append(node));
 }
 function enhance(card){
   const panel=card.querySelector('.ds-weapon-model');
@@ -144,10 +162,10 @@ function enhance(card){
   makeProxy(card,panel,trigger,block);
   reorderPanel(panel);
   if(block&&block!==panel&&!block.closest('.ds-weapon-model')){
-    block.classList.add('ds-native-calibration-relocated');
-    block.setAttribute('aria-hidden','true');
+    if(!block.classList.contains('ds-native-calibration-relocated'))block.classList.add('ds-native-calibration-relocated');
+    if(block.getAttribute('aria-hidden')!=='true')block.setAttribute('aria-hidden','true');
   }
-  panel.classList.add('ds-crafting-order-active');
+  if(!panel.classList.contains('ds-crafting-order-active'))panel.classList.add('ds-crafting-order-active');
 }
 function run(){document.querySelectorAll('.weapon-card').forEach(enhance);}
 function queue(){
