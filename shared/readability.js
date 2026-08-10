@@ -2,11 +2,13 @@
 'use strict';
 
 const STORAGE_KEY='dead-signal-font-size';
+const SCHEMA_KEY='dead-signal-font-size-schema';
+const SCHEMA_VERSION='2';
 const MODES={
-  compact:{label:'Compact'},
+  compact:{label:'Smaller'},
   default:{label:'Default'},
-  large:{label:'Large'},
-  xlarge:{label:'Extra Large'}
+  large:{label:'Larger'},
+  xlarge:{label:'Maximum'}
 };
 const root=document.documentElement;
 
@@ -15,8 +17,20 @@ function normalize(value){
 }
 
 function readStored(){
-  try{return normalize(localStorage.getItem(STORAGE_KEY)||'default')}
-  catch(_){return 'default'}
+  try{
+    const stored=localStorage.getItem(STORAGE_KEY);
+    const schema=localStorage.getItem(SCHEMA_KEY);
+    if(!stored)return 'default';
+    if(schema===SCHEMA_VERSION)return normalize(stored);
+
+    /* v1 -> v2 migration preserves the user's visible size where possible:
+       old Default -> new Smaller, old Large -> new Default,
+       old Extra Large -> new Larger. */
+    const migrated={compact:'compact',default:'compact',large:'default',xlarge:'large'}[stored]||'default';
+    localStorage.setItem(STORAGE_KEY,migrated);
+    localStorage.setItem(SCHEMA_KEY,SCHEMA_VERSION);
+    return migrated;
+  }catch(_){return 'default'}
 }
 
 function updateControls(mode){
@@ -33,7 +47,10 @@ function apply(mode,{persist=false,announce=false}={}){
   mode=normalize(mode);
   root.dataset.dsFontSize=mode;
   if(persist){
-    try{localStorage.setItem(STORAGE_KEY,mode)}catch(_){}
+    try{
+      localStorage.setItem(STORAGE_KEY,mode);
+      localStorage.setItem(SCHEMA_KEY,SCHEMA_VERSION);
+    }catch(_){}
   }
   updateControls(mode);
   if(announce){
@@ -42,7 +59,6 @@ function apply(mode,{persist=false,announce=false}={}){
   return mode;
 }
 
-/* Apply before page paint when this script is loaded from <head>. */
 apply(readStored());
 
 function bind(){
@@ -62,7 +78,10 @@ window.DSReadability={
   get:()=>normalize(root.dataset.dsFontSize),
   set:mode=>apply(mode,{persist:true,announce:true}),
   reset:()=>{
-    try{localStorage.removeItem(STORAGE_KEY)}catch(_){}
+    try{
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.setItem(SCHEMA_KEY,SCHEMA_VERSION);
+    }catch(_){}
     return apply('default',{announce:true});
   }
 };
