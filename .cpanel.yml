@@ -18,8 +18,8 @@ deployment:
     - /bin/echo '[Dead Signal] Installing player-facing v1.3 corpus...'
     - /bin/cat deploy/player-corpus-v1.3.b64.part* | /usr/bin/base64 -d > /tmp/dead-signal-player-corpus-v1.3.zip
     - /usr/bin/unzip -o /tmp/dead-signal-player-corpus-v1.3.zip -d $DEPLOYPATH
-    - /bin/echo '[Dead Signal] Installing player image pack...'
-    - /bin/sh -c 'echo "baaeccd8940cdc31c82d87d7c51c80c4bfe6986597ef42bc79602215571a6358  deploy/dead-signal-player-images-v1.3.zip" | sha256sum -c -; unzip -o deploy/dead-signal-player-images-v1.3.zip -d "$DEPLOYPATH"; test -f "$DEPLOYPATH/assets/reference-images/ar/ar_ak47_n-0ea00206dd9c.png" || { echo "Dead Signal image pack extracted without expected AKM asset"; exit 1; }'
+    - /bin/echo '[Dead Signal] Verifying persistent player image assets...'
+    - /bin/sh -c 'ASSETROOT="$DEPLOYPATH/assets/reference-images"; test -d "$ASSETROOT" || { echo "Missing persistent Dead Signal image directory: $ASSETROOT"; exit 1; }; test -f "$ASSETROOT/ar/ar_ak47_n-0ea00206dd9c.png" || { echo "Missing expected AKM player image"; exit 1; }; COUNT=$(find "$ASSETROOT" -type f -name "*.png" | wc -l); echo "[Dead Signal] Hosted player images found: $COUNT"; test "$COUNT" -ge 700 || { echo "Player image set appears incomplete (expected at least 700 PNG files)"; exit 1; }'
     - /bin/echo '[Dead Signal] Resolving image paths...'
     - /bin/sh -c 'PY=$(command -v python3 || command -v python); test -n "$PY" || { echo "Python is required for the Dead Signal player image resolver"; exit 1; }; "$PY" deploy/patch-player-images-v1.3.py "$DEPLOYPATH"'
     - /bin/echo '[Dead Signal] Installing Build Lab presentation layer...'
