@@ -1,0 +1,4 @@
+Dead Signal Git processor test
+Created: 2026-08-09 21:58 MST
+Token: DS-GIT-TEST-2158
+Purpose: verify cPanel Update from Remote sees a tiny one-file commit independently of deployment.
