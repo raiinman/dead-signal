@@ -168,11 +168,59 @@
   line-height:1.5;
 }
 
+/* Readability pass: keep the tactical density, stop making the user squint. */
+body{font-size:15px}
+.ds-side-heading{font-size:12px}
+.ds-menu a{font-size:13px;line-height:1.35}
+.ds-menu a b{font-size:8px}
+.ds-logo-sub,.ds-side-foot{font-size:9px}
+.eyebrow,.lab-kicker{font-size:9px}
+.lab-hero p{font-size:13px;line-height:1.6}
+.lab-status-row span{font-size:9px}
+.section-title small{font-size:9px}
+.section-title h2{font-size:20px}
+.slot-label{font-size:9.5px}
+.item-name{font-size:16px;line-height:1.25}
+.subtle{font-size:11px;line-height:1.45}
+.tag,.rarity-badge,.quality-badge{font-size:9px}
+.stats b{font-size:14px}
+.stats span{font-size:9px}
+.effect{font-size:11.5px;line-height:1.55}
+.meta-grid label>span,.wide-field>span,.section-toolbar span,.progression label,.profile-select label{font-size:10.5px}
+.meta-grid input,.meta-grid select,.wide-field input,.progression select,.profile-select select,.roll-line input,textarea{font-size:13px;line-height:1.45}
+button,.actions button,.select-button,.mini-select button{font-size:12px}
+.picker-tools input,.picker-tools select,.picker-tools button{font-size:12px}
+.pick-title-row strong{font-size:14px;line-height:1.3}
+.pick-meta{font-size:10.5px;line-height:1.4}
+.picker-facts,.picker-facts span{font-size:10px}
+.picker-effect{font-size:11px;line-height:1.5}
+.catalog-kicker,.catalog-label,.catalog-note{font-size:9px}
+.catalog-value strong{font-size:18px}
+.system-description{font-size:11px;line-height:1.5}
+.cradle-panel-head small{font-size:8.5px}
+.cradle-panel-head h3{font-size:15px}
+.cradle-panel-head #cradleCount{font-size:9px}
+.cradle-panel .cradle{font-size:11px;line-height:1.4}
+.cradle-panel .cradle b,.cradle-panel .cradle strong{font-size:11.5px;line-height:1.3}
+.cradle-panel .cradle small{font-size:9.5px;line-height:1.35}
+.cradle-panel .cradle .effect{font-size:10px;line-height:1.45}
+.summary-section>h3{font-size:10px}
+.summary-notice{font-size:11px;line-height:1.5}
+.report-head>span{font-size:9px}
+#summary .report-head>b{font-size:15px}
+.report-row>span,.armor-report-row>span{font-size:9.5px}
+#summary .report-row>div>b,#summary .armor-report-row>div>b{font-size:13px}
+#summary .effect-line span{font-size:9.5px}
+#summary .effect-line p,#summary .system-detail,#summary .summary-notice{font-size:11px;line-height:1.55}
+
 @media(min-width:1800px){
   .cradle-scroll{max-height:350px}
   .cradle-panel .cradles{grid-template-columns:repeat(3,minmax(0,1fr))}
   .summary-panel .sticky{padding:20px!important}
   #summary{gap:14px 16px}
+  body{font-size:15.5px}
+  .item-name{font-size:17px}
+  .effect{font-size:12px}
 }
 @media(max-width:1100px){
   #summary{grid-template-columns:1fr}
@@ -181,4 +229,5 @@
   .cradle-scroll{max-height:300px}
   .cradle-panel .cradles{grid-template-columns:1fr}
   .summary-panel .sticky{padding:14px!important}
+  body{font-size:14.5px}
 }
