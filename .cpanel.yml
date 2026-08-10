@@ -10,6 +10,8 @@ deployment:
     - /bin/cp -f preview/build-lab/media-enhancements.css $DEPLOYPATH/media-enhancements.css
     - /bin/cp -f preview/build-lab/density-enhancements.css $DEPLOYPATH/density-enhancements.css
     - /bin/cp -f preview/build-lab/planner-cleanup.css $DEPLOYPATH/planner-cleanup.css
+    - /bin/cp -f shared/readability.css $DEPLOYPATH/readability.css
+    - /bin/cp -f shared/readability.js $DEPLOYPATH/readability.js
     - /bin/cp -f preview/build-lab/armor-image-map.js $DEPLOYPATH/armor-image-map.js
     - /bin/cp -f preview/build-lab/player-images.js $DEPLOYPATH/player-images.js
     - /bin/rm -f $DEPLOYPATH/media-enhancements.js
