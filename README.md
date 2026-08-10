@@ -8,9 +8,22 @@ Dead Signal is an independent Once Human database and build-planning project. Th
 - `deploy/site-v1.2.b64.part*` — base planner bundle.
 - `deploy/patch-v1.2.*.py` — incremental planner patches still required by the current base bundle.
 - `deploy/player-corpus-v1.3.b64.part*` — normalized player-facing v1.3 data corpus.
-- `deploy/dead-signal-player-images-v1.3.zip` — slim player-facing image pack.
-- `deploy/patch-player-images-v1.3.py` — resolves mined image references after extraction.
+- `deploy/patch-player-images-v1.3.py` — resolves mined image references against the hosted player-image directory.
 - `preview/build-lab/` — live Build Lab presentation files copied over the planner shell during deployment. The folder name is historical; these files are production inputs.
+
+## Persistent player images
+
+The player-facing PNG assets are hosted directly on the web server and are not transferred by Git deployment.
+
+Expected production location:
+
+```text
+$HOME/public_html/build-planner/assets/reference-images/
+```
+
+The current set contains 712 player-facing PNG files. `.cpanel.yml` verifies the directory, checks a known AKM asset, and requires at least 700 PNG files before the image resolver runs.
+
+The original full mined asset archive remains separate from the production website. Do not place the multi-gigabyte source archive in `public_html`.
 
 ## Deployment
 
@@ -26,7 +39,7 @@ The planner deploys to:
 $HOME/public_html/build-planner/
 ```
 
-The deploy reconstructs the base planner, applies required patches, installs the v1.3 player corpus and local image pack, resolves image paths, then copies the Build Lab presentation layer.
+Deployment reconstructs the base planner, applies the required patches, installs the v1.3 player corpus, verifies the persistent hosted image set, resolves image paths, and copies the Build Lab presentation layer. It does not download or extract the player-image archive.
 
 ## Current development phase
 
