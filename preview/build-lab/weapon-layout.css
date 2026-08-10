@@ -1,0 +1,17 @@
+.weapon-card .ds-native-calibration-relocated{display:none!important}
+.ds-weapon-model.ds-crafting-order-active{margin-top:8px;border-color:#5b2229;background:linear-gradient(145deg,#0b0e11,#07090b)}
+.ds-crafting-order-active .ds-wm-head{padding-bottom:7px;border-bottom:1px solid #272d31}
+.ds-wm-cal-picker{margin-top:9px;border:1px solid #6a252d;background:linear-gradient(135deg,#16090c,#090b0d);padding:9px}
+.ds-wm-cal-picker-label{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-bottom:7px}
+.ds-wm-cal-picker-label small{color:#ff4a55;font-size:8px;font-weight:900;letter-spacing:.13em}
+.ds-wm-cal-picker-label span{color:#747c81;font-size:8px}
+.ds-wm-cal-picker-button{position:relative;width:100%;min-height:50px;padding:8px 78px 8px 10px;border:1px solid #78303a;background:linear-gradient(180deg,#15191d,#0b0e11);text-align:left;cursor:pointer}
+.ds-wm-cal-picker-button:hover{border-color:#d02b37;background:linear-gradient(180deg,#1a1f24,#0d1013)}
+.ds-wm-cal-picker-button>span{display:block;color:#767f85;font-size:8px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
+.ds-wm-cal-picker-button>strong{display:block;margin-top:3px;color:#f0f2f3;font-size:13px;line-height:1.25}
+.ds-wm-cal-picker-button>em{display:inline-block;margin-top:4px;color:#ff7982;font-size:8px;font-style:normal;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.ds-wm-cal-picker-button>b{position:absolute;right:9px;top:50%;transform:translateY(-50%);padding:4px 7px;border:1px solid #6e232b;background:#210b0f;color:#ff606b;font-size:7px;letter-spacing:.08em}
+.ds-wm-cal-picker-button:disabled{cursor:not-allowed;opacity:.55}
+.ds-crafting-order-active .ds-wm-cal{margin-top:6px;border-color:#4b2b31}
+.ds-crafting-order-active .ds-wm-proof{margin-top:9px}
+@media(max-width:700px){.ds-wm-cal-picker-label{align-items:flex-start;flex-direction:column;gap:2px}.ds-wm-cal-picker-button{padding-right:68px}}
