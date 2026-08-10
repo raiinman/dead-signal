@@ -1,0 +1,104 @@
+(()=>{
+'use strict';
+
+const STORAGE_KEY='dead-signal-build-mode';
+const DEFAULT_MODE='gear';
+const MODES={
+  gear:{
+    short:'MY GEAR',
+    title:'MY GEAR // ACTUAL BUILD',
+    notice:'Actual-build mode is active. Dead Signal should use mined deterministic game values and ask you only for account-specific RNG rolls that the game server assigned to your gear.'
+  },
+  god:{
+    short:'GOD ROLL',
+    title:'GOD ROLL // THEORETICAL BUILD',
+    notice:'Theorycraft mode is active. Maximum legal RNG values are assumed and may not match equipment you actually own.'
+  }
+};
+
+let currentMode=DEFAULT_MODE;
+
+function validMode(value){return value==='gear'||value==='god'?value:DEFAULT_MODE;}
+function readMode(){
+  try{return validMode(localStorage.getItem(STORAGE_KEY)||DEFAULT_MODE);}catch(_){return DEFAULT_MODE;}
+}
+function storeMode(mode){try{localStorage.setItem(STORAGE_KEY,mode);}catch(_){/* storage unavailable */}}
+
+function render(mode){
+  currentMode=validMode(mode);
+  const spec=MODES[currentMode];
+  document.body.dataset.dsBuildMode=currentMode;
+
+  document.querySelectorAll('[data-ds-mode-choice]').forEach(btn=>{
+    const selected=btn.dataset.dsModeChoice===currentMode;
+    btn.setAttribute('aria-pressed',selected?'true':'false');
+  });
+
+  const notice=document.getElementById('buildModeNotice');
+  if(notice)notice.textContent=spec.notice;
+
+  const top=document.getElementById('buildModeTopStatus');
+  if(top){
+    top.textContent=spec.short;
+    top.dataset.mode=currentMode;
+    top.title=spec.title;
+  }
+
+  const report=document.getElementById('buildModeReportStatus');
+  if(report){
+    report.dataset.mode=currentMode;
+    const strong=report.querySelector('strong');
+    if(strong)strong.textContent=spec.title;
+  }
+}
+
+function choose(mode,{confirmGod=true,persist=true}={}){
+  const next=validMode(mode);
+  if(next===currentMode)return true;
+
+  if(next==='god'&&confirmGod){
+    const ok=window.confirm(
+      'Switch to GOD ROLL / THEORETICAL BUILD?\n\n'+
+      'Dead Signal will treat RNG-based gear values as theoretical maximums. '+
+      'This mode may show stats you do not actually own in game.'
+    );
+    if(!ok){render(currentMode);return false;}
+  }
+
+  render(next);
+  if(persist)storeMode(next);
+  window.dispatchEvent(new CustomEvent('dead-signal:build-mode-change',{detail:{mode:next}}));
+  return true;
+}
+
+function warnTheorycraftAction(event){
+  if(currentMode!=='god')return;
+  const target=event.target.closest('#saveBtn,#shareBtn,#exportBtn');
+  if(!target)return;
+  const notice=document.getElementById('buildModeNotice');
+  if(!notice)return;
+  notice.textContent='GOD ROLL mode is active. Saved/exported/shared planner data may represent theoretical maximum RNG values, not gear you actually own.';
+  notice.classList.add('is-pulsing');
+  window.setTimeout(()=>notice.classList.remove('is-pulsing'),900);
+}
+
+function init(){
+  currentMode=readMode();
+  render(currentMode);
+
+  document.querySelectorAll('[data-ds-mode-choice]').forEach(btn=>{
+    btn.addEventListener('click',()=>choose(btn.dataset.dsModeChoice));
+  });
+
+  document.addEventListener('click',warnTheorycraftAction);
+
+  window.DSBuildMode={
+    get:()=>currentMode,
+    set:(mode,options)=>choose(mode,options),
+    modes:{...MODES}
+  };
+}
+
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});
+else init();
+})();
