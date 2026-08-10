@@ -6,11 +6,22 @@ const byId=new Map();
 const byName=new Map();
 for(const key of pools){for(const x of (D[key]||[])){if(x?.id&&!byId.has(x.id))byId.set(x.id,x);if(x?.name&&!byName.has(x.name))byName.set(x.name,x)}}
 const clean=s=>String(s||'').trim();
+function normalizeMediaPath(raw){
+ const v=clean(raw).replace(/\\/g,'/');
+ if(!v)return '';
+ if(/^(https?:\/\/|data:image\/)/i.test(v))return v;
+ if(v.startsWith('/build-planner/'))return v;
+ if(v.startsWith('/assets/'))return '/build-planner'+v;
+ if(v.startsWith('assets/'))return '/build-planner/'+v;
+ if(v.startsWith('./assets/'))return '/build-planner/'+v.slice(2);
+ const marker='reference-images/';
+ const pos=v.toLowerCase().indexOf(marker);
+ if(pos>=0)return '/build-planner/assets/'+v.slice(pos);
+ return /^(\/|\.\.?\/)/.test(v)?v:'';
+}
 function mediaUrl(x){
  const raw=x?.imageUrl||x?.imageAsset||x?.image||x?.iconUrl||x?.icon||x?.assetPath||x?.imagePath||x?.media?.image||x?.media?.icon||'';
- if(!raw)return '';
- const v=clean(raw).replace(/\\/g,'/');
- return /^(https?:\/\/|data:image\/|\/|\.\.?\/|assets\/)/i.test(v)?v:'';
+ return normalizeMediaPath(raw);
 }
 function codeFor(x,fallback='ITEM'){
  const source=clean(x?.type||x?.slot||x?.category||fallback);
@@ -22,7 +33,7 @@ function codeFor(x,fallback='ITEM'){
 function mediaNode(x,kind,size){
  const src=mediaUrl(x);
  const el=document.createElement('div');el.className=`item-media item-media-${size} ${src?'has-image':'no-image'}`;el.dataset.mediaKind=kind;
- if(src){const img=document.createElement('img');img.src=src;img.alt=x?.name||kind;img.loading='lazy';img.addEventListener('error',()=>{img.hidden=true;el.classList.add('media-error')});el.append(img)}
+ if(src){const img=document.createElement('img');img.src=src;img.alt=x?.name||kind;img.loading='lazy';img.decoding='async';img.addEventListener('load',()=>el.classList.add('media-loaded'));img.addEventListener('error',()=>{img.hidden=true;el.classList.add('media-error')});el.append(img)}
  const fb=document.createElement('div');fb.className='media-fallback';fb.innerHTML=`<b>${codeFor(x,kind)}</b><small>${src?'IMAGE UNAVAILABLE':'IMAGE SLOT READY'}</small>`;el.append(fb);return el
 }
 function findByCard(card){const name=clean(card.querySelector('.item-name')?.textContent);return name&&name!=='Empty'?byName.get(name):null}
