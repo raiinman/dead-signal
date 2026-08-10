@@ -1,8 +1,8 @@
 # Dead Signal — AI Continuity / Handoff
 
-> **Purpose:** This is the canonical handoff file for future ChatGPT/Codex sessions working on Dead Signal. Read this file **before changing anything**. Update it after meaningful milestones, architectural changes, deployment discoveries, or major data/UI work.
+> **Purpose:** Canonical handoff for future ChatGPT/Codex sessions working on Dead Signal. Read this file **before changing anything**. Update it after meaningful milestones, architecture/deployment discoveries, major data changes, or significant UI decisions.
 >
-> Last updated: **2026-08-09 22:35 MST**
+> Last updated: **2026-08-10 01:13 MST**
 
 ## 1. Project identity
 
@@ -12,49 +12,32 @@
 - Branch: **`main` only** unless the user explicitly requests otherwise.
 - Live planner: `https://deadsignaldb.com/build-planner/`
 - Hosting: Namecheap shared hosting / cPanel.
-- Deployment target: `$HOME/public_html/build-planner/`
-- cPanel repository path: `/home/deadthrr/repositories/dead-signal`
-- Remote: `https://github.com/raiinman/dead-signal.git`
+- Production planner target: `$HOME/public_html/build-planner/`
+- User deploy workflow: cPanel → Git Version Control → **Update from Remote** → **Deploy HEAD Commit** → hard refresh if needed.
 
-## 2. Non-negotiable workflow rule
+## 2. Non-negotiable deployment rule
 
 **Do not invent a new deployment workflow.**
 
-The working flow is:
+Namecheap shared hosting proved unreliable when `.cpanel.yml` performed runtime/build work such as Python, recursive scans, archive reconstruction/extraction, data transforms, or outbound release downloads.
 
-1. Commit finished source/static files to `raiinman/dead-signal` on `main`.
-2. User opens cPanel → Git Version Control.
-3. **Update from Remote**.
-4. **Deploy HEAD Commit**.
-5. Hard refresh browser with `Ctrl+Shift+R` when needed.
+A minimal deployment and then the current static deployment proved that **copy-only cPanel deployment is reliable**.
 
-### Critical shared-hosting discovery
+### HARD RULE
 
-Namecheap/cPanel shared hosting became unreliable when `.cpanel.yml` performed runtime/build work such as:
+> **Build/transform before deployment. cPanel only copies prepared static files.**
 
-- Python patch scripts
-- recursive `find` scans
-- archive reconstruction/unzip chains
-- server-side JS/data transforms
-- outbound GitHub Release downloads
+Current `.cpanel.yml` may use lightweight `mkdir`, `cp`, `rm`, and `echo`. Do **not** reintroduce Python, `find`, unzip/build chains, runtime patching, external downloads, or corpus rebuilding into normal cPanel deploys.
 
-A minimal deploy test proved that **copy-only deployment is reliable**.
+Persistent game PNGs under `/public_html/build-planner/assets/reference-images/` stay on hosting and are not recopied/scanned every deploy.
 
-### HARD DEPLOYMENT RULE
+## 3. Confirmed deployment breakthrough
 
-> **Build/transform in GitHub or locally. cPanel must only copy already-prepared static files.**
-
-Current `.cpanel.yml` is intentionally copy-only. Do **not** reintroduce Python, `find`, unzip/build chains, runtime patching, or external downloads into deployment without explicit user approval and a strong reason.
-
-## 3. Current deployment status
-
-### Last confirmed successful live deployment
-
-Commit confirmed by screenshot as both cPanel **HEAD Commit** and **Last Deployed SHA**:
+The first meaningful copy-only deployment that fully completed was commit:
 
 `c3a62dbb414ad1368850f60032890b4b4f0d75d4`
 
-`deploy-status.txt` reached:
+cPanel showed the same value for **HEAD Commit** and **Last Deployed SHA**, and `deploy-status.txt` reached:
 
 ```text
 Dead Signal static image deployment
@@ -63,143 +46,134 @@ OK copy Build Lab files
 COMPLETE static image deployment
 ```
 
-This was the breakthrough that proved copy-only deployment works.
+Git fetch and the deploy engine themselves were proven healthy. The earlier hangs were caused by complex server-side work.
 
-### Current repo state at time this handoff was created
+## 4. Current planner UI state
 
-Before this continuity file, latest work on `main` included visual polish through:
+Current direction is a full-width tactical Build Lab rather than a cramped dashboard.
 
-`b5ed8a0f5f02b8875b48e20961870ce4c11f5830`
+Recent confirmed/pushed changes:
 
-That polish may **not yet be deployed**. The next cPanel Update/Deploy will include it plus this continuity file commit, but `.cpanel.yml` only copies production Build Lab files.
+- Real hosted **weapon images** display in the picker and selected cards.
+- Real hosted **armor images** are mapped and display; armor was not missing from the miner.
+- Sidebar **Signal Status/radar block was removed** because it belongs to the main website, not the planner workspace.
+- **Cradle Overrides** is now a contained tactical sub-card with its own internal scroll instead of a page-length list.
+- The **Loadout Report** no longer consumes a permanent right rail. The planner uses full width and the report sits beneath the workspace in a wider, more readable layout.
+- The left navigation includes a **Loadout Report** jump link.
+- Typography received a readability bump; tiny 8–10px body/detail text should no longer be the default design target.
 
-## 4. Current live UI state
+Do not casually undo these changes to regain density. The user explicitly prioritized readability and usable workspace width.
 
-Confirmed by user screenshot after the successful static image deploy:
+## 5. Shared readability / accessibility system
 
-- Weapon picker opens correctly.
-- Real mined Once Human weapon artwork is visible in cards.
-- AKM, AUG, KAM variants, M416, etc. displayed real hosted images.
-- Two-column picker density remains intact.
-- Rarity borders/badges are visible.
-- User reaction: **“looking good!”**
+Readability is now a first-class Dead Signal feature.
 
-The image problem is therefore solved for weapon cards at the architecture level.
+Canonical shared files:
 
-### Latest visual polish pushed after that screenshot
+- `shared/readability.css`
+- `shared/readability.js`
 
-Pending/next visual pass includes:
+Build Lab loads them as:
 
-- larger weapon artwork inside image bays
-- less dead space around thumbnails
-- slightly stronger rarity framing/glow
-- subtle hover zoom
-- improved breathing room for selected/system/mod thumbnails
+- `/build-planner/readability.css`
+- `/build-planner/readability.js`
 
-Do not redesign the whole picker unless the user asks. Current direction is **small, surgical polish**.
+### Supported modes
 
-## 5. Image architecture
+- `compact` — high-density option
+- `default` — comfortable normal reading size
+- `large`
+- `xlarge`
 
-### Master assets
+The Build Lab sidebar exposes these as:
 
-The full mined asset archive is approximately **3 GB**, split into:
+`A− / A / A+ / A++`
 
-- `assets.7z.001`
-- `assets.7z.002`
-- `assets.7z.003`
-- `assets.7z.004`
-- `assets.7z.005`
-- `assets.7z.006`
-- `assets.7z.007`
+The controller stores the user preference in origin-wide `localStorage`:
 
-These are archival/source assets. **Do not upload the 3 GB set to normal web hosting or the Git repo.**
+`dead-signal-font-size`
 
-GitHub Release:
+Because localStorage is origin-wide, the same preference can follow the user between the planner and the WordPress site **once the WordPress theme loads the same shared files**.
 
-`game-assets-2026-08-09`
+### Typography architecture
 
-Release URL:
+`shared/readability.css` defines semantic `--ds-type-*` variables and maps the existing Build Lab typography onto them. New Dead Signal interfaces should use these variables instead of adding arbitrary tiny fixed pixel sizes.
 
-`https://github.com/raiinman/dead-signal/releases/tag/game-assets-2026-08-09`
+The system deliberately scales typography rather than applying browser-style page zoom, so game art and the whole layout do not unnecessarily balloon.
 
-### Slim player image pack
+### WordPress integration status
 
-File:
+The editable WordPress theme source (`functions.php` / enqueue code) is **not currently present in this GitHub repo**, based on repository search. Do not claim the main WordPress site is already wired to the readability system.
 
-`dead-signal-player-images-v1.3.zip`
+When the theme source is available, integrate these exact shared files and the same `dead-signal-font-size` setting so the user preference becomes truly site-wide.
 
-Verified size:
+## 6. Current Build Lab production files
 
-`13,265,970 bytes`
-
-SHA-256:
-
-`baaeccd8940cdc31c82d87d7c51c80c4bfe6986597ef42bc79602215571a6358`
-
-Contains exactly **712 PNG files**.
-
-The user manually uploaded and extracted this ZIP in cPanel so the physical PNGs persist on Namecheap hosting under:
-
-`public_html/build-planner/assets/reference-images/`
-
-Example known file:
-
-`public_html/build-planner/assets/reference-images/ar/ar_ak47_n-0ea00206dd9c.png`
-
-Browser path:
-
-`/build-planner/assets/reference-images/ar/ar_ak47_n-0ea00206dd9c.png`
-
-The images are served by **Namecheap web hosting**, not GitHub at runtime.
-
-## 6. Current browser-side image renderer
-
-The successful architecture uses a static browser-side enhancer:
-
-`preview/build-lab/player-images.js`
-
-It reads the existing `window.DS_COMMUNITY` corpus, resolves `imageAsset` / related image fields to hosted `/build-planner/assets/...` URLs, and injects media into:
-
-- picker cards
-- selected weapon cards
-- selected armor cards
-- system cards
-- mod groups
-
-It is loaded by `preview/build-lab/index.html` with a cache-busted version.
-
-Do not replace this with server-side patching unless there is a clear reason.
-
-## 7. Current copy-only cPanel deployment
-
-The working deployment copies prepared files from the repo into `$HOME/public_html/build-planner/`.
-
-Current production files copied include:
+The copy-only cPanel deployment currently copies prepared files including:
 
 - `preview/build-lab/index.html` → `index.html`
 - `preview/build-lab/build-lab.css` → `build-lab.css`
 - `preview/build-lab/media-enhancements.css` → `media-enhancements.css`
 - `preview/build-lab/density-enhancements.css` → `density-enhancements.css`
+- `preview/build-lab/planner-cleanup.css` → `planner-cleanup.css`
+- `shared/readability.css` → `readability.css`
+- `shared/readability.js` → `readability.js`
+- `preview/build-lab/armor-image-map.js` → `armor-image-map.js`
 - `preview/build-lab/player-images.js` → `player-images.js`
 
-The deploy also writes `deploy-status.txt` and removes obsolete `media-enhancements.js` / old test file where applicable.
+No runtime transformation belongs in this deployment.
 
-### Why this exists
+## 7. Image architecture
 
-Earlier deploys hung because cPanel shared hosting was asked to do runtime work. Important failed approaches:
+### Master assets
 
-1. Download image ZIP from GitHub Release during deploy → hung/unreliable.
-2. Put 13 MB image ZIP in repo and extract during deploy → still problematic.
-3. Recursive hosted image count (`find ... | wc -l`) → deploy stopped at `RUN persistent image verification`.
-4. Python `patch-player-media-v1.3.py` during deploy → targeted deploy hung again.
-5. Minimal echo-only `.cpanel.yml` → **worked immediately**.
-6. Copy-only static deployment → **worked immediately and advanced Last Deployed SHA**.
+The complete mined image/archive set is approximately **3 GB**, split into seven 7-Zip volumes (`assets.7z.001`–`.007`). These are archival/source assets and should **not** be pushed into normal Git history or normal web-hosting deployment.
 
-Do not repeat the failed approaches casually.
+GitHub Release:
+
+`game-assets-2026-08-09`
+
+### Slim player image pack
+
+`dead-signal-player-images-v1.3.zip`
+
+- size: `13,265,970` bytes
+- SHA-256: `baaeccd8940cdc31c82d87d7c51c80c4bfe6986597ef42bc79602215571a6358`
+- exactly **712 PNGs**
+
+The user manually uploaded/extracted this pack on Namecheap, so the PNGs persist under:
+
+`public_html/build-planner/assets/reference-images/`
+
+Known example:
+
+`/build-planner/assets/reference-images/ar/ar_ak47_n-0ea00206dd9c.png`
+
+### Browser renderer
+
+`preview/build-lab/player-images.js` reads `window.DS_COMMUNITY` and injects hosted imagery into picker cards, selected weapon/armor cards, systems, and mod groups.
+
+### Armor mapping
+
+Armor was **not** missed by the miner.
+
+Verified player-facing armor image coverage:
+
+- 173 armor records
+- 173/173 have image references
+- 173/173 resolved to physical PNGs
+- 172 unique physical armor PNGs because two records share one image
+- zero missing armor mappings
+
+Static exact mapping lives in:
+
+`preview/build-lab/armor-image-map.js`
+
+It is loaded before `player-images.js` and copied statically by cPanel.
 
 ## 8. Player-facing v1.3 database status
 
-Current normalized player-facing corpus counts:
+Normalized player-facing corpus:
 
 - Weapons: **120**
 - Armor: **173**
@@ -212,58 +186,62 @@ Current normalized player-facing corpus counts:
 - Usable Ammo: **144**
 - Build-relevant Consumables: **150**
 
-Data quality checks previously passed for player-facing use:
+Quality checks previously passed for player-facing use:
 
 - readable Mod effects
 - readable Cradle effects
 - Deviations have readable abilities/descriptions
 - all 23 armor sets have bonuses
 - ammo/calibration compatibility validates to weapon classes
-- 8 old attachment rows remain unresolved for exact weapon compatibility and should be marked unresolved
+- 8 old attachment rows remain unresolved for exact weapon compatibility and should stay marked unresolved
 - junk/internal text removed from player-facing corpus
 
-Current priority remains:
+Priority remains:
 
-> **Finish player-facing database + imagery + planner UX first. Exact combat math/stat modeling comes later.**
+> **Finish player-facing database + imagery + UX before exact combat math/stat modeling.**
 
-## 9. Miner/source hierarchy
+## 9. Image coverage notes
 
-When resolving factual game data, use this practical hierarchy:
+Known intentional no-image consumables:
+
+- Whim Potion: Chloro-armor
+- Whim Potion: Fluid Type
+- Whim Potion: Predator
+- Whim Potion: Utter Delight
+- Whim Time
+
+Broad player-facing image coverage after mapping work:
+
+- weapons: 120/120
+- armor: 173/173
+- mods: 817/817 mapped at data level
+- attachments: 108/108
+- deviations: 97/97
+- cradles: 120/120
+- calibrations: 94/94
+- ammo: 144/144
+- consumables: 145/150
+- armorSets: 23/23
+
+Continue category-by-category browser presentation work instead of bringing back deploy-time resolvers.
+
+## 10. Game Miner / factual hierarchy
+
+For factual data use this practical hierarchy:
 
 1. **Game Miner** for directly extractable installed-game facts
 2. **OnceHumanDB**
 3. **Wikily**
 4. **Official Once Human sources** for current-patch/system corrections and authoritative change notes
 
-Do not blindly expose mined runtime/system rows. Filter to current, player-visible information.
+Do not blindly expose runtime/system rows from the miner. Filter to player-visible/current data.
 
-## 10. Game Miner summary
+The miner parsed Once Human `script.npk` with **0 parse errors**.
 
-The local miner successfully parsed Once Human `script.npk` with **0 parse errors**.
-
-Important raw datasets included:
-
-- weapons
-- armor sets
-- attachments
-- relationships
-- cradles
-- mods
-- reference-images
-- buffs
-- statuses
-- deviations
-- image-coverage
-- progression
-- calibrations
-- consumables
-- ammo
-- skills
-
-Notable raw counts:
+Important raw counts:
 
 - weapons: 120
-- armor: 173 player-facing pieces after normalization
+- armor: 173 normalized player-facing pieces
 - mods: 1,618 raw
 - attachments: 202 raw
 - cradles: 170 raw / 120 unique player-facing
@@ -274,64 +252,35 @@ Notable raw counts:
 - relationships: 10,830
 - reference image mappings: ~30,939 distinct, ~28,504 resolved
 
-Large forensic index `reference-tracer.sqlite` is roughly 255 MB with ~1.35M occurrences. **Do not upload it to normal production repo/hosting.**
+`reference-tracer.sqlite` is roughly 255 MB with ~1.35M occurrences. **Do not upload it to normal production.**
 
-## 11. Image coverage notes
+## 11. Product/design direction
 
-The slim 712-file player image set covers the player-facing corpus broadly.
+Dead Signal aims for:
 
-Known no-image consumables with no resolved `imageRef`:
-
-- Whim Potion: Chloro-armor
-- Whim Potion: Fluid Type
-- Whim Potion: Predator
-- Whim Potion: Utter Delight
-- Whim Time
-
-These can intentionally remain placeholders unless a valid image source is later found.
-
-Earlier audit showed records with image assets available for:
-
-- weapons: 120/120
-- armor: 173/173 after mapping/resolution work
-- mods: 817/817
-- attachments: 108/108
-- deviations: 97/97
-- cradles: 120/120
-- calibrations: 94/94
-- ammo: 144/144
-- consumables: 145/150
-- armorSets: 23/23
-
-Current browser-side renderer should be extended/tuned category by category rather than reintroducing deployment-time resolvers.
-
-## 12. Product/design direction
-
-Dead Signal aims to combine/surpass:
-
-- Wikily polish
 - OnceHumanDB depth
+- Wikily polish
 - OhDex visual immediacy
 - Dead Signal’s own high-end tactical/command-center identity
 
 Design language:
 
 - dark tactical intelligence terminal
-- background near `#06080a`
-- red accents (`#e51f2b`, bright red near `#ff3440`)
+- background around `#06080a`
+- red accents around `#e51f2b` / `#ff3440`
 - angular cards
-- restrained scanline/signal/radar motifs
-- fixed left navigation on Build Lab
+- restrained scanline/signal motifs
+- fixed left Build Lab navigation
 - natural readable typography
-- rarity should be readable but not gaudy
+- rarity readable but not gaudy
 - homepage = cinematic front door
 - planner = operations room / Build Lab
 
-User likes bold/out-of-pocket design thinking, but continuity and functionality matter more than random redesigns.
+**Readability now outranks maximum information density.**
 
-## 13. Planner feature baseline
+## 12. Planner feature baseline
 
-Existing planner architecture already supports:
+Planner already supports:
 
 - 3 weapon slots
 - ammo
@@ -351,69 +300,69 @@ Existing planner architecture already supports:
 - share links
 - compatibility filtering
 
-The main problem was data/image completeness, not basic planner architecture.
+The main historical problem was data/image completeness, not the underlying planner architecture.
 
-## 14. Current game-system modeling rules
+## 13. Current game-system modeling rules
 
-See `PROJECT-RULES.md` for detailed canonical rules. Important examples:
+Read `PROJECT-RULES.md` for canonical rules. Key examples:
 
 - Gear Tier is I–V only.
 - Blueprint stars are separate from Gear Tier.
-- Current weapon calibration blueprint model follows the post-Jan-21-2026 system rather than obsolete gear calibration behavior.
-- Current Mod 2.0 behavior should be modeled instead of old random-subattribute assumptions.
-- Planner fidelity comes before advanced combat/proc math.
+- Current weapon calibration model follows the post-Jan-21-2026 system rather than obsolete Gear Calibration behavior.
+- Current Mod 2.0 behavior should be modeled instead of legacy random-subattribute assumptions.
+- Planner fidelity comes before advanced damage/proc math.
+- Readability/accessibility system is canonical and should be reused by new pages.
 
-## 15. Files worth reading first in a future session
+## 14. Files future sessions should read first
 
-Read these before editing:
+1. `AI-CONTINUITY.md`
+2. `PROJECT-RULES.md`
+3. `.cpanel.yml`
+4. `shared/readability.css`
+5. `shared/readability.js`
+6. `preview/build-lab/index.html`
+7. `preview/build-lab/planner-cleanup.css`
+8. `preview/build-lab/player-images.js`
+9. `preview/build-lab/armor-image-map.js`
+10. `preview/build-lab/media-enhancements.css`
+11. `preview/build-lab/build-lab.css`
+12. `preview/build-lab/density-enhancements.css`
 
-1. `AI-CONTINUITY.md` — this file
-2. `PROJECT-RULES.md` — canonical product/game modeling constraints
-3. `.cpanel.yml` — deployment must remain copy-only
-4. `preview/build-lab/index.html`
-5. `preview/build-lab/player-images.js`
-6. `preview/build-lab/media-enhancements.css`
-7. `preview/build-lab/build-lab.css`
-8. `preview/build-lab/density-enhancements.css`
+Old `deploy/patch-*.py` files are historical artifacts and are **not** part of normal live deployment.
 
-Do not assume old `deploy/patch-*.py` scripts are still part of the live deployment. Many are historical artifacts from the old runtime-patching workflow.
+## 15. Immediate next steps
 
-## 16. Immediate next steps from this handoff
+1. Deploy the current Build Lab readability controls with the normal copy-only cPanel workflow.
+2. Test all four text modes at normal browser zoom, especially picker cards, Armor, Build Systems, Cradles, and Loadout Report.
+3. Adjust any clipping/wrapping found at `large` or `xlarge` without shrinking the global mode back down.
+4. Continue player-facing imagery for Deviations / Mods / Cradles / other systems as needed.
+5. When the WordPress theme source becomes available, enqueue `shared/readability.css/js` on the main site and surface the same preference/control in the main navigation/sidebar so the setting is genuinely site-wide.
+6. After imagery + UX are solid, move into exact stats/combat math.
 
-At the time this file was created, the next work should be:
-
-1. Deploy/check the latest visual polish commit(s) using the proven copy-only cPanel workflow.
-2. Inspect Primary Weapon picker after polish.
-3. Open **Armor picker** and verify hosted imagery there.
-4. Tune armor presentation if necessary.
-5. Check Deviations / systems / mods / Cradles visually and extend the browser-side enhancer where needed.
-6. Keep expanding player-facing imagery/UX until the planner feels visually complete.
-7. Only after player-facing database + imagery + UX are solid, move into specific exact stats and combat math.
-
-## 17. Continuity rules for future AI sessions
+## 16. Continuity rules for future AI sessions
 
 - **Read this file first.**
 - Do not create new branches unless the user asks.
-- Work directly on `main` when authorized, as has been the established workflow.
-- Do not change hosting/deployment architecture without discussing it with the user.
+- Work on `main` under the established workflow.
+- Do not change deployment architecture without discussing it with the user.
 - Preserve copy-only cPanel deployment.
-- Do not upload the 3 GB master asset archive to production hosting or normal Git history.
-- Do not put `reference-tracer.sqlite` into normal production.
-- Keep real images on Namecheap hosting under `assets/reference-images/`.
-- Prefer small, testable UI changes and live screenshots over giant rewrites.
-- When something breaks, isolate the exact layer before changing unrelated code.
-- Update this file whenever a major milestone changes the project state.
+- Do not upload the 3 GB master archive or `reference-tracer.sqlite` to normal production.
+- Keep real images on Namecheap under `assets/reference-images/`.
+- Prefer small, testable UI changes and screenshot/live iteration over giant rewrites.
+- Isolate the broken layer before changing unrelated code.
+- Do not make the user re-explain project history when this file/repo can answer it.
+- Update this file after major milestones.
 
-## 18. User interaction/work style notes relevant to this project
+## 17. User workflow preferences relevant to this project
 
-- User prefers direct action and live iteration over long abstract planning.
-- User wants screenshots/visual confirmation and practical steps.
-- User gets frustrated when established workflows are changed without need.
-- Do not make them re-explain project history when this file or repo can answer it.
-- Keep instructions compact and sequential.
+- Direct action and live iteration are preferred over long abstract planning.
+- Screenshots/visual confirmation are valuable.
+- Established workflows should not be changed without a strong reason.
+- Keep deploy instructions compact and sequential.
+- Accessibility/readability is explicitly a priority.
 
 ---
 
 ### Continuity checkpoint
 
-If a future AI session can read this file, it should be able to resume Dead Signal without relying on the original long chat transcript.
+A future AI session that reads this file should be able to resume Dead Signal without relying on the original long chat transcript.
