@@ -15,6 +15,8 @@ deployment:
     - /bin/sh -c 'PY=$(command -v python3 || command -v python); test -n "$PY" || { echo "Python is required for the Dead Signal v1.2.6 deployment patch"; exit 1; }; "$PY" deploy/patch-v1.2.6.py "$DEPLOYPATH"'
     - /bin/sh -c 'PY=$(command -v python3 || command -v python); test -n "$PY" || { echo "Python is required for the Dead Signal v1.2.7 deployment patch"; exit 1; }; "$PY" deploy/patch-v1.2.7.py "$DEPLOYPATH"'
     - /bin/sh -c 'PY=$(command -v python3 || command -v python); test -n "$PY" || { echo "Python is required for the Dead Signal v1.2.8 deployment patch"; exit 1; }; "$PY" deploy/patch-v1.2.8.py "$DEPLOYPATH"'
+    - /bin/echo '[Dead Signal] Installing direct player media renderer...'
+    - /bin/sh -c 'PY=$(command -v python3 || command -v python); test -n "$PY" || { echo "Python is required for the Dead Signal player media renderer"; exit 1; }; "$PY" deploy/patch-player-media-v1.3.py "$DEPLOYPATH"'
     - /bin/echo '[Dead Signal] Installing player-facing v1.3 corpus...'
     - /bin/cat deploy/player-corpus-v1.3.b64.part* | /usr/bin/base64 -d > /tmp/dead-signal-player-corpus-v1.3.zip
     - /usr/bin/unzip -o /tmp/dead-signal-player-corpus-v1.3.zip -d $DEPLOYPATH
@@ -26,7 +28,7 @@ deployment:
     - /bin/cp -f preview/build-lab/index.html $DEPLOYPATH/index.html
     - /bin/cp -f preview/build-lab/build-lab.css $DEPLOYPATH/build-lab.css
     - /bin/cp -f preview/build-lab/media-enhancements.css $DEPLOYPATH/media-enhancements.css
-    - /bin/cp -f preview/build-lab/media-enhancements.js $DEPLOYPATH/media-enhancements.js
     - /bin/cp -f preview/build-lab/density-enhancements.css $DEPLOYPATH/density-enhancements.css
+    - /bin/rm -f $DEPLOYPATH/media-enhancements.js
     - /bin/rm -f /tmp/dead-signal-site-v1.2.zip /tmp/dead-signal-player-corpus-v1.3.zip
-    - /bin/echo '[Dead Signal] Build Lab deployment complete — hosted imagery enabled.'
+    - /bin/echo '[Dead Signal] Build Lab deployment complete — direct hosted imagery enabled.'
