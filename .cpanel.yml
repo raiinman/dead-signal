@@ -12,6 +12,16 @@ deployment:
     - /bin/cp -f preview/build-lab/planner-cleanup.css $DEPLOYPATH/planner-cleanup.css
     - /bin/cp -f preview/build-lab/build-mode.css $DEPLOYPATH/build-mode.css
     - /bin/cp -f preview/build-lab/build-mode.js $DEPLOYPATH/build-mode.js
+    - /bin/cp -f preview/build-lab/weapon-model.css $DEPLOYPATH/weapon-model.css
+    - /bin/cp -f preview/build-lab/weapon-model-ui.js $DEPLOYPATH/weapon-model-ui.js
+    - /bin/cp -f preview/build-lab/wm-data-01.js $DEPLOYPATH/wm-data-01.js
+    - /bin/cp -f preview/build-lab/wm-data-02.js $DEPLOYPATH/wm-data-02.js
+    - /bin/cp -f preview/build-lab/wm-data-03.js $DEPLOYPATH/wm-data-03.js
+    - /bin/cp -f preview/build-lab/wm-data-04.js $DEPLOYPATH/wm-data-04.js
+    - /bin/cp -f preview/build-lab/wm-data-05.js $DEPLOYPATH/wm-data-05.js
+    - /bin/cp -f preview/build-lab/wm-data-06.js $DEPLOYPATH/wm-data-06.js
+    - /bin/cp -f preview/build-lab/wm-data-07.js $DEPLOYPATH/wm-data-07.js
+    - /bin/cp -f preview/build-lab/wm-data-08.js $DEPLOYPATH/wm-data-08.js
     - /bin/cp -f shared/readability.css $DEPLOYPATH/readability.css
     - /bin/cp -f shared/readability.js $DEPLOYPATH/readability.js
     - /bin/cp -f preview/build-lab/armor-image-map.js $DEPLOYPATH/armor-image-map.js
