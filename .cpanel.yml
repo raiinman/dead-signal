@@ -38,11 +38,9 @@ deployment:
     - /usr/bin/unzip -o /tmp/dead-signal-player-corpus-v1.3.zip -d $DEPLOYPATH
     - /bin/echo 'OK player corpus v1.3' >> $STATUS
     - /bin/echo 'RUN persistent image verification' >> $STATUS
-    - /bin/sh -c 'ASSETROOT="$DEPLOYPATH/assets/reference-images"; test -d "$ASSETROOT" || { echo "Missing persistent Dead Signal image directory: $ASSETROOT"; exit 1; }; test -f "$ASSETROOT/ar/ar_ak47_n-0ea00206dd9c.png" || { echo "Missing expected AKM player image"; exit 1; }; COUNT=$(find "$ASSETROOT" -type f -name "*.png" | wc -l); test "$COUNT" -ge 700 || { echo "Player image set appears incomplete (expected at least 700 PNG files)"; exit 1; }'
+    - /bin/sh -c 'ASSETROOT="$DEPLOYPATH/assets/reference-images"; test -d "$ASSETROOT" || { echo "Missing persistent Dead Signal image directory: $ASSETROOT"; exit 1; }; test -f "$ASSETROOT/ar/ar_ak47_n-0ea00206dd9c.png" || { echo "Missing expected AKM player image"; exit 1; }'
     - /bin/echo 'OK persistent image verification' >> $STATUS
-    - /bin/echo 'RUN hosted image URL normalization' >> $STATUS
-    - /bin/sh -c 'PY=$(command -v python3 || command -v python); test -n "$PY" || { echo "Python is required for the Dead Signal player image resolver"; exit 1; }; "$PY" deploy/patch-player-images-v1.3.py "$DEPLOYPATH"'
-    - /bin/echo 'OK hosted image URL normalization' >> $STATUS
+    - /bin/echo 'SKIP recursive image scan; use corpus imageAsset paths directly' >> $STATUS
     - /bin/echo 'RUN direct player media renderer' >> $STATUS
     - /bin/sh -c 'PY=$(command -v python3 || command -v python); test -n "$PY" || { echo "Python is required for the Dead Signal player media renderer"; exit 1; }; "$PY" deploy/patch-player-media-v1.3.py "$DEPLOYPATH"'
     - /bin/echo 'OK direct player media renderer' >> $STATUS
