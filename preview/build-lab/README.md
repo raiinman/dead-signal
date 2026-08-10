@@ -1,7 +1,7 @@
-# Dead Signal Build Lab visual pass
+# Build Lab presentation layer
 
-This folder contains the current live Build Lab visual overlay for the Ultimate Planner.
+Despite the `preview` directory name, these files are part of the live Build Lab deployment.
 
-Deployment remains on the normal Dead Signal flow from `main`: the existing v1.2 bundle is reconstructed, deployment patches through v1.2.8 are applied, then these Build Lab presentation files are copied over the live planner shell.
+`.cpanel.yml` copies `index.html`, the Build Lab CSS files, and `media-enhancements.js` into `$HOME/public_html/build-planner/` after the planner base, v1.3 player corpus, and image pack are installed.
 
-The existing planner engine and `data/community-data.js` remain the functional/data baseline while v1.3 corpus work continues.
+Do not remove this directory while `.cpanel.yml` references it.

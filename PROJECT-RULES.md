@@ -1,17 +1,17 @@
 # Dead Signal — Canonical Planner Rules
 
-These rules are project constraints for the community-first Ultimate Planner.
+These are the working constraints for the Ultimate Planner.
 
 ## Product direction
-- Build the complete planner/builder before advanced damage math.
-- Community data is the working corpus while planner UX/schema are stabilized.
-- Mined data integration remains a later phase.
+- Finish the player-facing database, imagery, and planner workflow before advanced damage math.
+- The normalized v1.3 player corpus is the current planner baseline.
+- Mined game data is integrated and should be preferred for extractable factual data; community and official references are used to validate, fill gaps, and correct current-patch behavior.
 - Do not invent mechanics or numeric relationships that are not verified.
 
 ## Provenance / transparency
 - Preserve source provenance internally on records.
 - Show plain-text attribution to users when useful (for example: `Source: Wikily`, `Source: OnceHumanDB`, `Source: Once Human Official`).
-- Absolutely no outbound source links or clickable link-backs in the Dead Signal UI.
+- Do not add outbound source links or clickable link-backs in the Dead Signal UI.
 
 ## Gear progression terminology
 - Gear Tier is I–V only. There is no Gear Tier VI.

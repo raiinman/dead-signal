@@ -2,7 +2,9 @@
 deployment:
   tasks:
     - export DEPLOYPATH=$HOME/public_html/build-planner/
+    - /bin/echo '[Dead Signal] Starting Build Lab deployment...'
     - /bin/mkdir -p $DEPLOYPATH
+    - /bin/echo '[Dead Signal] Installing base planner...'
     - /bin/cat deploy/site-v1.2.b64.part* | /usr/bin/base64 -d > /tmp/dead-signal-site-v1.2.zip
     - /usr/bin/unzip -o /tmp/dead-signal-site-v1.2.zip -d $DEPLOYPATH
     - /bin/sh -c 'PY=$(command -v python3 || command -v python); test -n "$PY" || { echo "Python is required for the Dead Signal v1.2.1 deployment patch"; exit 1; }; "$PY" deploy/patch-v1.2.1.py "$DEPLOYPATH"'
@@ -13,14 +15,19 @@ deployment:
     - /bin/sh -c 'PY=$(command -v python3 || command -v python); test -n "$PY" || { echo "Python is required for the Dead Signal v1.2.6 deployment patch"; exit 1; }; "$PY" deploy/patch-v1.2.6.py "$DEPLOYPATH"'
     - /bin/sh -c 'PY=$(command -v python3 || command -v python); test -n "$PY" || { echo "Python is required for the Dead Signal v1.2.7 deployment patch"; exit 1; }; "$PY" deploy/patch-v1.2.7.py "$DEPLOYPATH"'
     - /bin/sh -c 'PY=$(command -v python3 || command -v python); test -n "$PY" || { echo "Python is required for the Dead Signal v1.2.8 deployment patch"; exit 1; }; "$PY" deploy/patch-v1.2.8.py "$DEPLOYPATH"'
+    - /bin/echo '[Dead Signal] Installing player-facing v1.3 corpus...'
     - /bin/cat deploy/player-corpus-v1.3.b64.part* | /usr/bin/base64 -d > /tmp/dead-signal-player-corpus-v1.3.zip
     - /usr/bin/unzip -o /tmp/dead-signal-player-corpus-v1.3.zip -d $DEPLOYPATH
-    - /bin/sh -c 'URL="https://github.com/raiinman/dead-signal/releases/download/game-assets-2026-08-09/dead-signal-player-images-v1.3.zip"; OUT="/tmp/dead-signal-player-images-v1.3.zip"; if command -v curl >/dev/null 2>&1; then curl -LfsS "$URL" -o "$OUT"; elif command -v wget >/dev/null 2>&1; then wget -qO "$OUT" "$URL"; else echo "curl or wget is required for the Dead Signal player image pack"; exit 1; fi; echo "baaeccd8940cdc31c82d87d7c51c80c4bfe6986597ef42bc79602215571a6358  $OUT" | sha256sum -c -; unzip -o "$OUT" -d "$DEPLOYPATH"; test -f "$DEPLOYPATH/assets/reference-images/ar/ar_ak47_n-0ea00206dd9c.png" || { echo "Dead Signal image pack extracted without expected AKM asset"; exit 1; }'
+    - /bin/echo '[Dead Signal] Installing player image pack...'
+    - /bin/sh -c 'echo "baaeccd8940cdc31c82d87d7c51c80c4bfe6986597ef42bc79602215571a6358  deploy/dead-signal-player-images-v1.3.zip" | sha256sum -c -; unzip -o deploy/dead-signal-player-images-v1.3.zip -d "$DEPLOYPATH"; test -f "$DEPLOYPATH/assets/reference-images/ar/ar_ak47_n-0ea00206dd9c.png" || { echo "Dead Signal image pack extracted without expected AKM asset"; exit 1; }'
+    - /bin/echo '[Dead Signal] Resolving image paths...'
     - /bin/sh -c 'PY=$(command -v python3 || command -v python); test -n "$PY" || { echo "Python is required for the Dead Signal player image resolver"; exit 1; }; "$PY" deploy/patch-player-images-v1.3.py "$DEPLOYPATH"'
+    - /bin/echo '[Dead Signal] Installing Build Lab presentation layer...'
     - /bin/cp -f preview/build-lab/index.html $DEPLOYPATH/index.html
     - /bin/cp -f preview/build-lab/build-lab.css $DEPLOYPATH/build-lab.css
     - /bin/cp -f preview/build-lab/media-enhancements.css $DEPLOYPATH/media-enhancements.css
     - /bin/cp -f preview/build-lab/media-enhancements.js $DEPLOYPATH/media-enhancements.js
     - /bin/cp -f preview/build-lab/density-enhancements.css $DEPLOYPATH/density-enhancements.css
     - /bin/sed -i 's/media-enhancements.js?v=preview-2/media-enhancements.js?v=images-v1.3/g' $DEPLOYPATH/index.html
-    - /bin/rm -f /tmp/dead-signal-site-v1.2.zip /tmp/dead-signal-player-corpus-v1.3.zip /tmp/dead-signal-player-images-v1.3.zip
+    - /bin/rm -f /tmp/dead-signal-site-v1.2.zip /tmp/dead-signal-player-corpus-v1.3.zip
+    - /bin/echo '[Dead Signal] Build Lab deployment complete.'

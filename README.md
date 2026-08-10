@@ -1,66 +1,35 @@
 # Dead Signal
 
-Dead Signal is a community-first Once Human build planner. The current production bundle is deployed to Namecheap/cPanel from this repository.
+Dead Signal is an independent Once Human database and build-planning project. The current player-facing planner is deployed from this repository to `https://deadsignaldb.com/build-planner/`.
 
-## Deployment layout
+## Repository layout
 
-- `.cpanel.yml` contains the cPanel deployment recipe.
-- `deploy/site.b64.part*` contains the production site bundle split into text-safe parts.
-- cPanel reconstructs the bundle and extracts it into `$HOME/public_html` when **Deploy HEAD Commit** is run.
+- `.cpanel.yml` — canonical cPanel deployment recipe.
+- `deploy/site-v1.2.b64.part*` — base planner bundle.
+- `deploy/patch-v1.2.*.py` — incremental planner patches still required by the current base bundle.
+- `deploy/player-corpus-v1.3.b64.part*` — normalized player-facing v1.3 data corpus.
+- `deploy/dead-signal-player-images-v1.3.zip` — slim player-facing image pack.
+- `deploy/patch-player-images-v1.3.py` — resolves mined image references after extraction.
+- `preview/build-lab/` — live Build Lab presentation files copied over the planner shell during deployment. The folder name is historical; these files are production inputs.
 
-## One-time Namecheap/cPanel setup
+## Deployment
 
-This repository is private, so cPanel needs a dedicated read-only GitHub SSH deploy key.
+Dead Signal uses one deployment path:
 
-1. In cPanel, open **Terminal** and run:
+1. Update `main`.
+2. In cPanel Git Version Control, run **Update from Remote**.
+3. Run **Deploy HEAD Commit**.
 
-   ```bash
-   mkdir -p ~/.ssh
-   chmod 700 ~/.ssh
-   ssh-keygen -t rsa -b 4096 -f ~/.ssh/dead-signal -C "dead-signal-deploy"
-   cat ~/.ssh/dead-signal.pub
-   ```
+The planner deploys to:
 
-   For this dedicated read-only deployment key, leave the passphrase blank so cPanel can pull without an interactive prompt.
+```text
+$HOME/public_html/build-planner/
+```
 
-2. Copy the full public key printed by the last command.
-3. In GitHub open **raiinman/dead-signal → Settings → Deploy keys → Add deploy key**.
-   - Title: `Namecheap cPanel`
-   - Paste the public key.
-   - Leave **Allow write access** unchecked.
-4. Back in cPanel Terminal, configure SSH to use that key for GitHub:
+The deploy reconstructs the base planner, applies required patches, installs the v1.3 player corpus and local image pack, resolves image paths, then copies the Build Lab presentation layer.
 
-   ```bash
-   cat > ~/.ssh/config <<'EOF'
-   Host github.com
-     HostName github.com
-     User git
-     IdentityFile ~/.ssh/dead-signal
-     IdentitiesOnly yes
-   EOF
-   chmod 600 ~/.ssh/config
-   ssh -T git@github.com
-   ```
+## Current development phase
 
-5. In **cPanel → Files → Git Version Control → Create**:
-   - Clone a Repository: **On**
-   - Clone URL: `git@github.com:raiinman/dead-signal.git`
-   - Repository Path: `repositories/dead-signal`
-   - Repository Name: `Dead Signal`
-6. Create the repository.
-7. Open **Manage → Pull or Deploy**.
-8. Click **Update from Remote** and then **Deploy HEAD Commit**.
+Finish player-facing database completeness and imagery first. Exact combat/stat modeling comes after the visible corpus is stable and verified.
 
-The current `.cpanel.yml` deploys to the main account document root: `$HOME/public_html`.
-
-> If Dead Signal should live in a subdomain/addon-domain document root instead, change `DEPLOYPATH` in `.cpanel.yml` before deploying.
-
-## Normal update flow
-
-After the one-time setup:
-
-1. Update this GitHub repository.
-2. In cPanel Git Version Control click **Update from Remote**.
-3. Click **Deploy HEAD Commit**.
-
-The site files in `public_html` are overwritten as needed; the deployment script does not wipe unrelated files.
+Do not invent missing game mechanics or numeric relationships. Preserve uncertainty until the underlying data can be verified.
