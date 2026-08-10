@@ -16,6 +16,15 @@ These are the working constraints for the Ultimate Planner.
 - Persistent hosted game imagery under `/public_html/build-planner/assets/reference-images/` is not rebuilt or scanned during normal deploys.
 - Do not add server-side Python, recursive `find`, archive reconstruction/extraction, external downloads, or other runtime build steps back into normal cPanel deployment.
 
+## Readability / accessibility
+- Readability is a product requirement, not optional polish. Do not optimize information density to the point that normal text requires squinting.
+- The canonical text-size system lives in `shared/readability.css` and `shared/readability.js`.
+- Supported user modes are `compact`, `default`, `large`, and `xlarge`; **Default must remain a comfortable reading size** and Compact is the high-density option.
+- The selected mode is stored origin-wide in `localStorage` under `dead-signal-font-size`, so the same preference can follow the user between Dead Signal sections on the same domain.
+- New Dead Signal interfaces should map typography onto the shared semantic `--ds-type-*` variables rather than adding arbitrary fixed tiny font sizes.
+- The Build Lab exposes the control as `A− / A / A+ / A++` in the left sidebar. Other site sections should use the same setting and shared controller when integrated.
+- Text scaling should prioritize typography, not browser-style page zoom; do not unnecessarily enlarge game art or destroy layout proportions.
+
 ## Provenance / transparency
 - Preserve source provenance internally on records.
 - Show plain-text attribution to users when useful (for example: `Source: Wikily`, `Source: OnceHumanDB`, `Source: Once Human Official`).
