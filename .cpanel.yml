@@ -16,6 +16,9 @@ deployment:
     - /bin/cp -f preview/build-lab/weapon-model-ui.js $DEPLOYPATH/weapon-model-ui.js
     - /bin/cp -f preview/build-lab/weapon-layout.css $DEPLOYPATH/weapon-layout.css
     - /bin/cp -f preview/build-lab/weapon-layout.js $DEPLOYPATH/weapon-layout.js
+    - /bin/cp -f preview/build-lab/calibration-details.css $DEPLOYPATH/calibration-details.css
+    - /bin/cp -f preview/build-lab/calibration-rules.js $DEPLOYPATH/calibration-rules.js
+    - /bin/cp -f preview/build-lab/calibration-details-ui.js $DEPLOYPATH/calibration-details-ui.js
     - /bin/cp -f preview/build-lab/wm-data-01.js $DEPLOYPATH/wm-data-01.js
     - /bin/cp -f preview/build-lab/wm-data-02.js $DEPLOYPATH/wm-data-02.js
     - /bin/cp -f preview/build-lab/wm-data-03.js $DEPLOYPATH/wm-data-03.js
