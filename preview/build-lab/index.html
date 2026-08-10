@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="build-lab.css?v=planner-cleanup-1">
 <link rel="stylesheet" href="media-enhancements.css?v=image-polish-1">
 <link rel="stylesheet" href="density-enhancements.css?v=preview-3">
-<link rel="stylesheet" href="planner-cleanup.css?v=1.3.5-cradles">
+<link rel="stylesheet" href="planner-cleanup.css?v=1.3.6-report-layout">
 </head>
 <body>
 <aside class="ds-sidebar" aria-label="Build Lab navigation">
@@ -26,13 +26,14 @@
       <li><a href="#section-armor"><span class="ds-nav-icon">◇</span><span>Armor + Mods</span></a></li>
       <li><a href="#section-systems"><span class="ds-nav-icon">◉</span><span>Build Systems</span></a></li>
       <li><a href="#section-notes"><span class="ds-nav-icon">≡</span><span>Build Notes</span></a></li>
+      <li><a href="#section-report"><span class="ds-nav-icon">▤</span><span>Loadout Report</span></a></li>
     </ul>
   </nav>
   <div class="ds-side-foot">DEAD SIGNAL // INDEPENDENT COMMUNITY TOOL</div>
 </aside>
 <div class="ds-page" id="top">
 <header class="topbar">
-  <div class="brand"><div class="eyebrow">DEAD SIGNAL // BUILD LAB</div><h1>ULTIMATE PLANNER <span>PLAYER v1.3.5</span></h1></div>
+  <div class="brand"><div class="eyebrow">DEAD SIGNAL // BUILD LAB</div><h1>ULTIMATE PLANNER <span>PLAYER v1.3.6</span></h1></div>
   <div class="actions">
     <button id="presetBtn">Templates</button><button id="saveBtn">Save</button><button id="loadBtn">My Builds</button><button id="cloneBtn">Clone</button><button id="importBtn">Import</button><button id="exportBtn">Export</button><button id="shareBtn" class="primary">Copy Share Link</button><button id="resetBtn" class="danger-ghost">New</button><input id="importFile" type="file" accept="application/json,.json" hidden>
   </div>
@@ -47,7 +48,7 @@
 <section class="panel" id="section-armor"><div class="section-title"><span>02</span><div><small>ARMOR</small><h2>Gear + Mods</h2></div></div><div class="section-toolbar"><button data-pick="armorSet" class="primary-soft">Equip Armor Set</button><button id="clearArmorBtn">Clear Armor</button><span>Quick-equip fills every available piece in a set; key armor can still replace individual slots.</span></div><div id="armor" class="armor-grid"></div></section>
 <section class="panel" id="section-systems"><div class="section-title"><span>03</span><div><small>BUILD SYSTEMS</small><h2>Deviation, Cradles & Consumables</h2></div></div><div class="systems-grid"><div id="deviationSlot"></div><div id="foodSlot"></div><div id="drinkSlot"></div><div id="whimSlot"></div></div><div class="cradle-panel"><div class="subheading-row cradle-panel-head"><div><small>LOADOUT SYSTEM</small><h3>Cradle Overrides</h3></div><span id="cradleCount"></span></div><div class="cradle-scroll"><div id="cradles" class="cradles"></div></div></div></section>
 <section class="panel" id="section-notes"><div class="section-title"><span>04</span><div><small>BUILD NOTES</small><h2>Rotation, alternatives & farming notes</h2></div></div><textarea id="buildNotes" rows="7" placeholder="Rotation, alternate pieces, desired mod suffixes, farming notes, unresolved community information..."></textarea></section>
-</div><aside class="panel summary-panel"><div class="sticky"><div class="section-title"><span>DS</span><div><small>BUILD OVERVIEW</small><h2>Loadout Report</h2></div></div><div id="completion"></div><div id="summary"></div></div></aside></section></main>
+</div><aside class="panel summary-panel" id="section-report"><div class="sticky"><div class="section-title"><span>DS</span><div><small>BUILD OVERVIEW</small><h2>Loadout Report</h2></div></div><div id="completion"></div><div id="summary"></div></div></aside></section></main>
 <footer class="site-footer"><div class="footer-inner"><div><b>DEAD SIGNAL</b><span>Independent Once Human community planner.</span></div><p><strong>Community &amp; reference resources:</strong> Once Human Official · OnceHumanDB · Wikily. Resource names are provided as plain-text attribution only. Dead Signal is not affiliated with or endorsed by these services.</p></div></footer>
 </div>
 <dialog id="picker"><div class="dialog-head"><div><small id="pickerKicker">SELECT</small><h2 id="pickerTitle">Choose</h2></div><button id="pickerClose" aria-label="Close">×</button></div><div class="picker-tools"><input id="pickerSearch" placeholder="Search player-facing corpus..." autocomplete="off"><select id="pickerRarity" aria-label="Filter by rarity"><option value="All">All rarities</option></select><button id="pickerFavorites">★ Favorites</button><button id="pickerRecent">Recent</button><button id="pickerClear">Clear slot</button></div><div id="pickerFilters" class="filters"></div><div id="pickerList" class="picker-list"></div></dialog>
