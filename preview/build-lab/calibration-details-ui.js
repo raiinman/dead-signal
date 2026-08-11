@@ -2,7 +2,7 @@
 'use strict';
 
 const RULES=window.DS_CALIBRATION_RULES||{};
-if(!RULES.main||!RULES.secondary)return;
+if(!RULES.secondary)return;
 
 const STATE_KEY='dead-signal-calibration-secondary-v1';
 let state=readState();
@@ -17,67 +17,22 @@ function mode(){
 }
 function fmt(v){const n=Number(v);return Number.isFinite(n)?n.toFixed(1):'—';}
 function rarityFromText(text){for(const q of ['Legendary','Epic','Rare'])if(new RegExp(`\\b${q}\\b`,'i').test(text))return q;return '';}
-function canonicalRarity(value){const q=rarityFromText(norm(value));return RULES.main[q]&&RULES.secondary[q]?q:'';}
-function isCalibrationCard(card){return /Calibration Blueprint/i.test(norm(card.textContent||''));}
-function pickerCardRarity(card){
-  const direct=[card.dataset?.rarity,card.dataset?.quality,card.dataset?.grade];
-  for(const value of direct){const q=canonicalRarity(value);if(q)return q;}
-  for(const el of card.querySelectorAll('[data-rarity],[data-quality],[data-grade],.rarity-badge,.quality-badge,[class*="rarity"],[class*="quality"]')){
-    for(const value of [el.dataset?.rarity,el.dataset?.quality,el.dataset?.grade,el.textContent]){
-      const q=canonicalRarity(value);if(q)return q;
-    }
-  }
-  return canonicalRarity(card.textContent||'');
-}
-function removeLegacyCurrentLabel(card){
+
+function cleanPickerCard(card){
+  if(!/Calibration Blueprint/i.test(norm(card.textContent||'')))return;
+  card.querySelector('.ds-calibration-facts')?.remove();
+  card.classList.remove('ds-calibration-card');
+  for(const el of card.querySelectorAll('.ds-calibration-legacy-current'))el.classList.remove('ds-calibration-legacy-current');
   const walker=document.createTreeWalker(card,NodeFilter.SHOW_TEXT);let node;
+  const removals=[];
   while((node=walker.nextNode())){
-    if(norm(node.nodeValue)!=='Current Calibration')continue;
-    const parent=node.parentElement;
+    if(norm(node.nodeValue)==='Current Calibration')removals.push(node);
+  }
+  for(const textNode of removals){
+    const parent=textNode.parentElement;
     if(parent&&norm(parent.textContent)==='Current Calibration')parent.remove();
-    else node.nodeValue='';
+    else textNode.nodeValue='';
   }
-}
-function markCompatibilityCopy(card){
-  const copy=card.querySelector('.pick-copy')||card;
-  for(const el of copy.querySelectorAll('p,.pick-meta,.picker-effect,.effect,.subtle')){
-    const text=norm(el.textContent||'');
-    if((/Compatible with|Applicable to/i.test(text))&&!/Calibration Blueprint/i.test(text))el.classList.add('ds-calibration-compatibility');
-  }
-}
-function enhancePickerCard(card){
-  if(!isCalibrationCard(card)){
-    card.classList.remove('ds-calibration-card');
-    card.querySelector('.ds-calibration-facts')?.remove();
-    return;
-  }
-  card.classList.add('ds-calibration-card');
-  removeLegacyCurrentLabel(card);
-  markCompatibilityCopy(card);
-
-  const q=pickerCardRarity(card),main=RULES.main[q];
-  if(!main)return;
-
-  let box=card.querySelector('.ds-calibration-facts');
-  if(box?.dataset.signature===q)return;
-  if(!box){
-    box=document.createElement('div');
-    box.className='ds-calibration-facts';
-    const copy=card.querySelector('.pick-copy')||card.querySelector('.pick-layout')?.lastElementChild||card;
-    const title=copy.querySelector?.('.pick-title-row');
-    if(title&&title.parentElement===copy)title.after(box);else copy.prepend(box);
-  }
-  box.innerHTML=`
-    <div class="ds-cal-main">
-      <small>GUARANTEED RNG STAT</small>
-      <strong>Weapon DMG <b>+${fmt(main[0])}–${fmt(main[1])}%</b></strong>
-    </div>
-    <div class="ds-cal-secondary-summary">
-      <small>SECONDARY ATTRIBUTE</small>
-      <strong>Random on drop</strong>
-      <span>Choose the stat and exact roll after selecting this blueprint in My Gear.</span>
-    </div>`;
-  box.dataset.signature=q;
 }
 
 function selectedCalibrationInfo(card){
@@ -157,7 +112,7 @@ function renderSecondary(card){
   }
 }
 
-function run(){document.querySelectorAll('.pick-card').forEach(enhancePickerCard);document.querySelectorAll('.weapon-card').forEach(renderSecondary);}
+function run(){document.querySelectorAll('.pick-card').forEach(cleanPickerCard);document.querySelectorAll('.weapon-card').forEach(renderSecondary);}
 function queue(){if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;run();});}
 new MutationObserver(queue).observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['data-calibration-rarity','data-calibration-name','data-rarity','data-quality','data-grade']});
 window.addEventListener('dead-signal:build-mode-change',()=>setTimeout(run,0));
