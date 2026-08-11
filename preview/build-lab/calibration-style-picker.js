@@ -10,17 +10,18 @@ if(!dialog||!list||!title)return;
 
 let queued=false;
 let activeStyle='';
-let originalTitle='';
 let searchHandlerBound=false;
 
 const norm=v=>String(v??'').replace(/\s+/g,' ').trim();
+const esc=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+function setText(el,value){if(el&&norm(el.textContent)!==norm(value))el.textContent=value;}
 
 function calibrationCards(){
   return [...list.querySelectorAll('.pick-card')].filter(card=>/Calibration Blueprint\s*-/i.test(norm(card.textContent||'')));
 }
 
 function isCalibrationPicker(){
-  return /calibration blueprint/i.test(norm(title.textContent||''))||calibrationCards().length>0;
+  return /calibration blueprint/i.test(norm(title.textContent||''))||calibrationCards().length>0||dialog.classList.contains('ds-cal-style-picker-active');
 }
 
 function cardBlueprintName(card){
@@ -121,10 +122,13 @@ function restoreLegacyFilters(){
 function renderStyleStep(groups,shell){
   const query=norm(search?.value||'').toLowerCase();
   list.style.display='none';
-  title.textContent='Choose calibration style';
-  if(search)search.placeholder='Search calibration styles...';
+  setText(title,'Choose calibration style');
+  if(search&&search.placeholder!=='Search calibration styles...')search.placeholder='Search calibration styles...';
 
   const visible=groups.filter(group=>!query||group.style.toLowerCase().includes(query));
+  const signature=`styles|${query}|${visible.map(group=>`${group.style}:${rarityOrder(group.rarities).join(',')}`).join('|')}`;
+  if(shell.dataset.signature===signature)return;
+
   shell.hidden=false;
   shell.innerHTML=`
     <div class="ds-cal-style-head">
@@ -134,45 +138,51 @@ function renderStyleStep(groups,shell){
     <div class="ds-cal-style-grid">
       ${visible.map(group=>{
         const rarities=rarityOrder(group.rarities);
-        return `<button type="button" class="ds-cal-style-card" data-ds-cal-style="${group.style.replace(/&/g,'&amp;').replace(/"/g,'&quot;')}">
-          <strong>${group.style.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</strong>
+        return `<button type="button" class="ds-cal-style-card" data-ds-cal-style="${esc(group.style)}">
+          <strong>${esc(group.style)}</strong>
           <span>${rarities.length?rarities.join(' · '):'Compatible calibration'}</span>
         </button>`;
       }).join('')||'<p class="ds-cal-style-empty">No compatible Calibration Styles match that search.</p>'}
     </div>`;
+  shell.dataset.signature=signature;
 }
 
 function renderRarityStep(cards,shell){
   const matching=cards.filter(card=>card.dataset.dsCalibrationStyle===activeStyle);
   for(const card of cards)card.style.display=matching.includes(card)?'':'none';
   list.style.display='grid';
-  title.textContent=`Choose ${activeStyle} calibration`;
+  setText(title,`Choose ${activeStyle} calibration`);
   if(search){
-    search.value='';
-    search.placeholder='Search this calibration style...';
+    if(search.value)search.value='';
+    if(search.placeholder!=='Search this calibration style...')search.placeholder='Search this calibration style...';
   }
+
+  const signature=`rarity|${activeStyle}|${matching.map(card=>`${card.dataset.dsCalibrationBlueprint}:${cardRarity(card)}`).join('|')}`;
+  if(shell.dataset.signature===signature)return;
+
   shell.hidden=false;
   shell.innerHTML=`
     <div class="ds-cal-style-head ds-cal-style-head-rarity">
       <button type="button" class="ds-cal-style-back" data-ds-cal-style-back>← Styles</button>
       <span class="ds-cal-style-step">2</span>
-      <div><small>CALIBRATION STYLE</small><strong>${activeStyle.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</strong><p>Now choose the rarity of the Calibration Blueprint you actually have.</p></div>
+      <div><small>CALIBRATION STYLE</small><strong>${esc(activeStyle)}</strong><p>Now choose the rarity of the Calibration Blueprint you actually have.</p></div>
     </div>`;
+  shell.dataset.signature=signature;
+}
+
+function cleanup(){
+  dialog.querySelector('.ds-cal-style-shell')?.remove();
+  list.style.display='';
+  for(const card of [...list.querySelectorAll('.pick-card')])card.style.display='';
+  restoreLegacyFilters();
+  dialog.classList.remove('ds-cal-style-picker-active');
 }
 
 function render(){
   const cards=calibrationCards();
-  const shell=dialog.querySelector('.ds-cal-style-shell');
-  if(!isCalibrationPicker()||!cards.length){
-    if(shell)shell.remove();
-    for(const card of [...list.querySelectorAll('.pick-card')])card.style.display='';
-    list.style.display='';
-    restoreLegacyFilters();
-    dialog.classList.remove('ds-cal-style-picker-active');
-    return;
-  }
+  if(!cards.length&&!dialog.classList.contains('ds-cal-style-picker-active'))return;
+  if(!isCalibrationPicker()||!cards.length){cleanup();return;}
 
-  if(!originalTitle)originalTitle=norm(title.textContent||'Choose calibration blueprint');
   dialog.classList.add('ds-cal-style-picker-active');
   hideLegacyCalibrationFilter();
   const groups=buildGroups(cards);
@@ -200,12 +210,7 @@ if(search&&!searchHandlerBound){
 
 dialog.addEventListener('close',()=>{
   activeStyle='';
-  originalTitle='';
-  dialog.querySelector('.ds-cal-style-shell')?.remove();
-  list.style.display='';
-  for(const card of [...list.querySelectorAll('.pick-card')])card.style.display='';
-  restoreLegacyFilters();
-  dialog.classList.remove('ds-cal-style-picker-active');
+  cleanup();
 });
 
 new MutationObserver(queue).observe(dialog,{childList:true,subtree:true,characterData:true});
