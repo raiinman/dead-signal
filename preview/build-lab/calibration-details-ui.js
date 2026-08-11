@@ -29,9 +29,13 @@ function pickerCardRarity(card){
   }
   return canonicalRarity(card.textContent||'');
 }
-function hideLegacyCurrentLabel(card){
-  for(const el of card.querySelectorAll('small,span,p,div')){
-    if(norm(el.textContent)==='Current Calibration')el.classList.add('ds-calibration-legacy-current');
+function removeLegacyCurrentLabel(card){
+  const walker=document.createTreeWalker(card,NodeFilter.SHOW_TEXT);let node;
+  while((node=walker.nextNode())){
+    if(norm(node.nodeValue)!=='Current Calibration')continue;
+    const parent=node.parentElement;
+    if(parent&&norm(parent.textContent)==='Current Calibration')parent.remove();
+    else node.nodeValue='';
   }
 }
 function markCompatibilityCopy(card){
@@ -48,15 +52,14 @@ function enhancePickerCard(card){
     return;
   }
   card.classList.add('ds-calibration-card');
-  hideLegacyCurrentLabel(card);
+  removeLegacyCurrentLabel(card);
   markCompatibilityCopy(card);
 
-  const q=pickerCardRarity(card),main=RULES.main[q],sec=RULES.secondary[q];
-  if(!main||!sec)return;
+  const q=pickerCardRarity(card),main=RULES.main[q];
+  if(!main)return;
 
-  const signature=q;
   let box=card.querySelector('.ds-calibration-facts');
-  if(box?.dataset.signature===signature)return;
+  if(box?.dataset.signature===q)return;
   if(!box){
     box=document.createElement('div');
     box.className='ds-calibration-facts';
@@ -66,14 +69,15 @@ function enhancePickerCard(card){
   }
   box.innerHTML=`
     <div class="ds-cal-main">
-      <small>CALIBRATION STAT</small>
+      <small>GUARANTEED RNG STAT</small>
       <strong>Weapon DMG <b>+${fmt(main[0])}–${fmt(main[1])}%</b></strong>
     </div>
-    <div class="ds-cal-secondary">
-      <small>ONE RANDOM SECONDARY</small>
-      <div class="ds-cal-secondary-pool">${sec.map(s=>`<span><b>${s.name}</b><em>${fmt(s.min)}–${fmt(s.max)}%</em></span>`).join('')}</div>
+    <div class="ds-cal-secondary-summary">
+      <small>SECONDARY ATTRIBUTE</small>
+      <strong>Random on drop</strong>
+      <span>Choose the stat and exact roll after selecting this blueprint in My Gear.</span>
     </div>`;
-  box.dataset.signature=signature;
+  box.dataset.signature=q;
 }
 
 function selectedCalibrationInfo(card){
@@ -122,7 +126,7 @@ function renderSecondary(card){
   }
 
   box.innerHTML=`
-    <div class="ds-cal-roll-head"><span class="ds-cal-step">2</span><div><small>SECONDARY ROLL</small><strong>${chosen?chosen.name:'Choose the rolled attribute'}</strong></div><em>1 OF 4</em></div>
+    <div class="ds-cal-roll-head"><span class="ds-cal-step">2</span><div><small>SECONDARY ROLL</small><strong>${chosen?chosen.name:'Choose the rolled attribute'}</strong></div><em>1 ATTRIBUTE</em></div>
     <label class="ds-cal-secondary-select"><span>Attribute</span><select data-cal-secondary-choice><option value="">Choose…</option>${choices}</select></label>
     ${control}`;
   box.dataset.signature=signature;
