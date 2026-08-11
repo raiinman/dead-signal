@@ -1,6 +1,6 @@
 # Dead Signal — Operability Audit
 
-Last checked: 2026-08-11 02:31 MST
+Last checked: 2026-08-11 03:28 MST
 
 This file records player-facing operational blockers that should be resolved before Dead Signal is called broadly complete. It is intentionally separate from advanced combat/stat math.
 
@@ -12,7 +12,7 @@ This file records player-facing operational blockers that should be resolved bef
 - Calibration Style localization is complete for 94/94 current Calibration Blueprints.
 - Live-browser screenshot confirmation shows the Calibration picker with exactly one contained `FIXED STYLE EFFECT` block per rarity card. The prior duplicate footer copy is resolved.
 - The authoritative production `app.js` source has been supplied and reviewed, so native persistence behavior is no longer inferred from UI symptoms.
-- PLAYER v1.5.2 now includes a player-facing Build Data Integrity status and saved-build mode badges so incomplete My Gear Calibration RNG and God Roll saves are not visually ambiguous.
+- PLAYER v1.5.2 includes a player-facing Build Data Integrity status and saved-build mode badges so incomplete My Gear Calibration RNG and God Roll saves are not visually ambiguous.
 
 ## Planner persistence — bridge hardened, live round-trip still pending
 
@@ -24,7 +24,7 @@ The recovered core source confirms the native planner state already owns:
 - `calibrationBonusValue`
 - Save / Load / Clone / Import / Export / Copy Share Link state serialization
 
-The newer presentation layers were keeping visible values in separate sidecars:
+The newer presentation layers keep visible values in separate sidecars:
 
 - Build mode: `dead-signal-build-mode`
 - weapon-model Weapon DMG UI: `dead-signal-weapon-model-v1`
@@ -45,11 +45,18 @@ The bridge now:
 3. stores the visible Calibration UI state per weapon slot under `state.dsExtension.calibration`;
 4. restores the per-build visible Calibration state after Load / Clone / Import / Share instead of trusting global sidecar values;
 5. preserves intentionally blank My Gear roll fields as blank/null across bridge-managed round trips, even though the older core normalization initializes missing calibration ranges to midpoint defaults;
-6. falls back to the recovered core calibration values for older builds that do not yet contain the extension.
+6. falls back to the recovered core calibration values for older builds that do not yet contain the extension;
+7. captures Share Link state at the core planner's synchronous `btoa()` encoding boundary instead of attempting to overwrite `navigator.clipboard.writeText`.
 
-This per-build extension is important because merely syncing the sidecars into the native core before Save is not enough: the older core `normalizeState()` fills null Calibration rolls with midpoint values during load. The v1.5.2.1 hardening explicitly preserves user-visible blank state and prevents a previous build's sidecar values from leaking into a newly loaded build.
+The Share Link change is important. Browser Clipboard API methods can be read-only; the older interception could therefore silently fail and copy a URL without `dsExtension.buildMode`. The new v1.5.2.3 path transforms the state before base64 encoding, so clipboard implementation details no longer determine whether mode metadata is carried in the URL.
 
 The bridge remains a compatibility layer. The recovered core `app.js` should be vendored and extended directly when the full source is landed in GitHub, which will allow the temporary persistence interception layer to be removed.
+
+### Remaining sidecar-reset risk
+
+Code review also found one remaining cross-build risk independent of Save/Load serialization: `weapon-model-ui.js` and `calibration-details-ui.js` keep their parsed sidecar objects in module memory. Clearing localStorage alone does not reset those in-memory objects. A fresh **New** build or a **Template** loaded directly after another build can therefore reuse an old same-slot/same-weapon Calibration sidecar value until these modules receive an explicit reset hook or are replaced by the vendored core schema.
+
+Do not declare persistence fully closed until New/Template sidecar isolation is fixed and live-tested.
 
 ## Build Data Integrity UI
 
@@ -66,8 +73,6 @@ This layer is deliberately advisory rather than blocking. It:
 - reports **READY TO SAVE / SHARE** when selected Calibration inputs are internally complete;
 - reports **THEORYCRAFT MODE** in God Roll mode, where legal maximum Calibration RNG is intentionally assumed.
 
-This closes a user-facing ambiguity that remained after persistence itself was hardened: saved builds can now be distinguished by mode before loading them, and incomplete My Gear Calibration state is visible in the Loadout Report instead of silently looking finished.
-
 ## Required live round-trip verification
 
 Before persistence can be called closed, verify:
@@ -78,7 +83,9 @@ Before persistence can be called closed, verify:
 4. Export → Import preserves build mode and exact My Gear calibration rolls.
 5. Copy Share Link → open link preserves mode and exact My Gear calibration rolls.
 6. Two saved builds using the same weapon/calibration but different rolls remain independent.
-7. Build Data Integrity status changes from NEEDS PLAYER INPUT to READY after completing the selected Calibration inputs.
+7. New Build followed by re-selecting the same weapon/calibration does not resurrect the previous build's rolls.
+8. Loading a Template after another build does not inherit prior Calibration sidecar values.
+9. Build Data Integrity status changes from NEEDS PLAYER INPUT to READY after completing the selected Calibration inputs.
 
 ## Advanced stat math
 
@@ -86,8 +93,9 @@ Held unless mined files already prove a complete stat-family consumer/order. Do 
 
 ## Next operational priorities
 
-1. Live-verify the PLAYER v1.5.2 persistence and integrity-UI round trips above.
-2. Audit picker and selected-card workflows across weapons, armor, mods, attachments, Deviations, Cradles, ammo, and consumables.
-3. Reconcile the older 108 planner attachments with the 119 mined true weapon-slot accessories when the mined attachment export is available in a form that can be safely integrated.
-4. Vendor and extend the recovered core `app.js`, then remove the temporary persistence interception layer.
-5. Only after broad operational completeness, run the live Wikily + OnceHumanDB competitor audit and close material usability/data gaps.
+1. Add explicit reset hooks to both Calibration sidecar modules and invoke them for New/Template transitions.
+2. Live-verify the PLAYER v1.5.2 persistence and integrity-UI round trips above.
+3. Audit picker and selected-card workflows across weapons, armor, mods, attachments, Deviations, Cradles, ammo, and consumables.
+4. Reconcile the older 108 planner attachments with the 119 mined true weapon-slot accessories when the mined attachment export is available in a form that can be safely integrated.
+5. Vendor and extend the recovered core `app.js`, then remove the temporary persistence interception layer.
+6. Only after broad operational completeness, run the live Wikily + OnceHumanDB competitor audit and close material usability/data gaps.
