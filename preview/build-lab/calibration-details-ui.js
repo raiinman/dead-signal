@@ -32,10 +32,13 @@ function enhancePickerCard(card){
 
 function selectedCalibrationInfo(card){
   const proxy=card.querySelector('.ds-wm-cal-picker'),native=card.querySelector('.ds-native-calibration-relocated'),calBox=card.querySelector('.ds-wm-cal');
-  const sources=[proxy,native,calBox].filter(Boolean);let rarity='';
-  for(const source of sources){rarity=rarityFromText(norm(source.textContent||''));if(rarity)break;}
+  let rarity=norm(proxy?.dataset?.calibrationRarity||'');
+  if(!RULES.secondary[rarity]){
+    rarity='';
+    for(const source of [native,calBox].filter(Boolean)){rarity=rarityFromText(norm(source.textContent||''));if(rarity)break;}
+  }
   if(!rarity||!RULES.secondary[rarity])return null;
-  let name=norm(proxy?.querySelector('.ds-wm-cal-picker-button strong')?.textContent||'');
+  let name=norm(proxy?.dataset?.calibrationName||proxy?.querySelector('.ds-wm-cal-picker-button strong')?.textContent||'');
   if(!name||/^Select Calibration Blueprint$/i.test(name))name=norm(native?.textContent||'').match(/Calibration Blueprint\s*-\s*[^\n]+/i)?.[0]||`Calibration ${rarity}`;
   return{rarity,name,secondary:RULES.secondary[rarity]};
 }
@@ -66,7 +69,7 @@ function renderSecondary(card){
     if(buildMode==='god'){
       control=`<div class="ds-cal-locked-value"><small>GOD ROLL VALUE</small><strong>${fmt(roll)}%</strong><p>Maximum legal ${chosen.name} roll.</p></div>`;
     }else{
-      control=`<label class="ds-cal-number-field"><span>Exact ${chosen.name} roll</span><div><input data-cal-secondary-number type="number" min="${chosen.min}" max="${chosen.max}" step="0.1" value="${hasRoll?fmt(roll):''}" placeholder="${fmt(chosen.min)}–${fmt(chosen.max)}"><b>%</b></div><small data-cal-secondary-status>${hasRoll?`Saved roll: ${fmt(roll)}%`:`Enter a value from ${fmt(chosen.min)}% to ${fmt(chosen.max)}%`}</small></label>`;
+      control=`<label class="ds-cal-number-field"><span>Exact ${chosen.name} roll</span><div><input data-cal-secondary-number type="number" min="${chosen.min}" max="${chosen.max}" step="0.1" value="${hasRoll?fmt(roll):''}" placeholder=""><b>%</b></div><small data-cal-secondary-status>${hasRoll?`Saved roll: ${fmt(roll)}%`:`Enter a value from ${fmt(chosen.min)}% to ${fmt(chosen.max)}%`}</small></label>`;
     }
   }else{
     control='<p class="ds-cal-secondary-help">Choose the secondary attribute shown on your actual Calibration Blueprint.</p>';
@@ -106,7 +109,7 @@ function renderSecondary(card){
 
 function run(){document.querySelectorAll('.pick-card').forEach(enhancePickerCard);document.querySelectorAll('.weapon-card').forEach(renderSecondary);}
 function queue(){if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;run();});}
-new MutationObserver(queue).observe(document.body,{childList:true,subtree:true,characterData:true});
+new MutationObserver(queue).observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['data-calibration-rarity','data-calibration-name']});
 window.addEventListener('dead-signal:build-mode-change',()=>setTimeout(run,0));
 document.addEventListener('change',e=>{if(e.target.closest?.('.weapon-card,#picker'))setTimeout(run,0);});
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run,{once:true});else run();
