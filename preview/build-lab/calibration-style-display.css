@@ -1,5 +1,17 @@
 /* PLAYER v1.5.1 — mined Calibration Style display */
 .ds-cal-mined-description{grid-column:1/-1;width:100%;margin:7px 0 0;padding:7px 8px;border-top:1px solid #2a3034;color:#aeb6bb;font-size:var(--ds-type-small,9px);line-height:1.45}
-.ds-cal-style-effect{margin-top:8px;padding:9px 10px;border:1px solid #343b40;border-left:3px solid #6f252d;background:linear-gradient(145deg,#0b0f12,#07090b)}
-.ds-cal-style-effect small{display:block;color:#8e969b;font-size:var(--ds-type-micro,8px);font-weight:900;letter-spacing:.11em}
-.ds-cal-style-effect p{margin:5px 0 0;color:#d7dcdf;font-size:var(--ds-type-small,9px);line-height:1.5}
+
+/* Selected weapon: the fixed Style is core build information, not fine print. */
+.ds-cal-style-effect{position:relative;margin:12px 0 4px;padding:14px 16px 15px;border:1px solid #6b3038;border-left:5px solid #c8434d;background:linear-gradient(135deg,#180b0f 0%,#0c1013 58%,#080a0c 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 8px 22px rgba(0,0,0,.18)}
+.ds-cal-style-effect small{display:flex;align-items:center;gap:8px;color:#ff7a83;font-size:var(--ds-type-small,10px);font-weight:950;letter-spacing:.11em;text-transform:uppercase}
+.ds-cal-style-effect small::before{content:"";display:block;width:8px;height:8px;border:1px solid #ff6a74;background:#7d252d;box-shadow:0 0 10px rgba(255,79,91,.3)}
+.ds-cal-style-effect small::after{content:"FIXED · NOT RNG";margin-left:auto;padding:3px 7px;border:1px solid #663039;background:#240d12;color:#ffadb3;font-size:var(--ds-type-micro,8px);font-weight:900;letter-spacing:.08em;white-space:nowrap}
+.ds-cal-style-effect p{margin:10px 0 0;padding-top:10px;border-top:1px solid #3d252a;color:#f0f3f4;font-size:var(--ds-type-body,13px);font-weight:650;line-height:1.55}
+
+/* Calibration picker: keep the rarity chip from crowding the favorite star. */
+#picker.ds-cal-style-picker-active .pick-card .pick-title-row{column-gap:10px}
+#picker.ds-cal-style-picker-active .pick-card .pick-title-row>:is([data-rarity],[data-quality],[data-grade],.rarity-badge,.quality-badge,[class*="rarity"],[class*="quality"]){margin-left:auto;margin-right:7px}
+#picker.ds-cal-style-picker-active .pick-card .pick-title-row>button:last-child{margin-left:3px;flex:0 0 auto}
+#picker.ds-cal-style-picker-active .pick-card :is(button[aria-label*="favorite" i],button[title*="favorite" i],.favorite-btn,.pick-favorite){margin-left:7px}
+
+@media(max-width:700px){.ds-cal-style-effect{padding:12px 13px}.ds-cal-style-effect small{align-items:flex-start;flex-wrap:wrap}.ds-cal-style-effect small::after{margin-left:0}.ds-cal-style-effect p{font-size:var(--ds-type-body,12px)}}
