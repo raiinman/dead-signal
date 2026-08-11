@@ -1,6 +1,6 @@
 # Dead Signal — Operability Audit
 
-Last checked: 2026-08-11 04:35 MST
+Last checked: 2026-08-11 05:30 MST
 
 This file records player-facing operational blockers that should be resolved before Dead Signal is called broadly complete. It is intentionally separate from advanced combat/stat math.
 
@@ -14,6 +14,7 @@ This file records player-facing operational blockers that should be resolved bef
 - The authoritative production `app.js` source has been supplied and reviewed, so native persistence behavior is no longer inferred from UI symptoms.
 - PLAYER v1.5.2 includes a player-facing Build Data Integrity status and saved-build mode badges so incomplete My Gear Calibration RNG and God Roll saves are not visually ambiguous.
 - Calibration sidecar modules now expose explicit reset hooks, and a transition guard invokes them before New, Template, Load, Clone, Import, and Share-hash restoration paths.
+- Build Data Integrity now fails closed if a selected Calibration Blueprint is present but one of the required My Gear RNG controls failed to render. Missing controls are reported as `NEEDS PLAYER INPUT` instead of allowing a false `READY TO SAVE / SHARE` state.
 
 ## Planner persistence — bridge hardened, live round-trip still pending
 
@@ -85,9 +86,12 @@ This layer is deliberately advisory rather than blocking. It:
 
 - marks saved builds as **MY GEAR** or **GOD ROLL** using the persisted `state.dsExtension.buildMode` value;
 - checks selected ranged-weapon Calibration UI in My Gear mode for a missing exact Weapon DMG roll, missing secondary identity, or missing exact secondary roll;
+- treats missing required Calibration input controls themselves as incomplete and directs the player to re-select the Calibration Blueprint rather than falsely marking the build ready;
 - explicitly states that Dead Signal preserves missing account-specific RNG as blank rather than inventing a number;
-- reports **READY TO SAVE / SHARE** when selected Calibration inputs are internally complete;
+- reports **READY TO SAVE / SHARE** only when selected Calibration controls are present and internally complete;
 - reports **THEORYCRAFT MODE** in God Roll mode, where legal maximum Calibration RNG is intentionally assumed.
+
+The fail-closed behavior is cache-busted in `index.html` as `planner-integrity-ui.js?v=1.5.2.5`.
 
 ## Required live round-trip verification
 
@@ -103,6 +107,7 @@ Before persistence can be called closed, verify:
 8. Loading a Template after another build does not inherit prior Calibration sidecar values.
 9. Legacy saved/imported/shared builds with no `dsExtension.buildMode` open as MY GEAR rather than inheriting an existing GOD ROLL mode.
 10. Build Data Integrity status changes from NEEDS PLAYER INPUT to READY after completing the selected Calibration inputs.
+11. If a selected Calibration Blueprint's Weapon DMG or secondary UI fails to render, Build Data Integrity remains NEEDS PLAYER INPUT and does not show a false READY state.
 
 ## Advanced stat math
 
