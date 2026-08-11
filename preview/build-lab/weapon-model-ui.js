@@ -73,8 +73,17 @@ function exactTextNodes(root){
   return out;
 }
 function calibrationFromCard(card,key){
+  const proxy=card.querySelector('.ds-wm-cal-picker');
+  const explicit=norm(proxy?.dataset?.calibrationRarity||'');
+  if(explicit&&CAL_RANGES[explicit]){
+    const r=CAL_RANGES[explicit];
+    return{id:explicit,q:explicit,min:Number(r[0]),max:Number(r[1]),detected:true};
+  }
+
+  const proxyName=norm(proxy?.dataset?.calibrationName||proxy?.querySelector('.ds-wm-cal-picker-button strong')?.textContent||'');
+  const selectedProxy=proxyName&&!/^Select Calibration Blueprint$/i.test(proxyName);
+
   const nodes=exactTextNodes(card).filter(x=>/Calibration Blueprint\s*-/i.test(x.t));
-  if(!nodes.length)return null;
   for(const {parent} of nodes){
     const contexts=[];let box=parent;
     for(let i=0;i<3&&box&&box!==card;i++,box=box.parentElement)contexts.push(norm(box.textContent));
@@ -86,9 +95,12 @@ function calibrationFromCard(card,key){
       }
     }
   }
+
+  if(selectedProxy)return{id:'unknown',q:null,min:null,max:null,detected:false};
+
   const saved=state[key]?.calQuality;
   if(saved&&CAL_RANGES[saved]){const r=CAL_RANGES[saved];return{id:saved,q:saved,min:Number(r[0]),max:Number(r[1]),detected:false};}
-  return{id:'unknown',q:null,min:null,max:null,detected:false};
+  return nodes.length?{id:'unknown',q:null,min:null,max:null,detected:false}:null;
 }
 function weaponName(card){const name=norm(card.querySelector('.item-name')?.textContent||'');return name&&name.toLowerCase()!=='empty'?name:'';}
 function options(values,current,labeler){return values.map(v=>`<option value="${v}" ${v===current?'selected':''}>${labeler(v)}</option>`).join('');}
@@ -127,11 +139,11 @@ function renderCard(card){
       const has=roll!=null;
       calHtml=`<section class="ds-wm-cal ds-cal-roll-card">
         <div class="ds-cal-roll-head"><span class="ds-cal-step">1</span><div><small>WEAPON DMG ROLL</small><strong>${cal.q} Calibration</strong></div><em>${fmt(cal.min)}–${fmt(cal.max)}%</em></div>
-        <label class="ds-cal-number-field"><span>Exact Weapon DMG roll</span><div><input data-wm-roll-number type="number" min="${cal.min}" max="${cal.max}" step="0.1" value="${has?fmt(roll):''}" placeholder="${fmt(cal.min)}–${fmt(cal.max)}"><b>%</b></div><small data-wm-roll-status>${has?`Saved roll: ${fmt(roll)}%`:`Enter a value from ${fmt(cal.min)}% to ${fmt(cal.max)}%`}</small></label>
+        <label class="ds-cal-number-field"><span>Exact Weapon DMG roll</span><div><input data-wm-roll-number type="number" min="${cal.min}" max="${cal.max}" step="0.1" value="${has?fmt(roll):''}" placeholder=""><b>%</b></div><small data-wm-roll-status>${has?`Saved roll: ${fmt(roll)}%`:`Enter a value from ${fmt(cal.min)}% to ${fmt(cal.max)}%`}</small></label>
       </section>`;
     }
   }else if(cal){
-    calHtml=`<section class="ds-wm-cal ds-cal-roll-card"><div class="ds-cal-roll-head"><span class="ds-cal-step">1</span><div><small>WEAPON DMG ROLL</small><strong>Choose calibration rarity</strong></div></div><label class="ds-wm-quality"><span>Calibration rarity</span><select data-wm-cal-quality><option value="">Choose…</option><option>Rare</option><option>Epic</option><option>Legendary</option></select></label></section>`;
+    calHtml=`<section class="ds-wm-cal ds-cal-roll-card"><div class="ds-cal-roll-head"><span class="ds-cal-step">1</span><div><small>WEAPON DMG ROLL</small><strong>Calibration rarity unavailable</strong></div></div><p>Re-select this Calibration Blueprint so Dead Signal can bind its exact rarity.</p></section>`;
   }else{
     calHtml='<section class="ds-wm-cal ds-cal-roll-card ds-wm-empty"><div class="ds-cal-roll-head"><span class="ds-cal-step">1</span><div><small>WEAPON DMG ROLL</small><strong>Select a Calibration Blueprint first</strong></div></div></section>';
   }
@@ -141,14 +153,13 @@ function renderCard(card){
 
   panel.querySelector('[data-wm-tier]')?.addEventListener('change',e=>{storeChoice(key,{tier:Number(e.target.value)});panel.dataset.signature='';renderCard(card);});
   panel.querySelector('[data-wm-star]')?.addEventListener('change',e=>{storeChoice(key,{star:Number(e.target.value)});panel.dataset.signature='';renderCard(card);});
-  panel.querySelector('[data-wm-cal-quality]')?.addEventListener('change',e=>{const q=e.target.value;if(q){storeChoice(key,{calQuality:q,calRoll:null});panel.dataset.signature='';renderCard(card);}});
 
   const number=panel.querySelector('[data-wm-roll-number]'),status=panel.querySelector('[data-wm-roll-status]');
   if(number&&cal){
     const saveValid=v=>{
       v=Math.round(Number(v)*10)/10;
       if(!Number.isFinite(v)||v<cal.min||v>cal.max)return false;
-      storeChoice(key,{calRoll:v,calId:cal.id});
+      storeChoice(key,{calRoll:v,calId:cal.id,calQuality:cal.q});
       number.value=fmt(v);
       if(status)status.textContent=`Saved roll: ${fmt(v)}%`;
       panel.dataset.signature=signatureFor(w,tier,star,cal,buildMode,v);
@@ -161,7 +172,7 @@ function renderCard(card){
       else if(status)status.textContent=`Allowed range: ${fmt(cal.min)}%–${fmt(cal.max)}%`;
     });
     number.addEventListener('change',()=>{
-      if(number.value===''){storeChoice(key,{calRoll:null,calId:cal.id});panel.dataset.signature='';renderCard(card);return;}
+      if(number.value===''){storeChoice(key,{calRoll:null,calId:cal.id,calQuality:cal.q});panel.dataset.signature='';renderCard(card);return;}
       let v=Number(number.value);if(!Number.isFinite(v))return;
       v=Math.round(Math.min(cal.max,Math.max(cal.min,v))*10)/10;saveValid(v);
     });
@@ -170,7 +181,7 @@ function renderCard(card){
 
 function run(){document.querySelectorAll('.weapon-card').forEach(renderCard);}
 function queue(){if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;run();});}
-new MutationObserver(queue).observe(document.body,{childList:true,subtree:true,characterData:true});
+new MutationObserver(queue).observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['data-calibration-rarity','data-calibration-name']});
 document.addEventListener('change',e=>{if(e.target.closest?.('.weapon-card'))setTimeout(run,0);});
 window.addEventListener('dead-signal:build-mode-change',run);
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run,{once:true});else run();
