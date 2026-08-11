@@ -14,7 +14,7 @@
 const STORAGE='dead-signal-community-planner-builds';
 const SLOT_ORDER=['primary','secondary','melee'];
 const EXT_KEY='dsExtension';
-const EXT_VERSION=2;
+const EXT_VERSION=3;
 let syncing=false;
 let queued=false;
 
@@ -195,24 +195,6 @@ function augmentNewestSaved(){
 }
 function stateForSavedId(id){return readSaved().find(x=>String(x?.id)===String(id))?.state||null;}
 
-function decodeSharedState(url){
-  try{
-    const m=String(url||'').match(/#b=([^&]+)$/);if(!m)return null;
-    let b=m[1].replace(/-/g,'+').replace(/_/g,'/');while(b.length%4)b+='=';
-    const bin=atob(b),bytes=Uint8Array.from(bin,c=>c.charCodeAt(0));
-    return JSON.parse(new TextDecoder().decode(bytes));
-  }catch(_){return null;}
-}
-function encodeSharedState(raw){
-  const bytes=new TextEncoder().encode(JSON.stringify(raw));let bin='';
-  bytes.forEach(b=>bin+=String.fromCharCode(b));
-  return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-}
-function transformShareUrl(url){
-  const raw=decodeSharedState(url);if(!raw)return url;
-  augmentState(raw);
-  return `${String(url).split('#')[0]}#b=${encodeSharedState(raw)}`;
-}
 function transformExportPart(part){
   if(typeof part!=='string')return part;
   try{
@@ -221,6 +203,16 @@ function transformExportPart(part){
     augmentState(obj.state);
     return JSON.stringify(obj,null,2);
   }catch(_){return part;}
+}
+function transformShareBinary(bin){
+  try{
+    const bytes=Uint8Array.from(String(bin),c=>c.charCodeAt(0));
+    const raw=JSON.parse(new TextDecoder().decode(bytes));
+    augmentState(raw);
+    const next=new TextEncoder().encode(JSON.stringify(raw));
+    let out='';next.forEach(b=>out+=String.fromCharCode(b));
+    return out;
+  }catch(_){return bin;}
 }
 
 function wrapPersistenceButtons(){
@@ -249,19 +241,11 @@ function wrapPersistenceButtons(){
     const original=share.onclick;
     share.onclick=function(e){
       syncCalibrationUiToCore();
-      const clipboard=navigator.clipboard,originalWrite=clipboard?.writeText?.bind(clipboard),originalPrompt=window.prompt;
-      let patchedClipboard=false;
-      if(clipboard&&originalWrite){try{clipboard.writeText=url=>originalWrite(transformShareUrl(url));patchedClipboard=true;}catch(_){} }
-      window.prompt=(message,value)=>originalPrompt.call(window,message,transformShareUrl(value));
+      const nativeBtoa=window.btoa;
+      window.btoa=bin=>nativeBtoa.call(window,transformShareBinary(bin));
       let result;
-      try{result=original.call(this,e);}catch(err){
-        if(patchedClipboard)try{clipboard.writeText=originalWrite;}catch(_){}
-        window.prompt=originalPrompt;throw err;
-      }
-      return Promise.resolve(result).finally(()=>{
-        if(patchedClipboard)try{clipboard.writeText=originalWrite;}catch(_){}
-        window.prompt=originalPrompt;
-      });
+      try{result=original.call(this,e);}catch(err){window.btoa=nativeBtoa;throw err;}
+      return Promise.resolve(result).finally(()=>{window.btoa=nativeBtoa;});
     };
     share.dataset.dsPersistenceWrapped='1';
   }
@@ -304,7 +288,15 @@ document.addEventListener('change',e=>{
   }
 },true);
 
-function initFromHash(){const raw=decodeSharedState(location.href);if(raw)applyLoadedStateExtensions(raw);}
+function decodeSharedStateFromHash(){
+  try{
+    const m=location.hash.match(/^#b=(.+)$/);if(!m)return null;
+    let b=m[1].replace(/-/g,'+').replace(/_/g,'/');while(b.length%4)b+='=';
+    const bin=atob(b),bytes=Uint8Array.from(bin,c=>c.charCodeAt(0));
+    return JSON.parse(new TextDecoder().decode(bytes));
+  }catch(_){return null;}
+}
+function initFromHash(){const raw=decodeSharedStateFromHash();if(raw)applyLoadedStateExtensions(raw);}
 function run(){wrapPersistenceButtons();}
 function queue(){if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;run();});}
 
