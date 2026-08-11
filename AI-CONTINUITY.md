@@ -2,7 +2,7 @@
 
 > **Purpose:** Canonical current-state handoff for ChatGPT/Codex sessions working on Dead Signal. Read this file and `PROJECT-RULES.md` before changing anything.
 >
-> Last updated: **2026-08-11 11:27 MST**
+> Last updated: **2026-08-11 15:35 MST**
 
 ## 1. Project identity
 
@@ -11,22 +11,48 @@
 - Repository: `raiinman/dead-signal`
 - Canonical branch: **`main` only** unless the user explicitly requests otherwise.
 - Live planner: `https://deadsignaldb.com/build-planner/`
+- Root site: `https://deadsignaldb.com/`
 - Hosting: Namecheap shared hosting / cPanel.
 - Production planner target: `$HOME/public_html/build-planner/`
+- Current player release: **PLAYER v1.5.2**.
 - Deployment architecture: prepared static files are copied by cPanel; do not turn cPanel into a build environment.
+- User deploy workflow: cPanel → Git Version Control → **Update from Remote** → **Deploy HEAD Commit** → hard refresh (`Ctrl+F5`).
 - Previous expanded handoff: `archive/AI-CONTINUITY-2026-08-10-v1.5.0.md`.
 
-## 2. ACTIVE USER WORK — DOMAIN / SSL
+## 2. Domain / DNS / SSL — RESOLVED 2026-08-11
 
-**The user is currently working in another window on fixing the Dead Signal domain SSL.**
+The public-access problem investigated on 2026-08-11 was real and is now resolved.
 
-Until that work is explicitly reported complete:
+Proven DNS state:
 
-- Do **not** make competing DNS, SSL, certificate, redirect, document-root, domain, or hosting-control-panel changes.
-- Do **not** deploy through cPanel unless the user explicitly asks.
-- Avoid architecture changes that could complicate SSL/domain diagnosis.
-- Planner/source work may continue on `main` when safe, but keep hosting concerns isolated from application concerns.
-- The Build Lab was recently changed to use same-origin relative paths for its own core assets (`styles.css`, `data/community-data.js`, `app.js`) instead of hard-wiring `https://deadsignaldb.com/...`; preserve that deployment-safe behavior.
+- Registrar/hosting DNS mode: **Namecheap Web Hosting DNS**.
+- Public Google DNS (`8.8.8.8`) and Cloudflare DNS (`1.1.1.1`) both resolved `deadsignaldb.com` to **`104.207.79.85`**.
+- Public NS lookup returned:
+  - `dns1.namecheaphosting.com`
+  - `dns2.namecheaphosting.com`
+- cPanel zone root record: `deadsignaldb.com` → A → `104.207.79.85`.
+- `www.deadsignaldb.com` → CNAME → `deadsignaldb.com`.
+- No conflicting public-site AAAA record was observed in the cPanel zone screenshots.
+- Namecheap reports DNSSEC unavailable for **Namecheap Web Hosting DNS**; DNSSEC was not the outage cause.
+
+Proven SSL fault and repair:
+
+- Before repair, the installed Standard SSL covered `deadsignaldb.com` but **did not cover `www.deadsignaldb.com`**.
+- Windows `curl.exe -I https://www.deadsignaldb.com/` failed with `SEC_E_WRONG_PRINCIPAL`.
+- `curl.exe -kI https://www.deadsignaldb.com/` proved the web server itself was healthy and wanted to return `301 Location: https://deadsignaldb.com/`; TLS validation was blocking the redirect before the browser/client could receive it.
+- The user reissued/reinstalled the **Namecheap Standard SSL** against the bare domain through cPanel → Namecheap SSL.
+- After issuance, normal verified `curl.exe -I https://www.deadsignaldb.com/` succeeds and returns the expected `301` redirect to `https://deadsignaldb.com/`.
+- cPanel SSL/TLS Status now shows both `deadsignaldb.com` and `www.deadsignaldb.com` **Domain Validated / covered**, expiring **2027-02-25**.
+- `mail`, `cpanel`, `webmail`, etc. may still show uncovered by this site certificate; they are separate service subdomains and were not the public Dead Signal website blocker.
+
+Verified HTTP behavior after repair:
+
+- `curl.exe -I https://deadsignaldb.com/` → **200 OK**.
+- `curl.exe -I https://deadsignaldb.com/build-planner/` → **200 OK**.
+- `curl.exe -I https://www.deadsignaldb.com/` → verified TLS + **301** to the bare domain.
+- The v0.1.1 website auditor subsequently reached Dead Signal with **verified TLS and zero TLS-fallback pages**.
+
+Do **not** reopen DNS/SSL changes without new evidence. The public website path is presently proven healthy from the user’s external DNS checks, curl checks, cPanel certificate status, and the later auditor crawl.
 
 ## 3. Non-negotiable deployment rule
 
@@ -44,13 +70,15 @@ The first meaningful reliable copy-only deployment was commit:
 
 `c3a62dbb414ad1368850f60032890b4b4f0d75d4`
 
+The Build Lab core references were recently changed to same-origin relative paths for its own `styles.css`, `data/community-data.js`, and `app.js`. Preserve that deployment-safe behavior; do not hard-wire production-domain URLs back into those core asset references.
+
 ## 4. Latest `main` state / recent planner work
 
-Last known `main` HEAD before this continuity update:
+Last known `main` HEAD immediately before this continuity refresh:
 
-`33c7bc97193b03968195be0db510f8ebb2eaf87f` — **Use same-origin planner core asset paths**
+`3e9b75614241a4dd4f624469af3631e802fa9788` — **Update AI continuity for SSL work and planner state**
 
-Recent operational work completed on `main` includes:
+Recent operational work already completed on `main` includes:
 
 - Hardened Calibration persistence bridge for per-build/per-weapon-slot state.
 - Persisted **MY GEAR / GOD ROLL** mode metadata through planner extension state.
@@ -61,6 +89,8 @@ Recent operational work completed on `main` includes:
 - Loadout Report gained **Copy Loadout Text** and **Copy Farming Checklist** workflows.
 - Added a raw indexed **Weapon Compare** workflow with A/B comparison, arithmetic deltas, search, weapon imagery, and safe filtered Swap behavior.
 - Weapon Compare intentionally does **not** claim configured DPS or apply Tier/Stars/Calibration/attachments yet.
+- Calibration picker duplicate fixed-effect footer was resolved; screenshot verification showed exactly one contained `FIXED STYLE EFFECT` block per rarity card.
+- Calibration rarity/favorite spacing was hardened across picker locations.
 - Planner core assets now use same-origin relative paths instead of hard-coded production-domain URLs.
 - `.cpanel.yml` remains copy-only.
 
@@ -72,10 +102,13 @@ Important recent commits in sequence:
 - `1a0a17c5f80b75b663a251debbbe26f227a560b6` — transition/reset isolation
 - `c5e2d6975fdc80c3b18dc76ab685f2718a166f68` — fail-closed integrity controls
 - `b86adf73170333b120169eaf964adc7c8e123fe6` — Loadout Report share/checklist differentiation
-- `f5cd7f5644da044d0c9a6498950699e1c35828e7` — Weapon Compare
+- `f5cd7f5644da044d0c9a6498950699e1c35828e7` — Weapon Compare baseline
 - `3dec26d23a1fe6c796bcda12ae920d7bd21727ac` — Weapon Compare search/images
 - `f9185b9f9b8a41956b654d6a6f591ea7030ca684` — filtered Swap fix/cache bust
 - `33c7bc97193b03968195be0db510f8ebb2eaf87f` — same-origin planner core assets
+- `3e9b75614241a4dd4f624469af3631e802fa9788` — continuity refresh during SSL diagnosis
+
+The authoritative production `app.js` source was supplied by the user during v1.5.2 persistence work and proved the native planner already owns the Calibration fields and Save/Load/Clone/Import/Export/Share functions. The current bridge remains a compatibility layer; fully vendoring/extending the core source is still preferable when it can be done safely without regressing production behavior.
 
 ## 5. Current Build Lab / UX rules
 
@@ -137,6 +170,8 @@ Style-first selection remains required: choose Calibration Style/Mod Type first,
 Short Style labels are derived from blueprint names because no canonical localized Style-name field has been recovered. Do not invent one. Exact localized fixed Style descriptions have been mined for all 94 current records.
 
 Picker cards may show name, rarity, and exact fixed Style description. RNG controls belong after selection on the weapon card; do not dump all four possible secondaries onto the picker card.
+
+The fixed Style effect is vital selection information. On the selected weapon it must have strong visual hierarchy before RNG controls rather than being treated like a footer/disclaimer.
 
 ## 7. Current database baseline
 
@@ -265,6 +300,8 @@ Known static IDs include `Q0100` Stability, `Q0300` Accuracy, `Q0500` Range, `Q0
 
 Do **not** resume broad weapon-math/stat-engine implementation merely because these IDs are known. Proceed only when mined files provide enough evidence to implement a stat family confidently without speculation. Runtime buffs/procs remain a later layer until direct consumers/order are traced.
 
+Raw Weapon Compare is intentionally allowed before configured stat math because it compares already-indexed player-facing records and clearly labels that Tier, Stars, Calibration, attachments, and derived DPS are not applied.
+
 ## 12. Miner circular-reference fix
 
 Miner v1.5.7.4 fixed the prior `buffs.json` circular-reference serialization issue caused by raw-level fallback pointing back to the normalized parent record.
@@ -279,24 +316,94 @@ Real v1.5.7.4 output proved:
 
 A `serialization-circular-references.json` file surviving in the v1.5.7.4 ZIP was stale residue from the previous run. Future miner hygiene should clear/regenerate stale diagnostics.
 
-## 13. Competitor audit — completed once, re-audit later
+## 13. Website Auditor v0.1.1 / latest competitive baseline
 
-A live audit against current Wikily Once Human and OnceHumanDB was performed during the PLAYER v1.5.2 stabilization work. See:
+A lightweight local **Dead Signal Site Auditor** was built for repeatable public audits. Current useful version: **v0.1.1**.
+
+v0.1.1 characteristics:
+
+- zero third-party Python dependencies;
+- small robots-aware crawl;
+- technical/accessibility checks;
+- first-party JavaScript scanning so SPA-injected planner features can be detected;
+- fail-closed competitor comparison if Dead Signal itself cannot be crawled confidently;
+- TLS verification fallback exists only as a diagnostic path and is explicitly recorded;
+- Markdown + JSON output suitable for later ChatGPT/Codex ingestion.
+
+The latest user-run audit ZIP was `dead-signal-audit-20260811-152146.zip` and identifies itself as **Dead Signal Site Auditor v0.1.1**.
+
+Latest measured results:
+
+| Site | Technical | Planner Fidelity | Database & Ecosystem | Avg fetched response |
+|---|---:|---:|---:|---:|
+| **Dead Signal** | **83.3** | **100.0** | **54.2** | **177 ms** |
+| OnceHumanDB | **85.0** | **46.7** | **83.3** | **419 ms** |
+| Wikily | **70.7** | **46.7** | **83.3** | **598 ms** |
+
+Dead Signal TLS was **verified by the auditor** with **0 TLS-fallback pages**.
+
+Dead Signal received **100.0 planner-feature detection** because the audit found all 13 rubric capabilities:
+
+- Build Planner
+- Calibration modeling
+- My Gear / actual build
+- God Roll / theorycraft
+- Save builds
+- Share builds
+- Import / Export
+- Weapon Compare
+- Build Data Integrity guard
+- Loadout Report
+- Farming Checklist
+- Compatibility filtering
+- Text-size/accessibility controls
+
+This **does not mean the planner is operationally proven end-to-end**. The auditor detects publicly reachable feature evidence; the real browser persistence torture test in section 15 is still required.
+
+### Auditor caveat: Dead Signal SPA confidence
+
+The v0.1.1 audit marked Dead Signal crawl confidence **low** because it fetched only one HTML application page, even though it successfully scanned first-party JS and detected the full planner rubric. Because of that confidence rule, the auditor automatically withheld its competitor-delta list.
+
+Treat this as an **auditor confidence-model limitation for a single-page application**, not evidence of a Dead Signal outage. A future auditor v0.1.2 should allow high confidence for an SPA when the entry page returns successfully, TLS verifies, first-party scripts are successfully scanned, sufficient feature evidence exists, and sampled links/assets are healthy.
+
+### Latest technical cleanup signals
+
+The v0.1.1 static audit found for Dead Signal:
+
+- HTTPS: present
+- title/description/viewport/lang/H1/main/nav basics: present
+- cache/compression/X-Content-Type-Options: detected
+- **HSTS: not detected**
+- **Content-Security-Policy: not detected**
+- 1 of 6 fetched inputs lacked aria/placeholder/title hints in static HTML
+
+Do not blindly add a strict CSP to WordPress/Build Lab. Any HSTS/CSP change must be staged and verified so it does not break WordPress, the planner, hosted assets, authentication, or required third-party behavior. The single unlabeled-input result is a scanner lead, not yet a proven player-facing accessibility defect; inspect the actual control first.
+
+## 14. Current competitive interpretation
+
+The older checked-in audit is:
 
 `COMPETITOR-AUDIT-2026-08-11.md`
 
-Key findings at that checkpoint:
+The v0.1.1 local audit is newer and should be treated as the latest quantitative baseline when available.
 
-- OnceHumanDB was stronger in dedicated comparison/DPS presentation, featured builds, and broader database surfaces such as recipes/items/memetics.
-- Wikily was stronger in public/community build discovery, authorship/social workflows, and mature build browsing/filtering.
-- Dead Signal was already differentiated by explicit My Gear vs God Roll, current Calibration modeling, exact player RNG entry, compatibility filtering, local save/clone/import/export/share, accessibility scaling, Build Data Integrity, and Loadout Report.
-- Dead Signal subsequently added a raw indexed Weapon Compare plus copyable loadout/farming workflows.
-- Remaining comparison gap is progression/configuration-aware comparison; implement only as underlying stat families become proven.
-- Public/community build discovery remains a later product gap.
+Current interpretation:
 
-Re-audit after meaningful operational/data improvements rather than copying competitor features blindly.
+- **Planner fidelity is Dead Signal’s strongest competitive position.** The auditor detected 100% of its planner rubric on Dead Signal versus 46.7% for each competitor.
+- Dead Signal differentiators include current Calibration Blueprint structure, exact My Gear RNG, explicit God Roll separation, Build Data Integrity, local saves/clones/import/export/share, compatibility filtering, readability controls, Loadout Report, farming checklist, and raw indexed Weapon Compare.
+- OnceHumanDB and Wikily remain much stronger in the broader **database/community ecosystem** (both 83.3% detected vs Dead Signal 54.2%).
+- Material ecosystem gaps detected on Dead Signal: **recipes/crafting, community/featured builds, voting/social discovery, interactive maps, guides**.
+- OnceHumanDB also has mature featured builds, broader database surfaces, and DPS presentation.
+- Wikily has stronger public/community discovery, profiles/authorship/social workflows, maps, and guides.
 
-## 14. Planner operability gate
+Two v0.1.1 Dead Signal ecosystem detections should **not** be treated as proof of completed product surfaces:
+
+- `Profiles / authorship` was triggered by planner text such as the **Author** field; Dead Signal does not yet have a mature public profile system.
+- `DPS presentation` was triggered by an asset/text occurrence; Dead Signal does **not** yet have a trustworthy configured-DPS engine. Do not claim otherwise.
+
+Do not chase competitor DPS numbers by inventing formulas. Dead Signal’s strategy is to be more trustworthy first, then broader.
+
+## 15. Planner operability gate
 
 The largest remaining verification gate is **live browser round-trip testing**. Source-level persistence protections are in place, but real browser behavior still needs to be verified with the user present.
 
@@ -304,48 +411,60 @@ Required torture test:
 
 1. Save → Load a normal My Gear build.
 2. Save intentionally blank My Gear Calibration rolls and confirm they stay blank rather than becoming midpoint defaults.
-3. Save → Load a God Roll build and confirm mode restores correctly.
-4. Export → Import.
-5. Share Link round trip.
-6. Two saved builds using the same weapon but different Calibration rolls; confirm no cross-build leakage.
-7. New Build and Template transitions; confirm old sidecar values do not survive.
-8. Legacy build without extension mode metadata; confirm safe fallback to My Gear.
+3. Save → Load a God Roll build and confirm mode restores correctly and the saved-build list displays the correct mode badge.
+4. Export → Import preserves mode and exact My Gear Calibration rolls.
+5. Share Link round trip preserves mode and exact My Gear Calibration rolls.
+6. Two saved builds using the same weapon/calibration but different rolls remain independent.
+7. New Build followed by re-selecting the same weapon/calibration does not resurrect the previous build’s rolls.
+8. Template transition after another build does not inherit prior Calibration sidecar values.
+9. Legacy saved/imported/shared build without `dsExtension.buildMode` opens as My Gear rather than inheriting an existing God Roll mode.
+10. Build Data Integrity changes from `NEEDS PLAYER INPUT` to ready after completing required selected Calibration inputs.
+11. If required Calibration controls fail to render, integrity must fail closed rather than show a false ready state.
 
 Do not call persistence fully closed until these tests pass in a real browser.
 
-## 15. Immediate priorities after SSL work is stable
+## 16. Immediate priorities
 
 1. Run the live planner persistence torture test with the user.
 2. Fix any browser/runtime failures found by that test before adding more architecture.
 3. Reconcile the older **108 planner attachments** against the verified **119 true weapon-slot accessories** from mined data once a safe normalized/player-facing source is available.
-4. Continue picker/card/UI/data-presentation cleanup and other evidence-backed player usability work.
-5. Keep advanced stat-engine work on hold except for stat families proven end-to-end from mined evidence.
-6. Re-audit Wikily/OnceHumanDB after meaningful improvements.
+4. Inspect the auditor’s one unlabeled-input lead and fix it only if it maps to a real player-facing accessibility gap.
+5. Consider HSTS/CSP only as a carefully staged technical-hardening project; do not risk breaking WordPress/Build Lab for a score increase.
+6. Expand real player-facing database surfaces from normalized mined data, with recipes/crafting as a high-value ecosystem gap.
+7. Plan community build discovery/publishing only after the core build schema and persistence behavior are browser-proven.
+8. Upgrade Weapon Compare to progression/configuration-aware comparison only as each static stat family becomes fully proven.
+9. Keep advanced derived DPS/runtime proc math last.
+10. Improve the website auditor SPA confidence model before relying on automatic competitor-delta output.
 
-## 16. Files future sessions should read first
+## 17. Files future sessions should read first
 
 1. `AI-CONTINUITY.md`
 2. `PROJECT-RULES.md`
-3. `.cpanel.yml`
-4. latest `RELEASE-v*.md`
-5. `COMPETITOR-AUDIT-2026-08-11.md`
-6. `preview/build-lab/index.html`
-7. planner persistence/transition/integrity bridge files under `preview/build-lab/`
-8. `preview/build-lab/weapon-compare.js`
-9. `preview/build-lab/weapon-compare.css`
-10. Calibration Style/picker/details modules under `preview/build-lab/`
-11. `shared/readability.css`
-12. `shared/readability.js`
-13. player image maps/assets
+3. `OPERABILITY-AUDIT.md`
+4. `.cpanel.yml`
+5. latest `RELEASE-v*.md`
+6. `COMPETITOR-AUDIT-2026-08-11.md`
+7. `preview/build-lab/index.html`
+8. planner persistence/transition/integrity bridge files under `preview/build-lab/`
+9. `preview/build-lab/planner-report-tools.js`
+10. `preview/build-lab/weapon-compare.js`
+11. `preview/build-lab/weapon-compare.css`
+12. Calibration Style/picker/details modules under `preview/build-lab/`
+13. `shared/readability.css`
+14. `shared/readability.js`
+15. player image maps/assets
 
 For miner work, inspect the actual miner package/source under `_internal/extractor/`. GitHub sidecar probes are not the authoritative miner implementation.
 
-## 17. Continuity rules
+For the latest quantitative competitor check, prefer the most recent **v0.1.1+ Dead Signal Site Auditor JSON/ZIP supplied by the user** over the older checked-in narrative audit, while preserving the auditor’s detection/confidence caveats.
+
+## 18. Continuity rules
 
 - Read this file and `PROJECT-RULES.md` first.
 - Work on `main`; do not create branches unless the user asks.
 - Preserve copy-only cPanel deployment.
-- While the user is fixing SSL/domain configuration in another window, do not interfere with DNS/SSL/redirect/domain/cPanel hosting settings.
+- Do not reopen DNS/SSL/redirect/domain settings without new evidence; the 2026-08-11 public-site SSL fault was fixed and verified.
+- Preserve same-origin relative planner core asset paths.
 - Do not upload the 3 GB master archive or `reference-tracer.sqlite` to normal production.
 - Keep real hosted game images under `assets/reference-images/`.
 - Prefer installed-game/mined evidence over community guesses.
@@ -358,9 +477,5 @@ For miner work, inspect the actual miner package/source under `_internal/extract
 - Accessibility/readability is a product requirement.
 - Calibration RNG stays exact numeric fields only; no sliders.
 - Calibration selection stays Style-first, then rarity/owned RNG.
-
----
-
-### Continuity checkpoint
-
-**Critical handoff as of 2026-08-11 11:27 MST:** the planner has moved well beyond the old PLAYER v1.5.1 checkpoint. Persistence/build-mode extension handling, transition isolation, fail-closed Build Data Integrity, loadout sharing/checklist tools, raw Weapon Compare, compare search/images/safe Swap, and same-origin core asset paths are now on `main`. Copy-only deployment remains mandatory. The live browser persistence torture test is still the primary operability gate, and the 108-vs-119 attachment reconciliation is the primary known data-completeness gap. **The user is actively fixing the domain SSL in another window; do not make competing hosting/domain/SSL changes until they report that work complete.**
+- The Calibration fixed Style effect is vital information and must not be visually demoted to footer/fine-print treatment.
+- A website-auditor detection is evidence of reachable text/assets, not proof that a workflow is operational end-to-end.
