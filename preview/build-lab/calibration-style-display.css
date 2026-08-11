@@ -1,8 +1,9 @@
 /* PLAYER v1.5.1 — mined Calibration Style display */
 
-/* Calibration picker: the fixed Style effect belongs inside the card content pane. */
-#picker.ds-cal-style-picker-active .ds-cal-mined-description{display:block;width:auto;margin:10px 0 0;padding:10px 12px;border:1px solid #3b3034;border-left:3px solid #a83a43;background:linear-gradient(135deg,#130b0e,#0a0d0f);color:#e2e6e8;font-size:var(--ds-type-small,10px);font-weight:600;line-height:1.5}
-#picker.ds-cal-style-picker-active .ds-cal-mined-description::before{content:"FIXED STYLE EFFECT";display:block;margin-bottom:6px;color:#ff7881;font-size:var(--ds-type-micro,8px);font-weight:950;letter-spacing:.11em;text-transform:uppercase}
+/* Calibration picker: keep one hidden source node for the data script, and render one visible effect block inside the card content pane. */
+#picker .ds-cal-source-hidden{display:none!important}
+#picker.ds-cal-style-picker-active .ds-cal-mined-effect-inline{display:block;width:auto;margin:10px 0 0;padding:10px 12px;border:1px solid #3b3034;border-left:3px solid #a83a43;background:linear-gradient(135deg,#130b0e,#0a0d0f);color:#e2e6e8;font-size:var(--ds-type-small,10px);font-weight:600;line-height:1.5}
+#picker.ds-cal-style-picker-active .ds-cal-mined-effect-inline::before{content:"FIXED STYLE EFFECT";display:block;margin-bottom:6px;color:#ff7881;font-size:var(--ds-type-micro,8px);font-weight:950;letter-spacing:.11em;text-transform:uppercase}
 
 /* Selected weapon: the fixed Style is core build information, not fine print. */
 .ds-cal-style-effect{position:relative;margin:12px 0 4px;padding:14px 16px 15px;border:1px solid #6b3038;border-left:5px solid #c8434d;background:linear-gradient(135deg,#180b0f 0%,#0c1013 58%,#080a0c 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 8px 22px rgba(0,0,0,.18)}
