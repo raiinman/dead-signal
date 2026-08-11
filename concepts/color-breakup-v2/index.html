@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dead Signal // Alive Build Lab Concept</title>
+<style>
+:root{
+  --bg:#06080a;--panel:#0b1014;--panel2:#10161c;--panel3:#0d1318;--line:#26323b;--text:#eef3f6;--muted:#87939d;
+  --red:#ef3340;--amber:#ff9d36;--gold:#e6b65f;--cyan:#35d7d1;--purple:#b56cff;--green:#55d98a;--blue:#69a8ff;
+  --sidebar:218px;
+}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:#050709;color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 78% 10%,rgba(239,51,64,.12),transparent 31%),radial-gradient(circle at 22% 45%,rgba(53,215,209,.055),transparent 29%),linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px);background-size:auto,auto,44px 44px,44px 44px;opacity:.9}
+a{color:inherit;text-decoration:none}button,input,select{font:inherit}.app{position:relative;display:grid;grid-template-columns:var(--sidebar) minmax(0,1fr);min-height:100vh}
+.sidebar{position:sticky;top:0;height:100vh;border-right:1px solid #202932;background:linear-gradient(180deg,#090d11,#070a0d 65%,#0b090a);padding:20px 14px;z-index:10}.brand{display:flex;gap:11px;align-items:center;padding:4px 6px 21px;border-bottom:1px solid #202932}.sigil{width:38px;height:38px;display:grid;place-items:center;border:1px solid #781e29;color:#ff4a58;background:radial-gradient(circle,rgba(239,51,64,.2),rgba(239,51,64,.02));transform:rotate(45deg)}.sigil span{transform:rotate(-45deg);font-weight:800}.brand strong{font-size:17px;letter-spacing:.08em}.brand small{display:block;color:#77838d;font-size:8px;letter-spacing:.18em;margin-top:3px}.navlabel{font-size:9px;color:#58646d;letter-spacing:.17em;margin:20px 9px 7px}.side-nav a{display:flex;align-items:center;gap:10px;padding:10px 10px;margin:3px 0;border-left:2px solid transparent;color:#98a5ae;font-size:11px}.side-nav a:hover,.side-nav a.active{color:#fff;background:linear-gradient(90deg,rgba(239,51,64,.12),transparent);border-left-color:var(--red)}.side-nav i{width:18px;text-align:center;font-style:normal;color:#677680}.side-nav .active i{color:#ff5260}.livebox{margin-top:22px;border:1px solid #27323a;background:#0a0f13;padding:11px}.livehead{display:flex;justify-content:space-between;align-items:center;font-size:9px;letter-spacing:.13em;color:#71808a}.pulse{width:7px;height:7px;border-radius:50%;background:#6e7880}.pulse.on{background:var(--green);box-shadow:0 0 12px rgba(85,217,138,.75);animation:pulse 1.7s infinite}.livebox strong{display:block;margin-top:8px;font-size:11px}.livebox small{display:block;color:#69757e;font-size:9px;line-height:1.4;margin-top:4px}@keyframes pulse{50%{opacity:.45;box-shadow:0 0 3px rgba(85,217,138,.2)}}
+.main{min-width:0}.topbar{height:68px;display:flex;align-items:center;gap:12px;padding:0 24px;border-bottom:1px solid #202a32;background:rgba(6,8,10,.93);backdrop-filter:blur(14px);position:sticky;top:0;z-index:9}.crumb small{display:block;color:#69757f;font-size:8px;letter-spacing:.17em}.crumb strong{font-size:15px;letter-spacing:.05em}.top-actions{margin-left:auto;display:flex;gap:8px}.btn{border:1px solid #2b3640;background:#0c1116;color:#dbe3e8;padding:8px 12px;cursor:pointer;border-radius:3px;font-size:10px;letter-spacing:.04em}.btn:hover{border-color:#52616d}.btn.red{background:linear-gradient(180deg,#b91f2c,#78131c);border-color:#d12b37}.workspace{padding:18px 22px 40px;max-width:1540px;margin:0 auto}
+.hero{border:1px solid #27333c;background:linear-gradient(115deg,rgba(13,18,23,.98),rgba(13,18,23,.88) 44%,rgba(38,11,15,.85)),radial-gradient(circle at 80% 30%,rgba(239,51,64,.23),transparent 24%);display:grid;grid-template-columns:minmax(0,1.35fr) .65fr;overflow:hidden;position:relative}.hero:after{content:"";position:absolute;left:58%;top:-40px;width:4px;height:270px;background:#ef3340;box-shadow:0 0 32px #ef3340,0 0 75px rgba(239,51,64,.55);opacity:.8;transform:rotate(8deg)}.hero-copy{padding:30px 30px 27px;position:relative;z-index:2}.eyebrow{font-size:9px;letter-spacing:.2em;color:#ff6b76}.hero h1{font-size:35px;line-height:1.02;margin:7px 0 10px;letter-spacing:.03em}.hero h1 em{font-style:normal;color:var(--red)}.hero p{color:#a8b3bb;font-size:12px;line-height:1.55;max-width:650px;margin:0 0 17px}.hero-buttons{display:flex;gap:8px}.hero-side{padding:18px;align-self:stretch;display:grid;grid-template-columns:repeat(2,1fr);gap:8px;position:relative;z-index:2}.metric{border:1px solid #2b353d;background:rgba(6,9,12,.82);padding:13px;min-height:82px}.metric small{font-size:8px;color:#6f7b84;letter-spacing:.13em}.metric strong{display:block;font-size:22px;margin-top:8px}.metric span{display:block;font-size:8px;color:#75818a;margin-top:3px}.metric.live strong{color:var(--cyan)}
+.corpus{margin-top:10px;display:grid;grid-template-columns:repeat(6,1fr);border:1px solid #25313a;background:#090d11}.corpus-item{padding:12px 13px;border-right:1px solid #202a31;position:relative;overflow:hidden}.corpus-item:last-child{border-right:0}.corpus-item:after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--tone)}.corpus-item small{color:#6d7983;font-size:8px;letter-spacing:.13em}.corpus-item b{display:block;font-size:18px;margin-top:4px}.corpus-item span{font-size:8px;color:#69757e}.tone-red{--tone:var(--red)}.tone-amber{--tone:var(--amber)}.tone-cyan{--tone:var(--cyan)}.tone-purple{--tone:var(--purple)}.tone-green{--tone:var(--green)}.tone-blue{--tone:var(--blue)}
+.section{margin-top:14px;border:1px solid #27323b;background:linear-gradient(180deg,#0c1116,#090d11);position:relative;overflow:hidden}.section:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent)}.section.plan{--accent:var(--red)}.section.weapons{--accent:var(--amber)}.section.armor{--accent:var(--gold)}.section.systems{--accent:var(--cyan)}.section.report{--accent:var(--purple)}.section-head{display:flex;align-items:center;gap:12px;padding:13px 16px 12px 18px;border-bottom:1px solid #243039;background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 8%,transparent),transparent 35%)}.section-no{font-size:20px;font-weight:800;color:color-mix(in srgb,var(--accent) 60%,#29323a)}.section-title small{display:block;color:var(--accent);font-size:8px;letter-spacing:.15em}.section-title h2{margin:2px 0 0;font-size:14px;letter-spacing:.07em}.section-tools{margin-left:auto;color:#6f7b84;font-size:9px}.section-body{padding:14px 16px 16px 18px}
+.identity-grid{display:grid;grid-template-columns:1.25fr 1fr .8fr 1fr;gap:9px}.field{border:1px solid #263139;background:#090d11;padding:9px 10px}.field label{display:block;color:#68757f;font-size:8px;letter-spacing:.11em}.field b{display:block;margin-top:5px;font-size:11px}.mode-line{margin-top:10px;display:flex;gap:7px;align-items:center}.mode{padding:7px 10px;border:1px solid #343e45;background:#0a0f13;color:#808c95;font-size:9px;cursor:pointer}.mode.active{border-color:#a3232e;color:#fff;background:#250d11}.integrity{margin-left:auto;display:flex;align-items:center;gap:8px;border:1px solid #25533f;background:#0d1b16;padding:7px 10px;color:#8ee9b3;font-size:9px}.integrity i{width:7px;height:7px;background:var(--green);border-radius:50%;box-shadow:0 0 10px rgba(85,217,138,.6)}
+.weapon-layout{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.weapon-card{border:1px solid #2b343b;background:linear-gradient(140deg,rgba(255,157,54,.075),#090d11 48%);padding:13px;min-height:174px;position:relative}.weapon-card:nth-child(2){background:linear-gradient(140deg,rgba(105,168,255,.06),#090d11 48%)}.weapon-card:nth-child(3){background:linear-gradient(140deg,rgba(181,108,255,.06),#090d11 48%)}.slot{font-size:8px;color:#7a8791;letter-spacing:.13em}.weapon-title{font-size:14px;margin:8px 0 2px}.weapon-type{font-size:9px;color:#7e8b95}.stats{display:flex;gap:6px;flex-wrap:wrap;margin-top:13px}.chip{border:1px solid #39454e;background:#0c1217;padding:5px 7px;font-size:9px}.chip b{color:#fff}.chip.accent{border-color:#6d4a25;color:#ffbd6f}.weapon-effect{border-left:2px solid var(--amber);background:#0d1115;margin-top:11px;padding:8px 9px;color:#adb8c0;font-size:9px;line-height:1.45;min-height:45px}.live-tag{position:absolute;right:10px;top:10px;font-size:7px;letter-spacing:.13em;color:#82e8aa;border:1px solid #28543f;padding:3px 5px;background:#0c1713}
+.armor-layout{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}.gear{border:1px solid #31373a;background:linear-gradient(155deg,rgba(230,182,95,.09),#090d11 55%);min-height:122px;padding:11px}.gear small{color:#8d7c58;font-size:8px;letter-spacing:.1em}.gear strong{display:block;font-size:10px;margin-top:8px}.gear span{display:block;color:#707d86;font-size:8px;margin-top:4px}.gear .mini{margin-top:10px;border-top:1px solid #262f35;padding-top:7px;color:#d6b673;font-size:8px}
+.system-grid{display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:9px}.sys{border:1px solid #2b353d;background:#090d11;padding:12px;min-height:126px}.sys.cal{background:linear-gradient(135deg,rgba(53,215,209,.08),#090d11)}.sys.mods{background:linear-gradient(135deg,rgba(181,108,255,.08),#090d11)}.sys.dev{background:linear-gradient(135deg,rgba(85,217,138,.08),#090d11)}.sys small{font-size:8px;letter-spacing:.12em}.sys.cal small{color:var(--cyan)}.sys.mods small{color:var(--purple)}.sys.dev small{color:var(--green)}.sys strong{display:block;font-size:13px;margin-top:8px}.sys p{font-size:9px;color:#78858e;line-height:1.45}.sys .meter{height:5px;background:#1b242a;margin-top:11px}.sys .meter i{display:block;height:100%;width:84%;background:linear-gradient(90deg,var(--cyan),#6ee8e2)}.sys.mods .meter i{width:71%;background:linear-gradient(90deg,var(--purple),#d1a6ff)}.sys.dev .meter i{width:92%;background:linear-gradient(90deg,var(--green),#91ebb6)}
+.report-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:10px}.report-panel{border:1px solid #2c3540;background:linear-gradient(135deg,rgba(181,108,255,.06),#090d11 48%);padding:13px}.feature-row{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}.feature{border:1px solid #28323a;background:#0a0f13;padding:10px}.feature i{font-style:normal;color:var(--tone);font-size:16px}.feature strong{display:block;font-size:9px;margin-top:7px}.feature span{display:block;color:#6f7c85;font-size:8px;margin-top:3px;line-height:1.35}.feature:nth-child(1){--tone:var(--red)}.feature:nth-child(2){--tone:var(--amber)}.feature:nth-child(3){--tone:var(--cyan)}.feature:nth-child(4){--tone:var(--purple)}.feature:nth-child(5){--tone:var(--blue)}.scorebox{border:1px solid #322b3b;background:#0a0e12;padding:13px}.scorebox small{color:#7c7288;font-size:8px;letter-spacing:.12em}.scorebox strong{display:block;font-size:24px;color:#d49aff;margin-top:7px}.scorebox span{color:#78848d;font-size:8px}.footer-note{text-align:center;color:#53616b;font-size:8px;letter-spacing:.09em;padding:22px 0 4px}
+@media(max-width:1150px){:root{--sidebar:178px}.corpus{grid-template-columns:repeat(3,1fr)}.corpus-item:nth-child(3){border-right:0}.weapon-layout{grid-template-columns:1fr}.armor-layout{grid-template-columns:repeat(3,1fr)}.hero{grid-template-columns:1fr}.hero:after{left:77%}.identity-grid{grid-template-columns:repeat(2,1fr)}.feature-row{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:760px){.app{display:block}.sidebar{display:none}.workspace{padding:12px}.topbar{padding:0 12px}.hero-side{grid-template-columns:repeat(2,1fr)}.corpus{grid-template-columns:repeat(2,1fr)}.corpus-item{border-bottom:1px solid #202a31}.identity-grid,.armor-layout,.system-grid,.report-grid{grid-template-columns:1fr}.feature-row{grid-template-columns:1fr}.hero h1{font-size:29px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><div class="sigil"><span>DS</span></div><div><strong>DEAD SIGNAL</strong><small>ONCE HUMAN INTELLIGENCE</small></div></div>
+    <div class="navlabel">BUILD LAB</div>
+    <nav class="side-nav">
+      <a class="active" href="#plan"><i>⌁</i>Planner</a>
+      <a href="#weapons"><i>⌖</i>Weapons</a>
+      <a href="#armor"><i>◇</i>Armor + Mods</a>
+      <a href="#systems"><i>◉</i>Build Systems</a>
+      <a href="#report"><i>▤</i>Loadout Report</a>
+    </nav>
+    <div class="navlabel">NETWORK</div>
+    <nav class="side-nav"><a href="#live"><i>↯</i>Live Corpus</a><a href="#report"><i>⇄</i>Weapon Compare</a><a href="#report"><i>✓</i>Data Integrity</a></nav>
+    <div class="livebox"><div class="livehead"><span>PRODUCTION DATA</span><i id="pulse" class="pulse"></i></div><strong id="liveState">Connecting…</strong><small id="liveDetail">Reading the live player-facing corpus from deadsignaldb.com.</small></div>
+  </aside>
+  <div class="main">
+    <header class="topbar"><div class="crumb"><small>DEAD SIGNAL // BUILD LAB</small><strong>ULTIMATE PLANNER <span style="color:#ef3340">CONCEPT v2</span></strong></div><div class="top-actions"><button class="btn">Templates</button><button class="btn">Save</button><button class="btn">My Builds</button><button class="btn">Compare</button><button class="btn red">Copy Share Link</button></div></header>
+    <main class="workspace">
+      <section class="hero">
+        <div class="hero-copy"><div class="eyebrow">OLD FLOW // MORE LIFE // REAL DATA</div><h1>The Build Lab, but <em>alive.</em></h1><p>This version keeps the stacked flow and navigation rhythm of the existing planner, then uses color as a navigation system instead of turning Dead Signal into a completely different dashboard.</p><div class="hero-buttons"><button class="btn red" data-jump="#weapons">CONTINUE BUILD</button><button class="btn" data-jump="#live">VIEW LIVE CORPUS</button></div></div>
+        <div class="hero-side"><div class="metric live"><small>LIVE CORPUS</small><strong id="heroWeapons">—</strong><span>weapon records loaded</span></div><div class="metric"><small>CALIBRATIONS</small><strong id="heroCal">—</strong><span>current planner records</span></div><div class="metric"><small>ARMOR</small><strong id="heroArmor">—</strong><span>player-facing pieces</span></div><div class="metric"><small>DATA SOURCE</small><strong id="heroSource" style="font-size:15px">CONNECTING</strong><span>production community-data.js</span></div></div>
+      </section>
+
+      <section id="live" class="corpus">
+        <div class="corpus-item tone-red"><small>TOTAL WEAPONS</small><b id="countWeapons">—</b><span id="weaponSplit">live corpus</span></div>
+        <div class="corpus-item tone-amber"><small>ARMOR PIECES</small><b id="countArmor">—</b><span>player-facing corpus</span></div>
+        <div class="corpus-item tone-cyan"><small>CALIBRATIONS</small><b id="countCal">—</b><span>planner records</span></div>
+        <div class="corpus-item tone-purple"><small>MOD RECORDS</small><b id="countMods">—</b><span>current loaded set</span></div>
+        <div class="corpus-item tone-green"><small>DEVIATIONS</small><b id="countDev">—</b><span>planner records</span></div>
+        <div class="corpus-item tone-blue"><small>CRADLES</small><b id="countCradles">—</b><span>planner records</span></div>
+      </section>
+
+      <section id="plan" class="section plan"><div class="section-head"><div class="section-no">00</div><div class="section-title"><small>BUILD IDENTITY</small><h2>Plan</h2></div><div class="section-tools">The familiar starting point — just stronger visual separation.</div></div><div class="section-body"><div class="identity-grid"><div class="field"><label>BUILD NAME</label><b>SKS Pathfinder — Frost Control</b></div><div class="field"><label>AUTHOR</label><b>RAiiNMAN</b></div><div class="field"><label>BUILD TYPE</label><b>PvE</b></div><div class="field"><label>TAGS</label><b>Frost · Precision · Solo</b></div></div><div class="mode-line"><span style="font-size:8px;color:#6e7982;letter-spacing:.12em">BUILD MODE</span><button class="mode active" data-mode="my">MY GEAR — ACTUAL</button><button class="mode" data-mode="god">GOD ROLL — THEORY</button><div class="integrity"><i></i><span id="integrityText">BUILD DATA INTEGRITY // READY</span></div></div></div></section>
+
+      <section id="weapons" class="section weapons"><div class="section-head"><div class="section-no">01</div><div class="section-title"><small>WEAPONS</small><h2>Loadout</h2></div><div class="section-tools" id="weaponToolText">Pulling real indexed records…</div></div><div class="section-body"><div class="weapon-layout" id="weaponCards"></div></div></section>
+
+      <section id="armor" class="section armor"><div class="section-head"><div class="section-no">02</div><div class="section-title"><small>ARMOR</small><h2>Gear + Mods</h2></div><div class="section-tools">Gold zoning makes the gear block feel like a distinct chapter.</div></div><div class="section-body"><div class="armor-layout"><div class="gear"><small>HELMET</small><strong>Treacherous Tides</strong><span>Tier V · equipped</span><div class="mini">MOD // Precision</div></div><div class="gear"><small>MASK</small><strong>Shelterer</strong><span>Tier V · equipped</span><div class="mini">MOD // Shelterer</div></div><div class="gear"><small>TOP</small><strong>Snowdrift Top</strong><span>Key armor</span><div class="mini">MOD // Quick Comeback</div></div><div class="gear"><small>GLOVES</small><strong>Treacherous Tides</strong><span>Tier V · equipped</span><div class="mini">MOD // Element</div></div><div class="gear"><small>PANTS</small><strong>Treacherous Tides</strong><span>Tier V · equipped</span><div class="mini">MOD // Elemental Resonance</div></div><div class="gear"><small>BOOTS</small><strong>Treacherous Tides</strong><span>Tier V · equipped</span><div class="mini">MOD // Utility</div></div></div></div></section>
+
+      <section id="systems" class="section systems"><div class="section-head"><div class="section-no">03</div><div class="section-title"><small>BUILD SYSTEMS</small><h2>Calibration, Mods & Deviation</h2></div><div class="section-tools">Color only where it helps your eye land.</div></div><div class="section-body"><div class="system-grid"><article class="sys cal"><small>CALIBRATION</small><strong>Energy Rifle — Legendary</strong><p>Fixed Style Effect is treated as primary information, with owned RNG shown separately below it.</p><div class="meter"><i></i></div></article><article class="sys mods"><small>MOD LOADOUT</small><strong>Mod 2.0 configuration</strong><p>Fixed sub-attributes stay readable without turning every choice into another gray box.</p><div class="meter"><i></i></div></article><article class="sys dev"><small>COMBAT DEVIATION</small><strong>Synced build system</strong><p>Deviation and Cradle choices get their own green system identity without overpowering the page.</p><div class="meter"><i></i></div></article></div></div></section>
+
+      <section id="report" class="section report"><div class="section-head"><div class="section-no">DS</div><div class="section-title"><small>BUILD OVERVIEW</small><h2>Loadout Report + Tools</h2></div><div class="section-tools">Still part of the flow — not a giant permanent dashboard rail.</div></div><div class="section-body"><div class="report-grid"><div class="report-panel"><div class="feature-row"><div class="feature"><i>◫</i><strong>MY GEAR / GOD ROLL</strong><span>Owned reality vs legal theory.</span></div><div class="feature"><i>✦</i><strong>CALIBRATION</strong><span>Current blueprint model.</span></div><div class="feature"><i>✓</i><strong>INTEGRITY</strong><span>Fail closed on missing RNG.</span></div><div class="feature"><i>▤</i><strong>REPORT</strong><span>Copyable loadout + checklist.</span></div><div class="feature"><i>⇄</i><strong>COMPARE</strong><span>Raw indexed A/B stats.</span></div></div></div><div class="scorebox"><small>CURRENT CONCEPT GOAL</small><strong>OLD FLOW + COLOR</strong><span>Keep the structure that already feels right. Add life, landmarks and real data—not dashboard clutter.</span></div></div></div></section>
+      <div class="footer-note">DEAD SIGNAL // COLOR BREAKUP CONCEPT v2 // NOT PRODUCTION</div>
+    </main>
+  </div>
+</div>
+<script src="https://deadsignaldb.com/build-planner/data/community-data.js"></script>
+<script>
+(()=>{
+  const fallback={weapons:120,armor:173,calibrations:94,mods:817,deviations:97,cradles:120};
+  const D=window.DS_COMMUNITY||{};
+  const keys=Object.keys(D);
+  const findArray=(...needles)=>{
+    const k=keys.find(key=>Array.isArray(D[key])&&needles.some(n=>key.toLowerCase()===n||key.toLowerCase().includes(n)));
+    return k?D[k]:[];
+  };
+  const weapons=findArray('weapons','weapon');
+  const armor=findArray('armor','armors');
+  const calibrations=findArray('calibrations','calibration');
+  const mods=findArray('mods','mod');
+  const deviations=findArray('deviations','deviation');
+  const cradles=findArray('cradles','cradle');
+  const live=weapons.length>0;
+  const count=(arr,f)=>arr.length||f;
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v};
+  const values={weapons:count(weapons,fallback.weapons),armor:count(armor,fallback.armor),cal:count(calibrations,fallback.calibrations),mods:count(mods,fallback.mods),dev:count(deviations,fallback.deviations),cradles:count(cradles,fallback.cradles)};
+  set('heroWeapons',values.weapons);set('heroArmor',values.armor);set('heroCal',values.cal);
+  set('countWeapons',values.weapons);set('countArmor',values.armor);set('countCal',values.cal);set('countMods',values.mods);set('countDev',values.dev);set('countCradles',values.cradles);
+  set('heroSource',live?'LIVE':'SNAPSHOT');
+  const pulse=document.getElementById('pulse');
+  if(live){pulse?.classList.add('on');set('liveState','LIVE CORPUS CONNECTED');set('liveDetail','Loaded directly from the current production community-data.js used by the planner.');}
+  else{set('liveState','FALLBACK SNAPSHOT');set('liveDetail','Production corpus could not load here. Showing the last verified planner baseline instead.');}
+  if(weapons.length){
+    const melee=weapons.filter(w=>/melee|sword|knife|bat|axe|kukri/i.test(String(w.type||w.category||''))).length;
+    const ranged=Math.max(0,weapons.length-melee);
+    set('weaponSplit',`${ranged} ranged · ${melee} melee`);
+  }
+  const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const norm=s=>String(s??'').replace(/\s+/g,' ').trim();
+  const findWeapon=(names)=>{
+    for(const name of names){const hit=weapons.find(w=>norm(w.name).toLowerCase().includes(name.toLowerCase()));if(hit)return hit;}
+    return null;
+  };
+  const chosen=[
+    findWeapon(['Pathfinder','SKS']),
+    findWeapon(['Outsider','SOCR']),
+    findWeapon(['Autumn Equinox','M416'])
+  ].filter(Boolean);
+  for(const w of weapons){if(chosen.length>=3)break;if(!chosen.includes(w))chosen.push(w)}
+  const fallbackWeapons=[
+    {name:'SKS - Pathfinder',type:'Sniper Rifle',rarity:'Legendary',stats:{damage:94,rpm:600,magazine:8},feature:'Indexed weapon record from Dead Signal.'},
+    {name:'SOCR - Outsider',type:'Assault Rifle',rarity:'Legendary',stats:{damage:41,rpm:700,magazine:30},feature:'Production data loads into this card when available.'},
+    {name:'M416 - Autumn Equinox',type:'Assault Rifle',rarity:'Epic',stats:{damage:173,rpm:750,magazine:36},feature:'Live corpus sample card.'}
+  ];
+  const source=chosen.length?chosen:fallbackWeapons;
+  const cardHtml=(w,i)=>{
+    const st=w.stats||{};
+    const dmg=st.damage??st.attack??st.DMG??'—',rpm=st.rpm??st.fireRate??'—',mag=st.magazine??st.mag??'—';
+    const effect=norm(w.feature||w.effect||w.description||'Player-facing indexed record loaded from the Dead Signal corpus.');
+    return `<article class="weapon-card"><span class="live-tag">${live?'LIVE RECORD':'SNAPSHOT'}</span><div class="slot">${['PRIMARY','SECONDARY','MELEE / FLEX'][i]||'WEAPON'}</div><h3 class="weapon-title">${esc(w.name||'Unknown Weapon')}</h3><div class="weapon-type">${esc([w.type,w.rarity].filter(Boolean).join(' · ')||'Indexed weapon')}</div><div class="stats"><span class="chip"><b>${esc(dmg)}</b> DMG</span><span class="chip"><b>${esc(rpm)}</b> RPM</span><span class="chip"><b>${esc(mag)}</b> MAG</span><span class="chip accent">Tier / Stars configure below</span></div><div class="weapon-effect">${esc(effect.slice(0,190))}${effect.length>190?'…':''}</div></article>`;
+  };
+  document.getElementById('weaponCards').innerHTML=source.slice(0,3).map(cardHtml).join('');
+  set('weaponToolText',live?`Showing real records from ${values.weapons} loaded weapons.`:'Showing last verified corpus snapshot.');
+  document.querySelectorAll('[data-mode]').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('[data-mode]').forEach(x=>x.classList.remove('active'));btn.classList.add('active');set('integrityText',btn.dataset.mode==='god'?'THEORETICAL MODE // LEGAL MAXIMA':'BUILD DATA INTEGRITY // READY');}));
+  document.querySelectorAll('[data-jump]').forEach(btn=>btn.addEventListener('click',()=>document.querySelector(btn.dataset.jump)?.scrollIntoView({behavior:'smooth',block:'start'})));
+  document.querySelectorAll('.side-nav a').forEach(a=>a.addEventListener('click',()=>{document.querySelectorAll('.side-nav a').forEach(x=>x.classList.remove('active'));a.classList.add('active');}));
+})();
+</script>
+</body>
+</html>
