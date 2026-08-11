@@ -1,6 +1,6 @@
 # Dead Signal — Operability Audit
 
-Last checked: 2026-08-11 00:47 MST
+Last checked: 2026-08-11 01:30 MST
 
 This file records player-facing operational blockers that should be resolved before Dead Signal is called broadly complete. It is intentionally separate from advanced combat/stat math.
 
@@ -10,10 +10,10 @@ This file records player-facing operational blockers that should be resolved bef
 - Current player release: **PLAYER v1.5.2**
 - Copy-only cPanel deployment remains required.
 - Calibration Style localization is complete for 94/94 current Calibration Blueprints.
-- Live-browser screenshot confirmation now shows the Calibration picker with exactly one contained `FIXED STYLE EFFECT` block per rarity card. The prior duplicate footer copy is resolved.
-- The authoritative production `app.js` source has now been supplied and reviewed, so native persistence behavior is no longer inferred from UI symptoms.
+- Live-browser screenshot confirmation shows the Calibration picker with exactly one contained `FIXED STYLE EFFECT` block per rarity card. The prior duplicate footer copy is resolved.
+- The authoritative production `app.js` source has been supplied and reviewed, so native persistence behavior is no longer inferred from UI symptoms.
 
-## Planner persistence — bridge implemented, live round-trip still pending
+## Planner persistence — bridge hardened, live round-trip still pending
 
 The recovered core source confirms the native planner state already owns:
 
@@ -29,35 +29,37 @@ The newer presentation layers were keeping visible values in separate sidecars:
 - weapon-model Weapon DMG UI: `dead-signal-weapon-model-v1`
 - Calibration secondary UI: `dead-signal-calibration-secondary-v1`
 
-That creates a real integrity risk because the displayed build can diverge from the state that the core app serializes.
+That creates an integrity risk because two builds using the same weapon/calibration can otherwise inherit the same visible sidecar values.
 
-### PLAYER v1.5.2 mitigation
+### PLAYER v1.5.2 bridge
 
 Prepared static file:
 
 `preview/build-lab/planner-state-bridge.js`
 
-The bridge is based on the recovered core source and known payload/DOM contracts; it is not guessing at unknown serialization behavior.
-
-It currently:
+The bridge now:
 
 1. synchronizes visible My Gear Calibration Weapon DMG and secondary controls back through the core app's native `data-cal-*` inputs before Save / Export / Share;
-2. preserves blank My Gear roll fields as `null` instead of allowing the older midpoint initialization to masquerade as an owned roll;
-3. stores Build Mode as a backward-compatible namespaced extension: `state.dsExtension.buildMode`;
-4. restores Build Mode from browser saves, imported builds, and share-link payloads when the extension exists;
-5. synchronizes native loaded Calibration values back into the newer player-facing controls after Load / Clone / Import / Share.
+2. stores Build Mode in a backward-compatible namespaced extension: `state.dsExtension.buildMode`;
+3. stores the visible Calibration UI state per weapon slot under `state.dsExtension.calibration`;
+4. restores the per-build visible Calibration state after Load / Clone / Import / Share instead of trusting global sidecar values;
+5. preserves intentionally blank My Gear roll fields as blank/null across bridge-managed round trips, even though the older core normalization initializes missing calibration ranges to midpoint defaults;
+6. falls back to the recovered core calibration values for older builds that do not yet contain the extension.
 
-The core `app.js` should still be vendored into the repository when practical. The v1.5.2 bridge is a compatibility layer that lets the current externally loaded core and the newer presentation stack behave like one planner without changing cPanel architecture.
+This per-build extension is important because merely syncing the sidecars into the native core before Save is not enough: the older core `normalizeState()` fills null Calibration rolls with midpoint values during load. The v1.5.2.1 hardening explicitly preserves user-visible blank state and prevents a previous build's sidecar values from leaking into a newly loaded build.
+
+The bridge remains a compatibility layer. The recovered core `app.js` should be vendored and extended directly when the full source is landed in GitHub, which will allow the temporary persistence interception layer to be removed.
 
 ## Required live round-trip verification
 
 Before persistence can be called closed, verify:
 
 1. My Gear exact Weapon DMG + one secondary roll → Save → Load.
-2. God Roll mode → Save → Load restores God Roll visibly.
-3. Export → Import preserves build mode and exact My Gear calibration rolls.
-4. Copy Share Link → open link preserves mode and exact My Gear calibration rolls.
-5. Two saved builds using the same weapon/calibration but different rolls remain independent.
+2. My Gear intentionally blank RNG fields → Save → Load remain blank.
+3. God Roll mode → Save → Load restores God Roll visibly.
+4. Export → Import preserves build mode and exact My Gear calibration rolls.
+5. Copy Share Link → open link preserves mode and exact My Gear calibration rolls.
+6. Two saved builds using the same weapon/calibration but different rolls remain independent.
 
 ## Advanced stat math
 
@@ -68,5 +70,5 @@ Held unless mined files already prove a complete stat-family consumer/order. Do 
 1. Live-verify the PLAYER v1.5.2 persistence round trips above.
 2. Audit picker and selected-card workflows across weapons, armor, mods, attachments, Deviations, Cradles, ammo, and consumables.
 3. Reconcile the older 108 planner attachments with the 119 mined true weapon-slot accessories when the mined attachment export is available in a form that can be safely integrated.
-4. Vendor the recovered core `app.js` into source control when the full file can be landed safely, eliminating the remaining externally loaded core dependency.
+4. Vendor and extend the recovered core `app.js`, then remove the temporary persistence interception layer.
 5. Only after broad operational completeness, run the live Wikily + OnceHumanDB competitor audit and close material usability/data gaps.
