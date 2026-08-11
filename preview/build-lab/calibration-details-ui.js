@@ -64,9 +64,9 @@ function renderSecondary(card){
   let control='';
   if(chosen){
     if(buildMode==='god'){
-      control=`<div class="ds-cal-secondary-god"><input type="range" min="${chosen.min}" max="${chosen.max}" step="0.1" value="${roll}" disabled><output>${fmt(roll)}%</output><p>God Roll uses the maximum legal ${chosen.name} roll.</p></div>`;
+      control=`<div class="ds-cal-locked-value"><small>GOD ROLL VALUE</small><strong>${fmt(roll)}%</strong><p>Maximum legal ${chosen.name} roll.</p></div>`;
     }else{
-      control=`<div class="ds-cal-secondary-inputs"><input data-cal-secondary-range type="range" min="${chosen.min}" max="${chosen.max}" step="0.1" value="${hasRoll?roll:chosen.min}"><label><input data-cal-secondary-number type="number" min="${chosen.min}" max="${chosen.max}" step="0.1" value="${hasRoll?fmt(roll):''}" placeholder="Exact roll"><b>%</b></label></div><div class="ds-cal-secondary-range"><span>${fmt(chosen.min)}%</span><span data-cal-secondary-status>${hasRoll?`Your roll: ${fmt(roll)}%`:'Drag or type your exact roll'}</span><span>${fmt(chosen.max)}%</span></div>`;
+      control=`<label class="ds-cal-number-field"><span>Exact ${chosen.name} roll</span><div><input data-cal-secondary-number type="number" min="${chosen.min}" max="${chosen.max}" step="0.1" value="${hasRoll?fmt(roll):''}" placeholder="${fmt(chosen.min)}–${fmt(chosen.max)}"><b>%</b></div><small data-cal-secondary-status>${hasRoll?`Saved roll: ${fmt(roll)}%`:`Enter a value from ${fmt(chosen.min)}% to ${fmt(chosen.max)}%`}</small></label>`;
     }
   }else{
     control='<p class="ds-cal-secondary-help">Choose the secondary attribute shown on your actual Calibration Blueprint.</p>';
@@ -79,22 +79,27 @@ function renderSecondary(card){
   box.dataset.signature=signature;
 
   box.querySelector('[data-cal-secondary-choice]')?.addEventListener('change',e=>{patchSaved(k,{secondaryId:e.target.value||null,secondaryRoll:null});box.dataset.signature='';renderSecondary(card);});
-  const range=box.querySelector('[data-cal-secondary-range]'),number=box.querySelector('[data-cal-secondary-number]'),status=box.querySelector('[data-cal-secondary-status]');
-  if(range&&number&&chosen){
-    const applyLive=v=>{
+  const number=box.querySelector('[data-cal-secondary-number]'),status=box.querySelector('[data-cal-secondary-status]');
+  if(number&&chosen){
+    const saveValid=v=>{
       v=Math.round(Number(v)*10)/10;
       if(!Number.isFinite(v)||v<chosen.min||v>chosen.max)return false;
       patchSaved(k,{secondaryId:chosen.id,secondaryRoll:v});
-      range.value=String(v);number.value=fmt(v);if(status)status.textContent=`Your roll: ${fmt(v)}%`;
+      number.value=fmt(v);
+      if(status)status.textContent=`Saved roll: ${fmt(v)}%`;
       box.dataset.signature=signatureFor(info,buildMode,chosen,v);
       return true;
     };
-    range.addEventListener('input',()=>applyLive(range.value));
-    number.addEventListener('input',()=>{if(number.value!=='')applyLive(number.value);});
+    number.addEventListener('input',()=>{
+      if(number.value===''){if(status)status.textContent=`Enter a value from ${fmt(chosen.min)}% to ${fmt(chosen.max)}%`;return;}
+      const v=Number(number.value);
+      if(Number.isFinite(v)&&v>=chosen.min&&v<=chosen.max){saveValid(v);}
+      else if(status)status.textContent=`Allowed range: ${fmt(chosen.min)}%–${fmt(chosen.max)}%`;
+    });
     number.addEventListener('change',()=>{
       if(number.value===''){patchSaved(k,{secondaryId:chosen.id,secondaryRoll:null});box.dataset.signature='';renderSecondary(card);return;}
       let v=Number(number.value);if(!Number.isFinite(v))return;
-      v=Math.round(Math.min(chosen.max,Math.max(chosen.min,v))*10)/10;applyLive(v);
+      v=Math.round(Math.min(chosen.max,Math.max(chosen.min,v))*10)/10;saveValid(v);
     });
   }
 }
