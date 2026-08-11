@@ -5,9 +5,41 @@ const COMMUNITY=window.DS_COMMUNITY||{};
 const calibrations=(COMMUNITY.calibrations||[])
   .filter(x=>x&&x.name)
   .sort((a,b)=>String(b.name).length-String(a.name).length);
+const RARITIES=['Legendary','Epic','Rare'];
 
 let queued=false;
 const norm=v=>String(v??'').replace(/\s+/g,' ').trim();
+const rarityOf=item=>norm(item?.rarity||item?.quality||item?.grade||'');
+
+function rarityFromValue(value){
+  const text=norm(value);
+  for(const q of RARITIES)if(new RegExp(`\\b${q}\\b`,'i').test(text))return q;
+  return '';
+}
+function rarityFromElement(el){
+  if(!el)return '';
+  const nodes=[el,...el.querySelectorAll('[data-rarity],[data-quality],[data-grade],[data-item-rarity],[data-item-quality],[class]')];
+  for(const node of nodes){
+    const values=[
+      node.dataset?.rarity,node.dataset?.quality,node.dataset?.grade,node.dataset?.itemRarity,node.dataset?.itemQuality,
+      node.getAttribute?.('data-rarity'),node.getAttribute?.('data-quality'),node.getAttribute?.('data-grade'),
+      typeof node.className==='string'?node.className:''
+    ];
+    for(const value of values){const q=rarityFromValue(value);if(q)return q;}
+  }
+  return rarityFromValue(el.textContent||'');
+}
+function idHintsFromElement(el){
+  if(!el)return[];
+  const out=[];
+  for(const node of [el,...el.querySelectorAll('[data-id],[data-item-id],[data-record-id],[data-calibration-id]')]){
+    for(const value of [node.dataset?.id,node.dataset?.itemId,node.dataset?.recordId,node.dataset?.calibrationId,node.getAttribute?.('data-id'),node.getAttribute?.('data-item-id')]){
+      if(value!=null&&String(value).trim())out.push(String(value).trim());
+    }
+  }
+  return [...new Set(out)];
+}
+function itemId(item){return String(item?.id??item?.item_id??item?.itemId??item?.no??item?.item_no??'').trim();}
 
 function romanTier(s){
   const t=norm(s).toUpperCase();
@@ -75,23 +107,43 @@ function nativeCalibrationBlock(card,trigger){
   }
   return null;
 }
+function calibrationMatches(card,block,trigger){
+  const haystack=norm(`${trigger?.textContent||''} ${block?.textContent||''} ${card.textContent||''}`).toLowerCase();
+  return calibrations.filter(item=>{
+    const n=norm(item.name).toLowerCase();
+    return n.length>=4&&haystack.includes(n);
+  });
+}
 function calibrationItemFromCard(card,block,trigger){
-  const haystack=norm(`${trigger?.textContent||''} ${block?.textContent||''} ${card.textContent||''}`);
-  return calibrations.find(item=>{
-    const n=norm(item.name);
-    return n.length>=4&&haystack.toLowerCase().includes(n.toLowerCase());
-  })||null;
+  const matches=calibrationMatches(card,block,trigger);
+  if(!matches.length)return null;
+  if(matches.length===1)return matches[0];
+
+  const ids=[...idHintsFromElement(trigger),...idHintsFromElement(block)];
+  if(ids.length){
+    const byId=matches.find(item=>itemId(item)&&ids.includes(itemId(item)));
+    if(byId)return byId;
+  }
+
+  const rarityHint=rarityFromElement(block)||rarityFromElement(trigger);
+  if(rarityHint){
+    const byRarity=matches.find(item=>rarityOf(item).toLowerCase()===rarityHint.toLowerCase());
+    if(byRarity)return byRarity;
+  }
+
+  return null;
 }
 function calibrationDisplay(card,block,trigger){
   const item=calibrationItemFromCard(card,block,trigger);
   if(item){
-    const rarity=norm(item.rarity||item.quality||item.grade||'');
-    return {name:norm(item.name),rarity};
+    return {name:norm(item.name),rarity:rarityOf(item)};
   }
+
+  const rarity=rarityFromElement(block)||rarityFromElement(trigger);
   let label=norm(trigger?.textContent||'');
   label=label.replace(/Calibration Blueprint\s*[-:]?/ig,'').trim();
   if(!label||/^(choose|select|empty|none|add)$/i.test(label))label='Select Calibration Blueprint';
-  return {name:label,rarity:''};
+  return {name:label,rarity};
 }
 function makeProxy(card,panel,trigger,block){
   const calBox=panel.querySelector('.ds-wm-cal');
@@ -105,6 +157,8 @@ function makeProxy(card,panel,trigger,block){
   const wrap=document.createElement('div');
   wrap.className='ds-wm-cal-picker';
   wrap.dataset.signature=signature;
+  wrap.dataset.calibrationName=display.name;
+  wrap.dataset.calibrationRarity=display.rarity||'';
   wrap._dsNativeTrigger=trigger;
   wrap.innerHTML=`
     <div class="ds-wm-cal-picker-label">
@@ -137,6 +191,7 @@ function reorderPanel(panel){
     panel.querySelector('.ds-wm-controls'),
     panel.querySelector('.ds-wm-cal-picker'),
     panel.querySelector('.ds-wm-cal'),
+    panel.querySelector('.ds-cal-secondary-editor'),
     panel.querySelector('.ds-wm-proof'),
     panel.querySelector('.ds-wm-stats'),
     panel.querySelector('.ds-wm-result')
@@ -173,7 +228,7 @@ function queue(){
   queued=true;
   requestAnimationFrame(()=>{queued=false;run();});
 }
-new MutationObserver(queue).observe(document.body,{childList:true,subtree:true,characterData:true});
+new MutationObserver(queue).observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['class','data-rarity','data-quality','data-grade','data-item-id','data-id']});
 document.addEventListener('change',e=>{if(e.target.closest?.('.weapon-card'))setTimeout(run,0);});
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run,{once:true});else run();
 setTimeout(run,150);
