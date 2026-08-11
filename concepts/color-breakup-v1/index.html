@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dead Signal // Color Breakup Concept</title>
+<style>
+:root{
+  --bg:#06080a;--panel:#0b1014;--panel2:#0f151b;--line:#26313a;--text:#eef3f7;--muted:#89949e;
+  --red:#ef3340;--red2:#8e1520;--orange:#ff9d36;--cyan:#36d8d2;--purple:#b76cff;--green:#55d98a;--blue:#69a8ff;
+  --shadow:0 18px 50px rgba(0,0,0,.38)
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:
+  radial-gradient(circle at 74% -10%,rgba(239,51,64,.16),transparent 30%),
+  radial-gradient(circle at 15% 30%,rgba(54,216,210,.06),transparent 28%),
+  linear-gradient(180deg,#050709 0%,#090c10 48%,#050709 100%);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.14;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:42px 42px;mask-image:linear-gradient(to bottom,black,transparent 82%)}
+a{color:inherit;text-decoration:none}
+button,input{font:inherit}
+.shell{max-width:1720px;margin:0 auto;padding:0 24px 48px;position:relative}
+.topbar{height:72px;display:flex;align-items:center;gap:28px;border-bottom:1px solid #1d252c;position:sticky;top:0;z-index:20;background:rgba(6,8,10,.9);backdrop-filter:blur(18px)}
+.brand{display:flex;align-items:center;gap:12px;min-width:260px}.sigil{width:40px;height:40px;border:1px solid #6a1821;background:radial-gradient(circle at 50% 50%,rgba(239,51,64,.28),rgba(239,51,64,.04));display:grid;place-items:center;transform:rotate(45deg)}.sigil span{font-size:21px;color:var(--red);transform:rotate(-45deg)}
+.brand strong{font-size:20px;letter-spacing:.07em}.brand small{display:block;color:var(--muted);font-size:10px;letter-spacing:.19em;margin-top:2px}
+.nav{display:flex;gap:24px;align-items:center;flex:1}.nav a{font-size:12px;letter-spacing:.11em;color:#aeb7bf;padding:26px 0 23px;border-bottom:2px solid transparent}.nav a.active,.nav a:hover{color:#fff;border-bottom-color:var(--red)}
+.search{margin-left:auto;display:flex;gap:10px;align-items:center}.search input{width:280px;background:#090d11;border:1px solid #202a32;color:#dfe7ed;border-radius:4px;padding:10px 12px;outline:none}.btn{border:1px solid #27323a;background:#0d1217;color:#dbe3e9;padding:10px 15px;border-radius:4px;cursor:pointer}.btn:hover{border-color:#56636d}.btn.red{background:linear-gradient(180deg,#b51d2a,#7a121b);border-color:#d62a36;color:#fff}.btn.ghost-red{border-color:#6f1b24;background:#150b0e;color:#ffb6bd}
+.hero{margin-top:18px;min-height:318px;border:1px solid #263039;background:
+  radial-gradient(circle at 74% 42%,rgba(239,51,64,.2),transparent 18%),
+  linear-gradient(105deg,rgba(5,8,10,.97) 0 31%,rgba(5,8,10,.74) 56%,rgba(5,8,10,.96) 100%),
+  linear-gradient(90deg,#0c1116,#1a1013 62%,#080b0e);position:relative;overflow:hidden;display:grid;grid-template-columns:1.2fr .8fr;box-shadow:var(--shadow)}
+.hero:before{content:"";position:absolute;left:51%;top:-80px;width:24px;height:470px;background:linear-gradient(90deg,transparent,#ed2c39 40%,#ff7b80 50%,#ed2c39 60%,transparent);filter:blur(3px);opacity:.8;box-shadow:0 0 60px #ef3340}.hero:after{content:"";position:absolute;inset:auto 0 0;height:110px;background:linear-gradient(180deg,transparent,#050709)}
+.hero-copy{padding:42px 42px 34px;position:relative;z-index:2}.eyebrow{font-size:11px;letter-spacing:.2em;color:#ff7f89}.hero h1{font-size:54px;line-height:.92;letter-spacing:.025em;margin:9px 0 16px;max-width:560px}.hero h1 em{color:var(--red);font-style:normal}.hero p{max-width:560px;color:#b6c0c7;font-size:15px;line-height:1.55;margin:0 0 22px}.hero-actions{display:flex;gap:10px}
+.status{margin:26px;align-self:center;background:rgba(7,10,13,.84);border:1px solid #3b252a;padding:22px 22px 18px;position:relative;z-index:3}.status h3{margin:0;color:#ff6370;letter-spacing:.16em;font-size:12px}.status-main{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #263039;padding:18px 0 15px}.status-main strong{font-size:30px;color:#ff4551}.wave{height:28px;width:180px;background:linear-gradient(90deg,transparent 0 4%,#ef3340 4% 5%,transparent 5% 9%,#ef3340 9% 10%,transparent 10% 15%,#ef3340 15% 17%,transparent 17% 21%,#ef3340 21% 22%,transparent 22% 29%,#ef3340 29% 30%,transparent 30% 34%,#ef3340 34% 37%,transparent 37% 43%,#ef3340 43% 44%,transparent 44% 100%);clip-path:polygon(0 52%,7% 52%,9% 38%,11% 66%,14% 47%,18% 57%,21% 25%,23% 71%,26% 46%,29% 60%,31% 37%,34% 52%,38% 52%,40% 32%,43% 69%,46% 49%,50% 58%,53% 24%,55% 76%,59% 48%,62% 61%,65% 40%,68% 53%,100% 53%,100% 58%,68% 58%,65% 45%,62% 66%,59% 53%,55% 82%,53% 30%,50% 63%,46% 54%,43% 74%,40% 37%,38% 57%,34% 57%,31% 42%,29% 65%,26% 51%,23% 76%,21% 31%,18% 62%,14% 52%,11% 72%,9% 44%,7% 57%,0 57%)}
+.status-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding-top:15px}.status-grid small{color:#78848d;display:block;font-size:9px;letter-spacing:.12em}.status-grid b{display:block;font-size:16px;margin-top:4px}.status-grid .good{color:var(--green)}
+.section{margin-top:14px;border:1px solid #24303a;background:linear-gradient(180deg,rgba(13,18,23,.96),rgba(7,10,13,.98));box-shadow:0 10px 32px rgba(0,0,0,.25)}
+.section-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #25313a;background:linear-gradient(90deg,rgba(255,255,255,.015),transparent)}.section-head h2{margin:0;font-size:14px;letter-spacing:.11em}.section-head small{color:#7f8a93;letter-spacing:.12em}.section-actions{display:flex;gap:8px}
+.planner-wrap{display:grid;grid-template-columns:210px 1fr 250px;gap:12px;padding:12px}.build-list,.overview{border:1px solid #26313a;background:#090d11}.build-list h3,.overview h3{font-size:11px;letter-spacing:.12em;margin:0;padding:13px 14px;border-bottom:1px solid #242f37}.build-list button{display:block;width:100%;text-align:left;background:transparent;border:0;border-bottom:1px solid #171e24;color:#c6d0d7;padding:12px 13px;cursor:pointer}.build-list button:hover,.build-list button.active{background:linear-gradient(90deg,rgba(239,51,64,.16),transparent);color:#fff}.build-list button strong{display:block;font-size:11px}.build-list button span{display:block;color:#75818b;font-size:10px;margin-top:2px}
+.modebar{display:flex;gap:8px;align-items:center;margin-bottom:10px}.modebar span{font-size:10px;letter-spacing:.11em;color:#74808a}.modebar button{border:1px solid #313c44;background:#0a0f13;color:#aab5bd;padding:7px 10px;cursor:pointer}.modebar button.active{color:#fff;border-color:#8f1e29;background:#2a0d12}
+.cards{display:grid;grid-template-columns:repeat(5,minmax(150px,1fr));gap:8px}.card{min-height:190px;border:1px solid #2b343b;background:#0b1014;position:relative;overflow:hidden;padding:13px;cursor:pointer}.card:before{content:"";position:absolute;inset:0;background:linear-gradient(135deg,var(--wash),transparent 48%);opacity:.75;pointer-events:none}.card:after{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent)}.card:hover,.card.selected{border-color:var(--accent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 45%,transparent),0 0 22px color-mix(in srgb,var(--accent) 12%,transparent)}
+.card.weapons{--accent:var(--orange);--wash:rgba(255,157,54,.11)}.card.armor{--accent:#eab85e;--wash:rgba(234,184,94,.1)}.card.cal{--accent:var(--cyan);--wash:rgba(54,216,210,.11)}.card.mods{--accent:var(--purple);--wash:rgba(183,108,255,.12)}.card.dev{--accent:var(--green);--wash:rgba(85,217,138,.1)}
+.card .label{position:relative;color:var(--accent);font-size:10px;letter-spacing:.15em;font-weight:700}.visual{height:74px;margin:12px 0 10px;display:grid;place-items:center;position:relative}.weapon-shape{width:112px;height:34px;position:relative;background:linear-gradient(180deg,#7e8c94,#283039);clip-path:polygon(0 38%,58% 38%,65% 19%,74% 19%,78% 35%,95% 35%,100% 49%,78% 51%,73% 100%,64% 100%,66% 53%,8% 56%)}.armor-shape{width:58px;height:70px;background:linear-gradient(160deg,#7d7260,#292820);clip-path:polygon(30% 0,70% 0,84% 14%,84% 35%,100% 43%,86% 100%,14% 100%,0 43%,16% 35%,16% 14%)}.cal-shape{width:62px;height:62px;background:linear-gradient(135deg,#58fff4,#107d87);clip-path:polygon(50% 0,92% 24%,92% 76%,50% 100%,8% 76%,8% 24%);box-shadow:0 0 28px rgba(54,216,210,.26)}.mod-grid{display:grid;grid-template-columns:repeat(3,30px);gap:5px}.mod-grid i{display:block;width:30px;height:30px;border:1px solid #644080;background:linear-gradient(135deg,#7b45a8,#201428);transform:rotate(45deg)}.dev-shape{width:70px;height:64px;border:1px solid #315b47;border-radius:50% 50% 40% 40%;background:radial-gradient(circle at 50% 42%,#d4a96a 0 20%,#57462f 22% 38%,#1e2b25 40%);box-shadow:0 0 24px rgba(85,217,138,.12)}
+.card h3{font-size:12px;margin:0 0 3px;position:relative}.card p{font-size:10px;color:#82909a;margin:0 0 8px;position:relative}.statline{display:flex;justify-content:space-between;border-top:1px solid #1e272d;padding-top:7px;font-size:10px;position:relative}.statline b{color:var(--accent)}
+.overview{padding-bottom:12px}.grade{width:88px;height:88px;border:8px solid #50141c;border-top-color:#ef3340;border-right-color:#ef3340;border-radius:50%;display:grid;place-items:center;margin:18px auto 4px;font-size:30px;font-weight:800;color:#ff5360}.score{text-align:center}.score b{font-size:20px}.score span{display:block;color:#ff4755;font-size:11px;margin-top:2px}.bars{padding:14px}.bar{margin:9px 0}.bar header{display:flex;justify-content:space-between;font-size:9px;color:#8b969f}.track{height:5px;background:#1b2329;margin-top:4px}.fill{height:100%;background:linear-gradient(90deg,var(--red),#ffbf72)}
+.feature-strip{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;padding:11px}.feature{border:1px solid #263039;background:#090d11;padding:11px;min-height:72px}.feature i{width:28px;height:28px;display:grid;place-items:center;border:1px solid currentColor;margin-bottom:8px}.feature:nth-child(1){color:#ff5964}.feature:nth-child(2){color:var(--orange)}.feature:nth-child(3){color:var(--cyan)}.feature:nth-child(4){color:var(--purple)}.feature:nth-child(5){color:var(--blue)}.feature:nth-child(6){color:#aab3ba}.feature strong{display:block;color:#e9f0f4;font-size:10px;letter-spacing:.08em}.feature span{display:block;color:#707c85;font-size:9px;margin-top:3px;line-height:1.35}
+.lower{display:grid;grid-template-columns:1.5fr .7fr .8fr;gap:12px;margin-top:14px}.lower .section{margin-top:0}.guide-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px}.guide{border:1px solid #27323a;background:#090d11;overflow:hidden}.guide-art{height:82px;background:linear-gradient(135deg,#2a1217,#151b20);position:relative}.guide:nth-child(2) .guide-art{background:linear-gradient(135deg,#1b2229,#392619)}.guide:nth-child(3) .guide-art{background:linear-gradient(135deg,#302c21,#11161a)}.guide:nth-child(4) .guide-art{background:linear-gradient(135deg,#172a25,#18161e)}.guide-art:after{content:"";position:absolute;inset:20% 18%;border:1px solid rgba(255,255,255,.18);transform:skewX(-18deg)}.guide b{display:block;padding:10px 10px 4px;font-size:10px}.guide p{padding:0 10px 10px;color:#78848d;font-size:9px;margin:0;line-height:1.4}.db-list,.community{padding:10px}.db-row,.person{display:flex;align-items:center;justify-content:space-between;padding:9px;border-bottom:1px solid #1d252b;font-size:10px}.db-row span:first-child:before{content:"◆";color:var(--cyan);margin-right:8px}.person strong{font-size:10px}.person span{color:#76818a;font-size:9px}.person em{font-style:normal;color:#9aa4ac}
+.concept-note{margin-top:14px;border:1px dashed #4a5963;background:#0a0e12;padding:12px 14px;color:#98a4ad;font-size:11px;display:flex;justify-content:space-between;gap:16px}.concept-note b{color:#fff}
+@media(max-width:1180px){.cards{grid-template-columns:repeat(3,1fr)}.planner-wrap{grid-template-columns:1fr}.build-list,.overview{display:none}.feature-strip{grid-template-columns:repeat(3,1fr)}.lower{grid-template-columns:1fr}.hero{grid-template-columns:1fr}.status{margin-top:0}.nav{display:none}}
+@media(max-width:720px){.shell{padding:0 10px 30px}.topbar{height:auto;padding:12px 0;flex-wrap:wrap}.brand{min-width:0}.search{display:none}.hero-copy{padding:28px 22px}.hero h1{font-size:40px}.status{margin:12px}.cards{grid-template-columns:1fr}.feature-strip,.guide-grid{grid-template-columns:1fr 1fr}.section-actions{display:none}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="topbar">
+    <a class="brand" href="#top"><span class="sigil"><span>☠</span></span><span><strong>DEAD SIGNAL</strong><small>ONCE HUMAN INTELLIGENCE NETWORK</small></span></a>
+    <nav class="nav" aria-label="Concept navigation">
+      <a class="active" href="#top">HOME</a><a href="#planner">BUILDS</a><a href="#database">DATABASE</a><a href="#tools">TOOLS</a><a href="#guides">GUIDES</a><a href="#community">COMMUNITY</a>
+    </nav>
+    <div class="search"><input aria-label="Search concept" placeholder="Search builds, weapons, mods..."><button class="btn">LOGIN</button><button class="btn red">SIGN UP</button></div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero-copy">
+        <div class="eyebrow">DEAD SIGNAL // COLOR BREAKUP CONCEPT</div>
+        <h1>OPTIMIZE.<br>ADAPT.<br><em>DOMINATE.</em></h1>
+        <p>A more colorful, sectioned Dead Signal direction: tactical red stays dominant, while amber, cyan, purple and green give each system its own visual identity.</p>
+        <div class="hero-actions"><button class="btn red" data-scroll="#planner">LAUNCH BUILD PLANNER →</button><button class="btn ghost-red" data-scroll="#guides">BROWSE GUIDES</button></div>
+      </div>
+      <aside class="status" aria-label="Concept status panel">
+        <h3>DEAD SIGNAL STATUS</h3>
+        <div class="status-main"><div><small>DATA INTEGRITY</small><strong>100%</strong></div><div class="wave" aria-hidden="true"></div></div>
+        <div class="status-grid"><div><small>PLANNER</small><b class="good">ONLINE</b></div><div><small>WEAPONS</small><b>120</b></div><div><small>CALIBRATIONS</small><b>94</b></div></div>
+      </aside>
+    </section>
+
+    <section class="section" id="planner">
+      <div class="section-head"><div><small>WORKSPACE</small><h2>FEATURED BUILD PLANNER</h2></div><div class="section-actions"><button class="btn">SAVE</button><button class="btn">SHARE</button><button class="btn red">NEW BUILD →</button></div></div>
+      <div class="planner-wrap">
+        <aside class="build-list"><h3>MY BUILDS</h3><button class="active"><strong>SOLO SHATTER</strong><span>Shrapnel Sniper</span></button><button><strong>ELEMENTAL BRUTE</strong><span>Power Surge</span></button><button><strong>CHAOS ENGINE</strong><span>Status DoT</span></button><button><strong>TEAM SUPPORT</strong><span>Medic / Buffer</span></button><button><strong>PVP RANGER</strong><span>Hit & Run</span></button></aside>
+        <div>
+          <div class="modebar"><span>BUILD MODE</span><button class="active" data-mode="gear">MY GEAR</button><button data-mode="god">GOD ROLL</button><span id="modeText">Actual owned configuration</span></div>
+          <div class="cards">
+            <article class="card weapons selected"><div class="label">WEAPONS</div><div class="visual"><div class="weapon-shape"></div></div><h3>DE.50 — WILDFIRE</h3><p>Primary · Sniper Rifle</p><div class="statline"><span>Calibration</span><b id="weaponCal">+42.7%</b></div></article>
+            <article class="card armor"><div class="label">ARMOR</div><div class="visual"><div class="armor-shape"></div></div><h3>LONEWOLF SET</h3><p>Tier V · 4-piece active</p><div class="statline"><span>Durability</span><b>92%</b></div></article>
+            <article class="card cal"><div class="label">CALIBRATIONS</div><div class="visual"><div class="cal-shape"></div></div><h3>ENERGY RIFLE</h3><p>Legendary · Fixed Style Effect</p><div class="statline"><span>Weapon DMG</span><b id="calValue">42.7%</b></div></article>
+            <article class="card mods"><div class="label">MODS</div><div class="visual"><div class="mod-grid"><i></i><i></i><i></i><i></i><i></i><i></i></div></div><h3>MOD 2.0</h3><p>Current fixed sub-attributes</p><div class="statline"><span>Loadout</span><b>6 / 6</b></div></article>
+            <article class="card dev"><div class="label">DEVIATIONS</div><div class="visual"><div class="dev-shape"></div></div><h3>ELECTRIC EEL</h3><p>Combat Deviation</p><div class="statline"><span>Activity</span><b>95 / 100</b></div></article>
+          </div>
+        </div>
+        <aside class="overview"><h3>BUILD OVERVIEW</h3><div class="grade">S+</div><div class="score"><b>9,842</b><span>TOP 2.1%</span></div><div class="bars"><div class="bar"><header><span>SURVIVABILITY</span><span>87</span></header><div class="track"><div class="fill" style="width:87%"></div></div></div><div class="bar"><header><span>DAMAGE</span><span>95</span></header><div class="track"><div class="fill" style="width:95%"></div></div></div><div class="bar"><header><span>UTILITY</span><span>82</span></header><div class="track"><div class="fill" style="width:82%"></div></div></div><div class="bar"><header><span>FLEXIBILITY</span><span>78</span></header><div class="track"><div class="fill" style="width:78%"></div></div></div></div></aside>
+      </div>
+    </section>
+
+    <section class="section" id="tools"><div class="section-head"><div><small>DIFFERENTIATORS</small><h2>POWERED BY DEAD SIGNAL</h2></div></div><div class="feature-strip"><div class="feature"><i>⇄</i><strong>MY GEAR vs GOD ROLL</strong><span>Separate owned reality from theoretical maxima.</span></div><div class="feature"><i>⌁</i><strong>CALIBRATION MODELING</strong><span>Current style-first blueprint workflow.</span></div><div class="feature"><i>✓</i><strong>BUILD DATA INTEGRITY</strong><span>Missing account RNG never gets invented.</span></div><div class="feature"><i>▤</i><strong>LOADOUT REPORT</strong><span>Readable build breakdowns and export tools.</span></div><div class="feature"><i>⚔</i><strong>WEAPON COMPARE</strong><span>Side-by-side indexed item analysis.</span></div><div class="feature"><i>⚙</i><strong>MORE TOOLS</strong><span>Room to grow without cramming the planner.</span></div></div></section>
+
+    <div class="lower">
+      <section class="section" id="guides"><div class="section-head"><div><small>LEARN</small><h2>GUIDES & RESOURCES</h2></div><small>VIEW ALL →</small></div><div class="guide-grid"><article class="guide"><div class="guide-art"></div><b>Ultimate Calibration Guide</b><p>Current blueprint styles, RNG ranges and what the fixed effect really means.</p></article><article class="guide"><div class="guide-art"></div><b>Best Weapons Tier List</b><p>Future evidence-backed rankings without fake math.</p></article><article class="guide"><div class="guide-art"></div><b>Gear Set Breakdown</b><p>Armor sets, key armor and activation rules at a glance.</p></article><article class="guide"><div class="guide-art"></div><b>Deviation Guide</b><p>Build-focused Deviation browsing and pairing ideas.</p></article></div></section>
+      <section class="section" id="database"><div class="section-head"><div><small>EXPLORE</small><h2>DATABASE</h2></div><small>VIEW ALL →</small></div><div class="db-list"><div class="db-row"><span>Weapons</span><b>120</b></div><div class="db-row"><span>Armor</span><b>173</b></div><div class="db-row"><span>Mods</span><b>1,618</b></div><div class="db-row"><span>Calibrations</span><b>94</b></div><div class="db-row"><span>Deviations</span><b>97</b></div></div></section>
+      <section class="section" id="community"><div class="section-head"><div><small>FUTURE LAYER</small><h2>COMMUNITY SPOTLIGHT</h2></div><small>VIEW ALL →</small></div><div class="community"><div class="person"><span><strong>RedMist</strong><span>SOLO SHATTER BUILD</span></span><em>♡ 312</em></div><div class="person"><span><strong>Nova_7</strong><span>CHAOS ENGINE (PVP)</span></span><em>♡ 287</em></div><div class="person"><span><strong>WastelandMedic</strong><span>TEAM SUPPORT GUIDE</span></span><em>♡ 201</em></div></div></section>
+    </div>
+
+    <div class="concept-note"><span><b>CONCEPT ONLY:</b> this page is intentionally isolated from the production planner. The goal is to judge color, section rhythm, hierarchy and overall feel before any real theme work begins.</span><span>Dead Signal // Color Breakup v1</span></div>
+  </main>
+</div>
+<script>
+const modeButtons=[...document.querySelectorAll('[data-mode]')];
+const modeText=document.getElementById('modeText');
+const calValue=document.getElementById('calValue');
+const weaponCal=document.getElementById('weaponCal');
+modeButtons.forEach(btn=>btn.addEventListener('click',()=>{
+  modeButtons.forEach(x=>x.classList.toggle('active',x===btn));
+  const god=btn.dataset.mode==='god';
+  modeText.textContent=god?'Theoretical legal maximums':'Actual owned configuration';
+  calValue.textContent=god?'50.0%':'42.7%';
+  weaponCal.textContent=god?'+50.0%':'+42.7%';
+}));
+document.querySelectorAll('.card').forEach(card=>card.addEventListener('click',()=>{
+  document.querySelectorAll('.card').forEach(x=>x.classList.remove('selected'));
+  card.classList.add('selected');
+}));
+document.querySelectorAll('[data-scroll]').forEach(btn=>btn.addEventListener('click',()=>document.querySelector(btn.dataset.scroll)?.scrollIntoView({behavior:'smooth'})));
+document.querySelectorAll('.build-list button').forEach(btn=>btn.addEventListener('click',()=>{
+  document.querySelectorAll('.build-list button').forEach(x=>x.classList.remove('active'));
+  btn.classList.add('active');
+}));
+</script>
+</body>
+</html>
