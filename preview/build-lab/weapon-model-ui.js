@@ -180,7 +180,14 @@ function renderCard(card){
 }
 
 function run(){document.querySelectorAll('.weapon-card').forEach(renderCard);}
+function resetState(){
+  state={};
+  try{localStorage.removeItem(STATE_KEY);}catch(_){}
+  document.querySelectorAll('.ds-weapon-model').forEach(panel=>{panel.dataset.signature='';});
+  run();
+}
 function queue(){if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;run();});}
+window.DSWeaponModelUI={...(window.DSWeaponModelUI||{}),reset:resetState};
 new MutationObserver(queue).observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['data-calibration-rarity','data-calibration-name']});
 document.addEventListener('change',e=>{if(e.target.closest?.('.weapon-card'))setTimeout(run,0);});
 window.addEventListener('dead-signal:build-mode-change',run);
