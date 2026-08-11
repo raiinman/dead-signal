@@ -1,49 +1,63 @@
 # Dead Signal — Operability Audit
 
-Last checked: 2026-08-11 00:32 MST
+Last checked: 2026-08-11 00:47 MST
 
 This file records player-facing operational blockers that should be resolved before Dead Signal is called broadly complete. It is intentionally separate from advanced combat/stat math.
 
 ## Current status
 
 - Canonical branch: `main`
-- Current player release: PLAYER v1.5.1
+- Current player release: **PLAYER v1.5.2**
 - Copy-only cPanel deployment remains required.
 - Calibration Style localization is complete for 94/94 current Calibration Blueprints.
-- The latest picker polish (`d01b16c623616db070eb6b225b2bc753a0a493ad`) keeps the mined Style source node hidden and renders one visible inline Style-effect block, preventing the prior duplicate footer copy. This still needs live-browser confirmation after deployment.
+- Live-browser screenshot confirmation now shows the Calibration picker with exactly one contained `FIXED STYLE EFFECT` block per rarity card. The prior duplicate footer copy is resolved.
+- The authoritative production `app.js` source has now been supplied and reviewed, so native persistence behavior is no longer inferred from UI symptoms.
 
-## Verified operational blocker: planner sidecar state is not part of the core build payload
+## Planner persistence — bridge implemented, live round-trip still pending
 
-Several important planner systems currently persist outside the native build payload:
+The recovered core source confirms the native planner state already owns:
 
-- Build mode uses localStorage key `dead-signal-build-mode` in `preview/build-lab/build-mode.js`.
-- Weapon-model / Calibration Weapon DMG state uses localStorage key `dead-signal-weapon-model-v1` in `preview/build-lab/weapon-model-ui.js`.
-- Calibration secondary identity/value uses localStorage key `dead-signal-calibration-secondary-v1` in `preview/build-lab/calibration-details-ui.js`.
+- selected Calibration Blueprint
+- `calibrationAttack`
+- `calibrationBonusStat`
+- `calibrationBonusValue`
+- Save / Load / Clone / Import / Export / Copy Share Link state serialization
 
-The build-mode module itself warns that saved/exported/shared data **may** represent theoretical values, which confirms that mode is not yet embedded in the native build payload.
+The newer presentation layers were keeping visible values in separate sidecars:
 
-The native Save / My Builds / Clone / Import / Export / Copy Share Link behavior is supplied by the externally loaded production file:
+- Build mode: `dead-signal-build-mode`
+- weapon-model Weapon DMG UI: `dead-signal-weapon-model-v1`
+- Calibration secondary UI: `dead-signal-calibration-secondary-v1`
 
-`https://deadsignaldb.com/build-planner/app.js?v=1.3.4-armor-images`
+That creates a real integrity risk because the displayed build can diverge from the state that the core app serializes.
 
-That core `app.js` source is not currently present in `raiinman/dead-signal`. GitHub code search also returns no repository copy of `app.js`.
+### PLAYER v1.5.2 mitigation
 
-### Why this matters
+Prepared static file:
 
-Until the core payload owns these fields, two builds can collide in browser-side sidecar state, and exported/shared builds cannot be guaranteed to preserve:
+`preview/build-lab/planner-state-bridge.js`
 
-- My Gear vs God Roll mode
-- exact Calibration Weapon DMG roll
-- selected Calibration secondary attribute
-- exact Calibration secondary roll
+The bridge is based on the recovered core source and known payload/DOM contracts; it is not guessing at unknown serialization behavior.
 
-This is a player-data integrity issue, not cosmetic polish.
+It currently:
 
-### Safe resolution
+1. synchronizes visible My Gear Calibration Weapon DMG and secondary controls back through the core app's native `data-cal-*` inputs before Save / Export / Share;
+2. preserves blank My Gear roll fields as `null` instead of allowing the older midpoint initialization to masquerade as an owned roll;
+3. stores Build Mode as a backward-compatible namespaced extension: `state.dsExtension.buildMode`;
+4. restores Build Mode from browser saves, imported builds, and share-link payloads when the extension exists;
+5. synchronizes native loaded Calibration values back into the newer player-facing controls after Load / Clone / Import / Share.
 
-Do **not** monkeypatch JSON, Blob downloads, clipboard, or unrelated browser APIs to guess at the core payload format.
+The core `app.js` should still be vendored into the repository when practical. The v1.5.2 bridge is a compatibility layer that lets the current externally loaded core and the newer presentation stack behave like one planner without changing cPanel architecture.
 
-The correct next step is to recover or vendor the authoritative Build Lab `app.js` source into the repository, then extend its native build schema/version so these fields are first-class save/import/export/share properties with backward-compatible defaults.
+## Required live round-trip verification
+
+Before persistence can be called closed, verify:
+
+1. My Gear exact Weapon DMG + one secondary roll → Save → Load.
+2. God Roll mode → Save → Load restores God Roll visibly.
+3. Export → Import preserves build mode and exact My Gear calibration rolls.
+4. Copy Share Link → open link preserves mode and exact My Gear calibration rolls.
+5. Two saved builds using the same weapon/calibration but different rolls remain independent.
 
 ## Advanced stat math
 
@@ -51,9 +65,8 @@ Held unless mined files already prove a complete stat-family consumer/order. Do 
 
 ## Next operational priorities
 
-1. Live-verify the duplicate Calibration Style footer is gone and rarity/favorite spacing is correct after deploying current `main`.
-2. Recover the authoritative core `app.js` source so build mode + Calibration RNG can become native payload fields.
-3. Audit save/load/clone/import/export/share round trips once the payload is under source control.
-4. Audit picker and selected-card workflows across weapons, armor, mods, attachments, Deviations, Cradles, ammo, and consumables.
-5. Reconcile the older 108 planner attachments with the 119 mined true weapon-slot accessories when the mined attachment export is available in a form that can be safely integrated.
-6. Only after broad operational completeness, run the live Wikily + OnceHumanDB competitor audit and close material usability/data gaps.
+1. Live-verify the PLAYER v1.5.2 persistence round trips above.
+2. Audit picker and selected-card workflows across weapons, armor, mods, attachments, Deviations, Cradles, ammo, and consumables.
+3. Reconcile the older 108 planner attachments with the 119 mined true weapon-slot accessories when the mined attachment export is available in a form that can be safely integrated.
+4. Vendor the recovered core `app.js` into source control when the full file can be landed safely, eliminating the remaining externally loaded core dependency.
+5. Only after broad operational completeness, run the live Wikily + OnceHumanDB competitor audit and close material usability/data gaps.
