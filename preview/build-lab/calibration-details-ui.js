@@ -17,17 +17,63 @@ function mode(){
 }
 function fmt(v){const n=Number(v);return Number.isFinite(n)?n.toFixed(1):'—';}
 function rarityFromText(text){for(const q of ['Legendary','Epic','Rare'])if(new RegExp(`\\b${q}\\b`,'i').test(text))return q;return '';}
-function isCurrentCalibrationCard(card){const text=norm(card.textContent||'');return /Calibration Blueprint/i.test(text)&&/Current Calibration/i.test(text);}
-
+function canonicalRarity(value){const q=rarityFromText(norm(value));return RULES.main[q]&&RULES.secondary[q]?q:'';}
+function isCalibrationCard(card){return /Calibration Blueprint/i.test(norm(card.textContent||''));}
+function pickerCardRarity(card){
+  const direct=[card.dataset?.rarity,card.dataset?.quality,card.dataset?.grade];
+  for(const value of direct){const q=canonicalRarity(value);if(q)return q;}
+  for(const el of card.querySelectorAll('[data-rarity],[data-quality],[data-grade],.rarity-badge,.quality-badge,[class*="rarity"],[class*="quality"]')){
+    for(const value of [el.dataset?.rarity,el.dataset?.quality,el.dataset?.grade,el.textContent]){
+      const q=canonicalRarity(value);if(q)return q;
+    }
+  }
+  return canonicalRarity(card.textContent||'');
+}
+function hideLegacyCurrentLabel(card){
+  for(const el of card.querySelectorAll('small,span,p,div')){
+    if(norm(el.textContent)==='Current Calibration')el.classList.add('ds-calibration-legacy-current');
+  }
+}
+function markCompatibilityCopy(card){
+  const copy=card.querySelector('.pick-copy')||card;
+  for(const el of copy.querySelectorAll('p,.pick-meta,.picker-effect,.effect,.subtle')){
+    const text=norm(el.textContent||'');
+    if((/Compatible with|Applicable to/i.test(text))&&!/Calibration Blueprint/i.test(text))el.classList.add('ds-calibration-compatibility');
+  }
+}
 function enhancePickerCard(card){
-  if(!isCurrentCalibrationCard(card)){card.querySelector('.ds-calibration-facts')?.remove();return;}
-  const q=rarityFromText(norm(card.textContent||'')),main=RULES.main[q],sec=RULES.secondary[q];
+  if(!isCalibrationCard(card)){
+    card.classList.remove('ds-calibration-card');
+    card.querySelector('.ds-calibration-facts')?.remove();
+    return;
+  }
+  card.classList.add('ds-calibration-card');
+  hideLegacyCurrentLabel(card);
+  markCompatibilityCopy(card);
+
+  const q=pickerCardRarity(card),main=RULES.main[q],sec=RULES.secondary[q];
   if(!main||!sec)return;
+
+  const signature=q;
   let box=card.querySelector('.ds-calibration-facts');
-  if(box?.dataset.signature===q)return;
-  if(!box){box=document.createElement('div');box.className='ds-calibration-facts';const copy=card.querySelector('.pick-copy');if(copy)copy.append(box);else card.append(box);}
-  box.innerHTML=`<div class="ds-cal-main"><small>WEAPON DMG</small><strong>${fmt(main[0])}–${fmt(main[1])}%</strong></div><div class="ds-cal-secondary"><small>SECONDARY POOL — ONE ROLLS</small><span>${sec.map(s=>`${s.name} ${fmt(s.min)}–${fmt(s.max)}%`).join(' · ')}</span></div>`;
-  box.dataset.signature=q;
+  if(box?.dataset.signature===signature)return;
+  if(!box){
+    box=document.createElement('div');
+    box.className='ds-calibration-facts';
+    const copy=card.querySelector('.pick-copy')||card.querySelector('.pick-layout')?.lastElementChild||card;
+    const title=copy.querySelector?.('.pick-title-row');
+    if(title&&title.parentElement===copy)title.after(box);else copy.prepend(box);
+  }
+  box.innerHTML=`
+    <div class="ds-cal-main">
+      <small>CALIBRATION STAT</small>
+      <strong>Weapon DMG <b>+${fmt(main[0])}–${fmt(main[1])}%</b></strong>
+    </div>
+    <div class="ds-cal-secondary">
+      <small>ONE RANDOM SECONDARY</small>
+      <div class="ds-cal-secondary-pool">${sec.map(s=>`<span><b>${s.name}</b><em>${fmt(s.min)}–${fmt(s.max)}%</em></span>`).join('')}</div>
+    </div>`;
+  box.dataset.signature=signature;
 }
 
 function selectedCalibrationInfo(card){
@@ -109,7 +155,7 @@ function renderSecondary(card){
 
 function run(){document.querySelectorAll('.pick-card').forEach(enhancePickerCard);document.querySelectorAll('.weapon-card').forEach(renderSecondary);}
 function queue(){if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;run();});}
-new MutationObserver(queue).observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['data-calibration-rarity','data-calibration-name']});
+new MutationObserver(queue).observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['data-calibration-rarity','data-calibration-name','data-rarity','data-quality','data-grade']});
 window.addEventListener('dead-signal:build-mode-change',()=>setTimeout(run,0));
 document.addEventListener('change',e=>{if(e.target.closest?.('.weapon-card,#picker'))setTimeout(run,0);});
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run,{once:true});else run();
