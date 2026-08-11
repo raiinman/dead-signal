@@ -24,6 +24,7 @@ deployment:
     - /bin/cp -f preview/build-lab/calibration-style-display.css $DEPLOYPATH/calibration-style-display.css
     - /bin/cp -f preview/build-lab/calibration-style-display.js $DEPLOYPATH/calibration-style-display.js
     - /bin/cp -f preview/build-lab/picker-card-polish.js $DEPLOYPATH/picker-card-polish.js
+    - /bin/cp -f preview/build-lab/planner-transition-reset.js $DEPLOYPATH/planner-transition-reset.js
     - /bin/cp -f preview/build-lab/planner-state-bridge.js $DEPLOYPATH/planner-state-bridge.js
     - /bin/cp -f preview/build-lab/planner-integrity.css $DEPLOYPATH/planner-integrity.css
     - /bin/cp -f preview/build-lab/planner-integrity-ui.js $DEPLOYPATH/planner-integrity-ui.js
