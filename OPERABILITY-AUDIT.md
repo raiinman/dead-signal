@@ -1,6 +1,6 @@
 # Dead Signal — Operability Audit
 
-Last checked: 2026-08-11 03:28 MST
+Last checked: 2026-08-11 04:35 MST
 
 This file records player-facing operational blockers that should be resolved before Dead Signal is called broadly complete. It is intentionally separate from advanced combat/stat math.
 
@@ -13,6 +13,7 @@ This file records player-facing operational blockers that should be resolved bef
 - Live-browser screenshot confirmation shows the Calibration picker with exactly one contained `FIXED STYLE EFFECT` block per rarity card. The prior duplicate footer copy is resolved.
 - The authoritative production `app.js` source has been supplied and reviewed, so native persistence behavior is no longer inferred from UI symptoms.
 - PLAYER v1.5.2 includes a player-facing Build Data Integrity status and saved-build mode badges so incomplete My Gear Calibration RNG and God Roll saves are not visually ambiguous.
+- Calibration sidecar modules now expose explicit reset hooks, and a transition guard invokes them before New, Template, Load, Clone, Import, and Share-hash restoration paths.
 
 ## Planner persistence — bridge hardened, live round-trip still pending
 
@@ -30,7 +31,7 @@ The newer presentation layers keep visible values in separate sidecars:
 - weapon-model Weapon DMG UI: `dead-signal-weapon-model-v1`
 - Calibration secondary UI: `dead-signal-calibration-secondary-v1`
 
-That creates an integrity risk because two builds using the same weapon/calibration can otherwise inherit the same visible sidecar values.
+That originally created an integrity risk because two builds using the same weapon/calibration could inherit the same visible sidecar values.
 
 ### PLAYER v1.5.2 bridge
 
@@ -52,11 +53,26 @@ The Share Link change is important. Browser Clipboard API methods can be read-on
 
 The bridge remains a compatibility layer. The recovered core `app.js` should be vendored and extended directly when the full source is landed in GitHub, which will allow the temporary persistence interception layer to be removed.
 
-### Remaining sidecar-reset risk
+### Cross-build sidecar isolation — fixed in source
 
-Code review also found one remaining cross-build risk independent of Save/Load serialization: `weapon-model-ui.js` and `calibration-details-ui.js` keep their parsed sidecar objects in module memory. Clearing localStorage alone does not reset those in-memory objects. A fresh **New** build or a **Template** loaded directly after another build can therefore reuse an old same-slot/same-weapon Calibration sidecar value until these modules receive an explicit reset hook or are replaced by the vendored core schema.
+The previous in-memory sidecar leak is now addressed with prepared static code:
 
-Do not declare persistence fully closed until New/Template sidecar isolation is fixed and live-tested.
+- `weapon-model-ui.js` exposes `window.DSWeaponModelUI.reset()`.
+- `calibration-details-ui.js` exposes `window.DSCalibrationDetailsUI.reset()`.
+- `planner-transition-reset.js` runs in capture phase before core build-transition handlers.
+
+The reset guard clears both the localStorage backing keys and the modules' in-memory state before these transitions:
+
+- New Build
+- Template load
+- saved Build Load
+- saved Build Clone
+- Import
+- Share-hash initialization
+
+It also returns the planner to the safer **MY GEAR** default before an incoming build is applied. A persisted v1.5.2 extension can then restore GOD ROLL through `planner-state-bridge`; legacy builds without mode metadata remain MY GEAR instead of inheriting a previous theorycraft mode.
+
+This removes the known source-level path where re-selecting the same weapon/calibration in a different build could resurrect another build's sidecar roll. Live-browser verification is still required before the persistence checklist is declared closed.
 
 ## Build Data Integrity UI
 
@@ -85,7 +101,8 @@ Before persistence can be called closed, verify:
 6. Two saved builds using the same weapon/calibration but different rolls remain independent.
 7. New Build followed by re-selecting the same weapon/calibration does not resurrect the previous build's rolls.
 8. Loading a Template after another build does not inherit prior Calibration sidecar values.
-9. Build Data Integrity status changes from NEEDS PLAYER INPUT to READY after completing the selected Calibration inputs.
+9. Legacy saved/imported/shared builds with no `dsExtension.buildMode` open as MY GEAR rather than inheriting an existing GOD ROLL mode.
+10. Build Data Integrity status changes from NEEDS PLAYER INPUT to READY after completing the selected Calibration inputs.
 
 ## Advanced stat math
 
@@ -93,9 +110,8 @@ Held unless mined files already prove a complete stat-family consumer/order. Do 
 
 ## Next operational priorities
 
-1. Add explicit reset hooks to both Calibration sidecar modules and invoke them for New/Template transitions.
-2. Live-verify the PLAYER v1.5.2 persistence and integrity-UI round trips above.
-3. Audit picker and selected-card workflows across weapons, armor, mods, attachments, Deviations, Cradles, ammo, and consumables.
-4. Reconcile the older 108 planner attachments with the 119 mined true weapon-slot accessories when the mined attachment export is available in a form that can be safely integrated.
-5. Vendor and extend the recovered core `app.js`, then remove the temporary persistence interception layer.
-6. Only after broad operational completeness, run the live Wikily + OnceHumanDB competitor audit and close material usability/data gaps.
+1. Live-verify the PLAYER v1.5.2 persistence, sidecar isolation, and integrity-UI round trips above.
+2. Audit picker and selected-card workflows across weapons, armor, mods, attachments, Deviations, Cradles, ammo, and consumables.
+3. Reconcile the older 108 planner attachments with the 119 mined true weapon-slot accessories when the mined attachment export is available in a form that can be safely integrated.
+4. Vendor and extend the recovered core `app.js`, then remove the temporary persistence interception layer.
+5. Only after broad operational completeness, run the live Wikily + OnceHumanDB competitor audit and close material usability/data gaps.
