@@ -1,5 +1,8 @@
 /* PLAYER v1.5.1 — mined Calibration Style display */
-.ds-cal-mined-description{grid-column:1/-1;width:100%;margin:7px 0 0;padding:7px 8px;border-top:1px solid #2a3034;color:#aeb6bb;font-size:var(--ds-type-small,9px);line-height:1.45}
+
+/* Calibration picker: the fixed Style effect belongs inside the card content pane. */
+#picker.ds-cal-style-picker-active .ds-cal-mined-description{display:block;width:auto;margin:10px 0 0;padding:10px 12px;border:1px solid #3b3034;border-left:3px solid #a83a43;background:linear-gradient(135deg,#130b0e,#0a0d0f);color:#e2e6e8;font-size:var(--ds-type-small,10px);font-weight:600;line-height:1.5}
+#picker.ds-cal-style-picker-active .ds-cal-mined-description::before{content:"FIXED STYLE EFFECT";display:block;margin-bottom:6px;color:#ff7881;font-size:var(--ds-type-micro,8px);font-weight:950;letter-spacing:.11em;text-transform:uppercase}
 
 /* Selected weapon: the fixed Style is core build information, not fine print. */
 .ds-cal-style-effect{position:relative;margin:12px 0 4px;padding:14px 16px 15px;border:1px solid #6b3038;border-left:5px solid #c8434d;background:linear-gradient(135deg,#180b0f 0%,#0c1013 58%,#080a0c 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 8px 22px rgba(0,0,0,.18)}
@@ -8,10 +11,10 @@
 .ds-cal-style-effect small::after{content:"FIXED · NOT RNG";margin-left:auto;padding:3px 7px;border:1px solid #663039;background:#240d12;color:#ffadb3;font-size:var(--ds-type-micro,8px);font-weight:900;letter-spacing:.08em;white-space:nowrap}
 .ds-cal-style-effect p{margin:10px 0 0;padding-top:10px;border-top:1px solid #3d252a;color:#f0f3f4;font-size:var(--ds-type-body,13px);font-weight:650;line-height:1.55}
 
-/* Calibration picker: keep the rarity chip from crowding the favorite star. */
-#picker.ds-cal-style-picker-active .pick-card .pick-title-row{column-gap:10px}
-#picker.ds-cal-style-picker-active .pick-card .pick-title-row>:is([data-rarity],[data-quality],[data-grade],.rarity-badge,.quality-badge,[class*="rarity"],[class*="quality"]){margin-left:auto;margin-right:7px}
-#picker.ds-cal-style-picker-active .pick-card .pick-title-row>button:last-child{margin-left:3px;flex:0 0 auto}
-#picker.ds-cal-style-picker-active .pick-card :is(button[aria-label*="favorite" i],button[title*="favorite" i],.favorite-btn,.pick-favorite){margin-left:7px}
+/* Every picker card: the rarity chip and favorite star are separate controls. */
+#picker .pick-title-row.ds-picker-title-controls-fixed{display:flex;align-items:center;gap:10px}
+#picker .pick-title-row.ds-picker-title-controls-fixed>strong{min-width:0;flex:1 1 auto}
+#picker .ds-picker-rarity-chip{flex:0 0 auto!important;margin-left:auto!important;margin-right:12px!important}
+#picker .ds-picker-favorite{flex:0 0 auto!important;margin-left:0!important}
 
-@media(max-width:700px){.ds-cal-style-effect{padding:12px 13px}.ds-cal-style-effect small{align-items:flex-start;flex-wrap:wrap}.ds-cal-style-effect small::after{margin-left:0}.ds-cal-style-effect p{font-size:var(--ds-type-body,12px)}}
+@media(max-width:700px){.ds-cal-style-effect{padding:12px 13px}.ds-cal-style-effect small{align-items:flex-start;flex-wrap:wrap}.ds-cal-style-effect small::after{margin-left:0}.ds-cal-style-effect p{font-size:var(--ds-type-body,12px)}#picker .ds-picker-rarity-chip{margin-right:8px!important}}
