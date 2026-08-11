@@ -12,6 +12,14 @@ Preserve roughly 80% of the existing Build Lab structure and workflow. Improve t
 
 Do not redesign the planner simply because a new visual treatment is possible.
 
+## Flow rule
+
+The planner should read naturally from top to bottom:
+
+**Plan → Weapons → Armor + Mods → Build Systems → Notes → Results**
+
+The user should not have to jump sideways into a narrow report rail to understand the final build. The final report is the payoff of the entire workflow and belongs after the build inputs.
+
 ## Color semantics
 
 ### Brand
@@ -78,6 +86,25 @@ Every important card should answer, in this order:
 5. What detail is secondary?
 
 Vital mechanical information must never be visually treated like footnote text.
+
+## Results are the payoff
+
+The Loadout Report / Results section belongs **at the bottom of the planner flow and full width**.
+
+Do not compress the final build result into a narrow sticky side rail when the result contains meaningful mechanical detail.
+
+Results must receive the largest readability budget on the page:
+
+- Important results must not depend on tiny gray text.
+- Primary result labels should be normal readable UI text, not micro-labels.
+- Result values should be brighter and visually stronger than their labels.
+- Long descriptions, fixed effects, formulas, warnings, and build notes must have enough width to read comfortably.
+- Mechanical output should use clear rows or grouped blocks instead of dense sentence walls.
+- The report should visually feel like the planner has finished processing the build.
+- Copy Loadout, Farming Checklist, Export, Share, and Compare actions should live with the final result.
+- Never reduce font size merely to force more information into one row.
+
+**If a player has to lean toward the monitor to read the result, the layout failed.**
 
 ## Calibration language
 
