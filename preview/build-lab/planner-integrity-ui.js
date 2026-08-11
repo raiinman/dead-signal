@@ -48,14 +48,25 @@ function cardWarnings(card,index){
   if(!selectedCalibration(card))return [];
   if(mode()==='god')return [];
 
+  const label=SLOT_LABELS[index]||`Weapon ${index+1}`;
   const out=[];
   const attack=card.querySelector('[data-wm-roll-number]');
-  if(attack&&attack.value==='')out.push(`${SLOT_LABELS[index]}: enter the exact Calibration Weapon DMG roll.`);
+  if(!attack)out.push(`${label}: Calibration Weapon DMG input is unavailable; re-select the Calibration Blueprint.`);
+  else if(attack.value==='')out.push(`${label}: enter the exact Calibration Weapon DMG roll.`);
 
   const secondary=card.querySelector('[data-cal-secondary-choice]');
-  if(secondary&&secondary.value==='')out.push(`${SLOT_LABELS[index]}: choose the Calibration secondary attribute.`);
+  if(!secondary){
+    out.push(`${label}: Calibration secondary input is unavailable; re-select the Calibration Blueprint.`);
+    return out;
+  }
+  if(secondary.value===''){
+    out.push(`${label}: choose the Calibration secondary attribute.`);
+    return out;
+  }
+
   const secondaryValue=card.querySelector('[data-cal-secondary-number]');
-  if(secondary&&secondary.value&&secondaryValue&&secondaryValue.value==='')out.push(`${SLOT_LABELS[index]}: enter the exact secondary roll.`);
+  if(!secondaryValue)out.push(`${label}: secondary roll input is unavailable; re-select the Calibration Blueprint.`);
+  else if(secondaryValue.value==='')out.push(`${label}: enter the exact secondary roll.`);
   return out;
 }
 function ensureIntegrityCard(){
@@ -84,10 +95,10 @@ function renderIntegrity(){
     return;
   }
   if(warnings.length){
-    host.innerHTML=`<div class="ds-integrity-head"><small>BUILD DATA INTEGRITY</small><strong>NEEDS PLAYER INPUT</strong><span class="ds-integrity-state warn">${warnings.length} OPEN</span></div><p>Dead Signal will preserve blanks instead of inventing account-specific RNG values.</p><ul>${warnings.map(x=>`<li>${x}</li>`).join('')}</ul>`;
+    host.innerHTML=`<div class="ds-integrity-head"><small>BUILD DATA INTEGRITY</small><strong>NEEDS PLAYER INPUT</strong><span class="ds-integrity-state warn">${warnings.length} OPEN</span></div><p>Dead Signal will preserve blanks instead of inventing account-specific RNG values. Missing controls are treated as incomplete rather than silently marked ready.</p><ul>${warnings.map(x=>`<li>${x}</li>`).join('')}</ul>`;
     return;
   }
-  host.innerHTML='<div class="ds-integrity-head"><small>BUILD DATA INTEGRITY</small><strong>READY TO SAVE / SHARE</strong><span class="ds-integrity-state ok">READY</span></div><p>Selected Calibration inputs are internally consistent for the current build mode.</p>';
+  host.innerHTML='<div class="ds-integrity-head"><small>BUILD DATA INTEGRITY</small><strong>READY TO SAVE / SHARE</strong><span class="ds-integrity-state ok">READY</span></div><p>Selected Calibration inputs are present and internally consistent for the current build mode.</p>';
 }
 
 function run(){decorateSavedBuilds();renderIntegrity();}
