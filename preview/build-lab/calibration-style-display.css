@@ -1,0 +1,5 @@
+/* PLAYER v1.5.1 — mined Calibration Style display */
+.ds-cal-mined-description{grid-column:1/-1;width:100%;margin:7px 0 0;padding:7px 8px;border-top:1px solid #2a3034;color:#aeb6bb;font-size:var(--ds-type-small,9px);line-height:1.45}
+.ds-cal-style-effect{margin-top:8px;padding:9px 10px;border:1px solid #343b40;border-left:3px solid #6f252d;background:linear-gradient(145deg,#0b0f12,#07090b)}
+.ds-cal-style-effect small{display:block;color:#8e969b;font-size:var(--ds-type-micro,8px);font-weight:900;letter-spacing:.11em}
+.ds-cal-style-effect p{margin:5px 0 0;color:#d7dcdf;font-size:var(--ds-type-small,9px);line-height:1.5}

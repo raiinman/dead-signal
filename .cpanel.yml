@@ -21,6 +21,8 @@ deployment:
     - /bin/cp -f preview/build-lab/calibration-details-ui.js $DEPLOYPATH/calibration-details-ui.js
     - /bin/cp -f preview/build-lab/calibration-style-picker.css $DEPLOYPATH/calibration-style-picker.css
     - /bin/cp -f preview/build-lab/calibration-style-picker.js $DEPLOYPATH/calibration-style-picker.js
+    - /bin/cp -f preview/build-lab/calibration-style-display.css $DEPLOYPATH/calibration-style-display.css
+    - /bin/cp -f preview/build-lab/calibration-style-display.js $DEPLOYPATH/calibration-style-display.js
     - /bin/cp -f preview/build-lab/wm-data-01.js $DEPLOYPATH/wm-data-01.js
     - /bin/cp -f preview/build-lab/wm-data-02.js $DEPLOYPATH/wm-data-02.js
     - /bin/cp -f preview/build-lab/wm-data-03.js $DEPLOYPATH/wm-data-03.js
