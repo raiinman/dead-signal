@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#06080a">
+<title>Dead Signal // Instrumented UI v3</title>
+<style>
+:root{
+  --void:#050709;--bg:#070a0d;--workspace:#090d11;--panel:#0d1318;--raised:#121920;--raised2:#172129;
+  --line:#26313a;--line2:#33414c;--text:#edf3f7;--muted:#8d99a3;--faint:#68747e;
+  --red:#e6323e;--red-dark:#761820;--red-wash:rgba(230,50,62,.10);
+  --weapon:#58778c;--weapon-wash:rgba(88,119,140,.11);
+  --cal:#39bfc6;--cal-wash:rgba(57,191,198,.09);
+  --armor:#718394;--armor-wash:rgba(113,131,148,.09);
+  --systems:#388c82;--systems-wash:rgba(56,140,130,.09);
+  --report:#527ead;--report-wash:rgba(82,126,173,.09);
+  --violet:#6a6f9c;--ok:#59b68a;--warn:#d95a64;
+  --legendary:#d6a84d;--epic:#9d6bd3;--rare:#5e8fcf;
+  --shadow:0 18px 50px rgba(0,0,0,.30);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--void);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;background:
+  radial-gradient(circle at 72% -5%,rgba(230,50,62,.10),transparent 24%),
+  linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px);background-size:auto,44px 44px,44px 44px;mask-image:linear-gradient(to bottom,black,transparent 86%);opacity:.8}
+a{color:inherit;text-decoration:none}button,input,select,textarea{font:inherit;color:inherit}button{cursor:pointer}
+.sidebar{position:fixed;inset:0 auto 0 0;width:238px;background:linear-gradient(180deg,#080b0e,#06080a);border-right:1px solid #1e282f;padding:18px 14px;z-index:30;display:flex;flex-direction:column}
+.logo{padding:7px 10px 20px;border-bottom:1px solid #1e282f}.logo strong{font-size:23px;letter-spacing:.07em}.logo strong em{font-style:normal;color:var(--red)}.logo span{display:block;font-size:9px;color:#68747d;letter-spacing:.16em;margin-top:4px}
+.sidehead{font-size:9px;letter-spacing:.18em;color:#5f6b74;margin:20px 10px 8px}.nav{display:grid;gap:3px}.nav a{position:relative;display:grid;grid-template-columns:26px 1fr auto;align-items:center;gap:8px;padding:11px 10px;border:1px solid transparent;color:#9ba7b0;font-size:12px}.nav a:before{content:"";position:absolute;left:-1px;top:7px;bottom:7px;width:2px;background:transparent}.nav a:hover{background:#0d1318;color:#fff;border-color:#1d2830}.nav a.active{background:linear-gradient(90deg,var(--red-wash),transparent);color:#fff;border-color:#32151a}.nav a.active:before{background:var(--red);box-shadow:0 0 12px rgba(230,50,62,.35)}.nav i{font-style:normal;color:#65727c}.nav b{font-size:8px;letter-spacing:.12em;color:#ff7b83;border:1px solid #5d2027;padding:2px 5px}
+.side-status{margin-top:auto;border-top:1px solid #1e282f;padding:15px 10px 4px}.tiny-label{font-size:9px;letter-spacing:.15em;color:#69757e}.side-status strong{display:flex;align-items:center;gap:7px;font-size:11px;margin-top:7px}.dot{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 12px rgba(89,182,138,.38)}.side-status p{font-size:10px;line-height:1.45;color:#65717a;margin:7px 0 0}
+.page{margin-left:238px;min-height:100vh}.topbar{height:66px;border-bottom:1px solid #202a31;background:rgba(7,10,13,.93);backdrop-filter:blur(16px);position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;padding:0 22px}.brand .eyebrow{font-size:9px;letter-spacing:.18em;color:#737f88}.brand h1{font-size:18px;letter-spacing:.04em;margin:3px 0 0}.brand h1 span{font-size:9px;color:#7e8a93;border:1px solid #303b43;padding:3px 6px;margin-left:7px;vertical-align:2px;font-weight:600}.actions{display:flex;gap:6px}.btn{border:1px solid #2c3740;background:#0c1115;padding:8px 11px;font-size:10px;letter-spacing:.04em}.btn:hover{border-color:#56636d;background:#12191e}.btn.primary{border-color:#9a232d;background:linear-gradient(180deg,#a51e29,#71131b);color:white}.btn.danger{border-color:#5c252b;color:#e99399;background:#130c0e}
+.hero{margin:18px 20px 0;border:1px solid #27323a;background:
+  radial-gradient(circle at 82% 18%,rgba(230,50,62,.17),transparent 23%),
+  linear-gradient(120deg,#0d1216 0%,#0a0e12 58%,#150b0e 100%);min-height:168px;display:grid;grid-template-columns:1.3fr .7fr;overflow:hidden;box-shadow:var(--shadow)}
+.hero-copy{padding:27px 30px}.hero-copy .kicker{font-size:9px;letter-spacing:.19em;color:#e76b74}.hero h2{font-size:37px;letter-spacing:.08em;margin:7px 0 7px}.hero p{font-size:13px;line-height:1.55;color:#9ca8b1;max-width:730px;margin:0}.status-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:17px}.status-chip{border:1px solid #26323a;background:#090d11;padding:6px 8px;font-size:9px;letter-spacing:.08em;color:#85919a}.status-chip.live{border-color:#285944;color:#8bddb2;background:rgba(40,89,68,.12)}.status-chip.live i{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ok);margin-right:6px;box-shadow:0 0 9px rgba(89,182,138,.45)}
+.hero-instrument{border-left:1px solid #27323a;background:rgba(6,9,11,.55);padding:20px;display:grid;align-content:center}.hero-instrument .head{display:flex;justify-content:space-between;align-items:center}.hero-instrument .head span{font-size:9px;letter-spacing:.16em;color:#e8616b}.hero-instrument .head b{font-size:9px;color:#70808a}.wave{height:38px;margin:9px 0;border-top:1px solid #202a31;border-bottom:1px solid #202a31;position:relative;overflow:hidden}.wave:after{content:"";position:absolute;left:-4%;right:-4%;top:4px;height:30px;background:var(--red);clip-path:polygon(0 48%,4% 48%,6% 34%,8% 68%,11% 42%,14% 55%,17% 16%,19% 79%,22% 44%,25% 63%,29% 31%,32% 53%,36% 53%,39% 25%,42% 73%,45% 46%,49% 59%,52% 22%,55% 82%,59% 43%,62% 65%,66% 36%,69% 52%,100% 52%,100% 57%,69% 57%,66% 41%,62% 70%,59% 48%,55% 87%,52% 27%,49% 64%,45% 51%,42% 78%,39% 30%,36% 58%,32% 58%,29% 36%,25% 68%,22% 49%,19% 84%,17% 21%,14% 60%,11% 47%,8% 73%,6% 39%,4% 53%,0 53%);opacity:.82}.hero-instrument .mini{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.hero-instrument .mini small{font-size:8px;color:#66737c;letter-spacing:.1em}.hero-instrument .mini b{display:block;font-size:12px;margin-top:2px}
+.catalog{margin:11px 20px 0;border:1px solid #233039;background:#080c0f;display:grid;grid-template-columns:170px repeat(6,1fr);min-height:67px}.catalog .feed{padding:12px 14px;border-right:1px solid #233039;background:linear-gradient(90deg,rgba(57,191,198,.06),transparent)}.feed strong{font-size:10px;letter-spacing:.12em;display:block}.feed span{font-size:9px;color:#697680;display:block;margin-top:5px}.metric{padding:10px 13px;border-right:1px solid #1c262d}.metric:last-child{border-right:0}.metric small{display:block;color:#697680;font-size:8px;letter-spacing:.11em}.metric b{display:block;font-size:19px;margin-top:4px}.metric em{font-style:normal;font-size:8px;color:#53616b;letter-spacing:.06em}
+main{padding:12px 20px 44px}.planner{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:12px;align-items:start}.stack{display:grid;gap:12px}.panel{border:1px solid #26313a;background:linear-gradient(180deg,var(--panel),#090d11);position:relative;overflow:hidden}.panel:before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--section-accent,var(--red))}.panel:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(125deg,var(--section-wash,var(--red-wash)),transparent 22%);opacity:.58}.panel.plan{--section-accent:var(--red);--section-wash:var(--red-wash)}.panel.weapon{--section-accent:var(--weapon);--section-wash:var(--weapon-wash)}.panel.armor{--section-accent:var(--armor);--section-wash:var(--armor-wash)}.panel.systems{--section-accent:var(--systems);--section-wash:var(--systems-wash)}.panel.notes{--section-accent:var(--violet);--section-wash:rgba(106,111,156,.08)}.panel.report{--section-accent:var(--report);--section-wash:var(--report-wash)}
+.section-head{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:13px 16px 12px;border-bottom:1px solid #243039;background:rgba(4,7,9,.30)}.section-title{display:flex;align-items:center;gap:12px}.section-num{width:32px;height:32px;border:1px solid color-mix(in srgb,var(--section-accent) 60%,#26313a);display:grid;place-items:center;color:var(--section-accent);font-size:10px;font-weight:800;background:#080c0f}.section-title small{display:block;color:var(--section-accent);font-size:8px;letter-spacing:.16em}.section-title h2{font-size:14px;letter-spacing:.04em;margin:2px 0 0}.section-state{font-size:8px;letter-spacing:.11em;color:#8d99a3;border:1px solid #2b3740;padding:5px 7px;background:#080c0f}.section-state.good{color:#83d5aa;border-color:#295b46}.body{position:relative;z-index:2;padding:14px 16px 16px}.meta-grid{display:grid;grid-template-columns:1.4fr 1fr .8fr 1fr;gap:9px}.field{display:grid;gap:5px}.field label{font-size:8px;letter-spacing:.1em;color:#74818a}.field input,.field select,.field textarea{width:100%;background:#080c0f;border:1px solid #27323a;padding:9px 10px;outline:none;font-size:11px}.field input:focus,.field select:focus,.field textarea:focus{border-color:#5c6b76;box-shadow:0 0 0 2px rgba(100,120,135,.10)}.wide{grid-column:1/-1}
+.mode-row{display:flex;align-items:center;gap:7px;margin-bottom:12px}.mode-row>span{font-size:8px;letter-spacing:.12em;color:#6f7c85;margin-right:3px}.mode{border:1px solid #2a353d;background:#090d11;padding:7px 10px;font-size:9px;color:#87949d}.mode.active{border-color:#7e242b;background:rgba(230,50,62,.09);color:#fff;box-shadow:inset 2px 0 var(--red)}.mode.theory.active{background:repeating-linear-gradient(135deg,rgba(230,50,62,.10),rgba(230,50,62,.10) 6px,rgba(255,255,255,.015) 6px,rgba(255,255,255,.015) 12px)}
+.weapon-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.weapon-card{border:1px solid #2b3740;background:#0a0f13;min-height:226px;position:relative;overflow:hidden}.weapon-card:hover{border-color:#506979}.weapon-card .slot{display:flex;justify-content:space-between;padding:9px 10px;border-bottom:1px solid #222c33;font-size:8px;letter-spacing:.12em;color:#71808a}.rarity{padding:2px 6px;border:1px solid currentColor;font-size:8px}.rarity.legendary{color:var(--legendary)}.rarity.epic{color:var(--epic)}.rarity.rare{color:var(--rare)}.weapon-art{height:76px;display:grid;place-items:center;background:radial-gradient(circle at 50% 40%,rgba(88,119,140,.14),transparent 46%)}.rifle{width:140px;height:34px;background:linear-gradient(180deg,#86959f,#27323a);clip-path:polygon(0 40%,54% 40%,61% 21%,72% 21%,77% 36%,96% 36%,100% 48%,78% 52%,73% 100%,64% 100%,66% 54%,8% 57%);opacity:.85}.pistol{width:80px;height:48px;background:linear-gradient(180deg,#7b8992,#29333a);clip-path:polygon(0 28%,78% 28%,100% 41%,82% 55%,59% 55%,63% 100%,45% 100%,38% 54%,0 54%)}.blade{width:112px;height:14px;background:linear-gradient(90deg,#8e9aa2,#d7e0e5 65%,#53616a);clip-path:polygon(0 38%,82% 38%,100% 0,94% 58%,82% 65%,0 65%)}.weapon-info{padding:0 11px 10px}.weapon-info h3{font-size:12px;margin:0}.weapon-info p{font-size:9px;color:#6f7c85;margin:3px 0 9px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}.stat{border-top:1px solid #253039;padding-top:6px}.stat small{display:block;font-size:7px;color:#687680;letter-spacing:.07em}.stat b{display:block;font-size:10px;margin-top:2px}.calibration-block{margin-top:9px;border:1px solid #21464a;background:rgba(57,191,198,.055);padding:8px}.calibration-block small{color:var(--cal);font-size:7px;letter-spacing:.12em}.calibration-block p{margin:5px 0 0;font-size:9px;line-height:1.35;color:#a8b5bc}.rng-line{margin-top:7px;border-top:1px dashed #2c5b5e;padding-top:6px;display:flex;justify-content:space-between;font-size:8px;color:#7c8c95}.rng-line b{color:#cceff0}
+.armor-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}.gear{border:1px solid #2a353d;background:#0a0f13;min-height:112px;padding:9px;position:relative}.gear .gear-icon{height:50px;display:grid;place-items:center;color:#6f8290;font-size:26px}.gear strong{font-size:9px;display:block}.gear span{font-size:8px;color:#66747e;display:block;margin-top:3px}.gear .rarity{position:absolute;right:7px;top:7px}
+.system-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px}.system-card{border:1px solid #29353d;background:#0a0f13;padding:11px;min-height:102px}.system-card small{font-size:8px;letter-spacing:.12em;color:var(--systems)}.system-card h3{font-size:11px;margin:6px 0 4px}.system-card p{font-size:9px;color:#72808a;margin:0;line-height:1.4}.cradle-row{margin-top:9px;border:1px solid #29353d;background:#080c0f;padding:10px;display:grid;grid-template-columns:120px repeat(8,1fr);gap:6px;align-items:center}.cradle-row>span{font-size:8px;letter-spacing:.1em;color:#6e7b84}.cradle-slot{height:40px;border:1px solid #2b3b3d;background:rgba(56,140,130,.04);display:grid;place-items:center;font-size:9px;color:#6f8d88}.cradle-slot.filled{border-color:#356e67;color:#b8ddd7;background:rgba(56,140,130,.08)}
+.notes-area{width:100%;min-height:104px;background:#080c0f;border:1px solid #27323a;padding:11px;color:#aeb9c0;resize:vertical;font-size:10px;line-height:1.5}.report{position:sticky;top:78px}.report .body{padding:14px}.integrity{border:1px solid #2b5945;background:rgba(44,93,71,.09);padding:11px}.integrity small{font-size:8px;letter-spacing:.12em;color:#7fcda5}.integrity strong{display:flex;align-items:center;gap:7px;margin-top:5px;font-size:12px}.report-build{padding:13px 2px;border-bottom:1px solid #27323a}.report-build h3{font-size:14px;margin:0}.report-build p{font-size:9px;color:#70808a;margin:4px 0 0}.report-list{display:grid;gap:0}.report-line{display:flex;justify-content:space-between;gap:10px;padding:9px 1px;border-bottom:1px solid #202a31;font-size:9px}.report-line span{color:#71808a}.report-line b{text-align:right;font-weight:600}.mode-badge{display:inline-block;margin-top:9px;border:1px solid #7c2730;color:#ff9299;background:rgba(230,50,62,.08);font-size:8px;letter-spacing:.11em;padding:5px 7px}.report-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:12px}.report-actions button{border:1px solid #314250;background:#0b1116;padding:8px;font-size:8px;letter-spacing:.06em}.report-actions button:hover{border-color:#527ead;background:rgba(82,126,173,.08)}
+.live-weapons{margin-top:10px;border-top:1px solid #26313a;padding-top:11px}.live-weapons-head{display:flex;justify-content:space-between;margin-bottom:7px}.live-weapons-head span{font-size:8px;letter-spacing:.11em;color:#75828b}.live-weapons-head b{font-size:8px;color:#65737c}.live-list{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.live-card{border:1px solid #2b3740;background:#080c0f;padding:8px;min-height:56px}.live-card small{font-size:7px;color:#64717a;letter-spacing:.08em}.live-card strong{font-size:9px;display:block;margin-top:4px}.live-card span{font-size:8px;color:#66757f;display:block;margin-top:4px}
+.toast{position:fixed;right:20px;bottom:20px;background:#11181d;border:1px solid #34424c;padding:10px 13px;font-size:10px;opacity:0;transform:translateY(8px);transition:.18s;z-index:50}.toast.show{opacity:1;transform:none}
+@media(max-width:1250px){.catalog{grid-template-columns:150px repeat(3,1fr)}.catalog .metric:nth-child(n+5){display:none}.planner{grid-template-columns:1fr}.report{position:relative;top:auto}.weapon-grid{grid-template-columns:1fr}.armor-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:820px){.sidebar{display:none}.page{margin-left:0}.topbar{padding:0 12px}.actions .btn:not(.primary){display:none}.hero{margin:10px 10px 0;grid-template-columns:1fr}.hero-instrument{display:none}.catalog{margin:8px 10px 0;grid-template-columns:1fr 1fr 1fr}.catalog .feed{grid-column:1/-1}.catalog .metric:nth-child(n+4){display:none}main{padding:10px}.meta-grid{grid-template-columns:1fr 1fr}.armor-grid{grid-template-columns:repeat(2,1fr)}.system-grid{grid-template-columns:1fr}.cradle-row{grid-template-columns:repeat(4,1fr)}.cradle-row>span{grid-column:1/-1}.live-list{grid-template-columns:1fr}.hero h2{font-size:28px}}
+</style>
+</head>
+<body>
+<aside class="sidebar">
+  <a class="logo" href="#top"><strong>DEAD <em>SIGNAL</em></strong><span>ONCE HUMAN INTELLIGENCE NETWORK</span></a>
+  <div class="sidehead">BUILD LAB</div>
+  <nav class="nav">
+    <a class="active" href="#plan"><i>⌁</i><span>Planner</span><b>LIVE</b></a>
+    <a href="#weapons"><i>⌖</i><span>Weapons</span></a>
+    <a href="#armor"><i>◇</i><span>Armor + Mods</span></a>
+    <a href="#systems"><i>◉</i><span>Build Systems</span></a>
+    <a href="#notes"><i>≡</i><span>Build Notes</span></a>
+    <a href="#report"><i>▤</i><span>Loadout Report</span></a>
+  </nav>
+  <div class="side-status"><span class="tiny-label">DATA CONNECTION</span><strong><i class="dot"></i><span id="sideFeedState">CHECKING PRODUCTION CORPUS</span></strong><p>Instrumented UI concept. Structural colors guide navigation; rarity colors remain item-only.</p></div>
+</aside>
+<div class="page" id="top">
+<header class="topbar">
+  <div class="brand"><div class="eyebrow">DEAD SIGNAL // BUILD LAB</div><h1>ULTIMATE PLANNER <span>INSTRUMENTED UI v3</span></h1></div>
+  <div class="actions"><button class="btn">Templates</button><button class="btn">Save</button><button class="btn">My Builds</button><button class="btn">Export</button><button class="btn primary">Copy Share Link</button><button class="btn danger">New</button></div>
+</header>
+<section class="hero">
+  <div class="hero-copy"><div class="kicker">TACTICAL LOADOUT WORKSTATION // VISUAL BIBLE TESTBED</div><h2>BUILD LAB</h2><p>The existing planner flow, instrumented instead of replaced. Dark layered surfaces, controlled section rails, live data signals and item rarity colors kept semantically clean.</p><div class="status-row"><span class="status-chip live"><i></i> PLANNER CORE ONLINE</span><span class="status-chip">MY GEAR / GOD ROLL</span><span class="status-chip">COMPATIBILITY FILTERING</span><span class="status-chip">BUILD DATA INTEGRITY</span></div></div>
+  <div class="hero-instrument"><div class="head"><span>DEAD SIGNAL // TELEMETRY</span><b id="feedStamp">CONNECTING…</b></div><div class="wave"></div><div class="mini"><div><small>PLAYER RELEASE</small><b>v1.5.2</b></div><div><small>SSL / PUBLIC</small><b>HEALTHY</b></div><div><small>PLANNER AUDIT</small><b>100%</b></div></div></div>
+</section>
+<section class="catalog" aria-label="Dead Signal corpus counts">
+  <div class="feed"><strong id="feedTitle">PRODUCTION CORPUS FEED</strong><span id="feedSubtitle">Attempting live connection…</span></div>
+  <div class="metric"><small>WEAPONS</small><b id="countWeapons">120</b><em>player-facing baseline</em></div>
+  <div class="metric"><small>ARMOR</small><b id="countArmor">173</b><em>normalized baseline</em></div>
+  <div class="metric"><small>CURRENT CALIBRATIONS</small><b id="countCalibrations">94</b><em>post-Jan-2026</em></div>
+  <div class="metric"><small>VERIFIED ACCESSORIES</small><b id="countAttachments">119</b><em>true weapon slots</em></div>
+  <div class="metric"><small>DEVIATIONS</small><b id="countDeviations">97</b><em>player-facing unique</em></div>
+  <div class="metric"><small>CRADLES</small><b id="countCradles">120</b><em>player-facing unique</em></div>
+</section>
+<main><div class="planner"><div class="stack">
+<section class="panel plan" id="plan">
+  <header class="section-head"><div class="section-title"><span class="section-num">00</span><div><small>BUILD IDENTITY</small><h2>Plan</h2></div></div><span class="section-state good">CONFIGURED</span></header>
+  <div class="body"><div class="meta-grid"><div class="field"><label for="buildName">BUILD NAME</label><input id="buildName" value="Pathfinder Field Test"></div><div class="field"><label for="author">AUTHOR</label><input id="author" value="Dead Signal"></div><div class="field"><label for="type">BUILD TYPE</label><select id="type"><option>PvE</option><option>PvP</option><option>Hybrid</option></select></div><div class="field"><label for="tags">TAGS</label><input id="tags" value="Precision, Solo, Testbed"></div><div class="field wide"><label for="desc">SHORT DESCRIPTION</label><input id="desc" value="Instrumented UI concept using the real Build Lab flow and evidence-backed corpus data."></div></div></div>
+</section>
+<section class="panel weapon" id="weapons">
+  <header class="section-head"><div class="section-title"><span class="section-num">01</span><div><small>WEAPON PLATFORM</small><h2>Loadout</h2></div></div><span class="section-state">3 / 3 SLOTS</span></header>
+  <div class="body">
+    <div class="mode-row"><span>BUILD MODE</span><button class="mode active" data-mode="gear">● MY GEAR // ACTUAL</button><button class="mode theory" data-mode="god">◆ GOD ROLL // THEORETICAL</button></div>
+    <div class="weapon-grid">
+      <article class="weapon-card"><div class="slot"><span>PRIMARY WEAPON</span><span class="rarity legendary">LEGENDARY</span></div><div class="weapon-art"><div class="rifle"></div></div><div class="weapon-info"><h3 id="primaryName">SKS — Pathfinder</h3><p>Rifle // Tier V // 6★ blueprint example</p><div class="stats"><div class="stat"><small>INTRINSIC ATK</small><b>683</b></div><div class="stat"><small>GEAR TIER</small><b>V</b></div><div class="stat"><small>BLUEPRINT</small><b>6★</b></div></div><div class="calibration-block"><small>FIXED CALIBRATION STYLE EFFECT</small><p>Style description remains deterministic; player RNG is entered separately.</p><div class="rng-line"><span>LEGENDARY WEAPON DMG RNG</span><b>34–50%</b></div></div></div></article>
+      <article class="weapon-card"><div class="slot"><span>SECONDARY WEAPON</span><span class="rarity epic">EPIC</span></div><div class="weapon-art"><div class="pistol"></div></div><div class="weapon-info"><h3 id="secondaryName">Live corpus weapon</h3><p id="secondaryType">Production data candidate</p><div class="stats"><div class="stat"><small>INDEX</small><b id="secondaryIndex">—</b></div><div class="stat"><small>RARITY</small><b id="secondaryRarity">—</b></div><div class="stat"><small>TYPE</small><b id="secondaryStat">—</b></div></div><div class="calibration-block"><small>RNG INPUT MODEL</small><p>Deterministic effect and random roll are visually separated instead of flattened together.</p><div class="rng-line"><span>SECONDARY ATTRIBUTE</span><b>PLAYER INPUT</b></div></div></div></article>
+      <article class="weapon-card"><div class="slot"><span>MELEE WEAPON</span><span class="rarity rare">RARE</span></div><div class="weapon-art"><div class="blade"></div></div><div class="weapon-info"><h3 id="meleeName">Live corpus weapon</h3><p id="meleeType">Production data candidate</p><div class="stats"><div class="stat"><small>INDEX</small><b id="meleeIndex">—</b></div><div class="stat"><small>RARITY</small><b id="meleeRarity">—</b></div><div class="stat"><small>TYPE</small><b id="meleeStat">—</b></div></div><div class="calibration-block"><small>COMPATIBILITY</small><p>Item rarity keeps its own semantic color. Section identity stays gunmetal blue.</p><div class="rng-line"><span>STATUS</span><b>VALID</b></div></div></div></article>
+    </div>
+    <div class="live-weapons"><div class="live-weapons-head"><span>LIVE CORPUS SAMPLE</span><b id="liveSampleState">WAITING FOR PRODUCTION DATA</b></div><div class="live-list" id="liveWeaponList"><div class="live-card"><small>01</small><strong>Connecting…</strong><span>Production corpus</span></div><div class="live-card"><small>02</small><strong>Connecting…</strong><span>Production corpus</span></div><div class="live-card"><small>03</small><strong>Connecting…</strong><span>Production corpus</span></div></div></div>
+  </div>
+</section>
+<section class="panel armor" id="armor">
+  <header class="section-head"><div class="section-title"><span class="section-num">02</span><div><small>ARMOR PLATFORM</small><h2>Gear + Mods</h2></div></div><span class="section-state">6 SLOTS</span></header>
+  <div class="body"><div class="armor-grid">
+    <div class="gear"><span class="rarity legendary">LEGENDARY</span><div class="gear-icon">◉</div><strong>HELMET</strong><span>Select armor</span></div><div class="gear"><span class="rarity epic">EPIC</span><div class="gear-icon">⌑</div><strong>MASK</strong><span>Select armor</span></div><div class="gear"><span class="rarity legendary">LEGENDARY</span><div class="gear-icon">⬟</div><strong>TOP</strong><span>Select armor</span></div><div class="gear"><span class="rarity rare">RARE</span><div class="gear-icon">◇</div><strong>GLOVES</strong><span>Select armor</span></div><div class="gear"><span class="rarity epic">EPIC</span><div class="gear-icon">▥</div><strong>PANTS</strong><span>Select armor</span></div><div class="gear"><span class="rarity legendary">LEGENDARY</span><div class="gear-icon">▱</div><strong>BOOTS</strong><span>Select armor</span></div>
+  </div></div>
+</section>
+<section class="panel systems" id="systems">
+  <header class="section-head"><div class="section-title"><span class="section-num">03</span><div><small>BUILD SYSTEMS</small><h2>Deviation, Cradles & Consumables</h2></div></div><span class="section-state good">SYSTEMS ONLINE</span></header>
+  <div class="body"><div class="system-grid"><div class="system-card"><small>COMBAT DEVIATION</small><h3>Select synced Deviation</h3><p>Teal is used as structural instrumentation, not as an item rarity signal.</p></div><div class="system-card"><small>CONSUMABLES</small><h3>Food / Drink / Whim</h3><p>Utility information stays readable on neutral raised surfaces.</p></div><div class="system-card"><small>VALIDATION</small><h3>Compatibility active</h3><p>Invalid combinations should communicate through status, not decorative color.</p></div></div><div class="cradle-row"><span>CRADLE OVERRIDES // 8 SLOTS</span><div class="cradle-slot filled">01</div><div class="cradle-slot filled">02</div><div class="cradle-slot filled">03</div><div class="cradle-slot">04</div><div class="cradle-slot">05</div><div class="cradle-slot">06</div><div class="cradle-slot">07</div><div class="cradle-slot">08</div></div></div>
+</section>
+<section class="panel notes" id="notes">
+  <header class="section-head"><div class="section-title"><span class="section-num">04</span><div><small>BUILD NOTES</small><h2>Rotation, alternatives & farming notes</h2></div></div><span class="section-state">PLAYER NOTES</span></header>
+  <div class="body"><textarea class="notes-area">This is where the old layout already worked: one continuous planning flow. v3 adds landmarks, layered surfaces, data telemetry and controlled instrumentation without turning each section into a different-colored dashboard.</textarea></div>
+</section>
+</div>
+<aside class="panel report" id="report">
+  <header class="section-head"><div class="section-title"><span class="section-num">DS</span><div><small>BUILD ANALYSIS</small><h2>Loadout Report</h2></div></div></header>
+  <div class="body"><div class="integrity"><small>BUILD DATA INTEGRITY</small><strong><i class="dot"></i> READY TO SAVE / SHARE</strong></div><div class="report-build"><h3>Pathfinder Field Test</h3><p>Evidence-backed concept state</p><span class="mode-badge" id="reportMode">● MY GEAR // ACTUAL BUILD</span></div><div class="report-list"><div class="report-line"><span>PRIMARY</span><b>SKS — Pathfinder</b></div><div class="report-line"><span>TIER / STARS</span><b>V / 6★</b></div><div class="report-line"><span>INTRINSIC ATTACK</span><b>683</b></div><div class="report-line"><span>CURRENT CALIBRATIONS</span><b>94 records</b></div><div class="report-line"><span>WEAPON DMG RNG</span><b>Legendary 34–50%</b></div><div class="report-line"><span>ACCESSORIES</span><b>119 verified slots</b></div><div class="report-line"><span>DATA FEED</span><b id="reportFeed">CHECKING</b></div></div><div class="report-actions"><button>Copy Loadout Text</button><button>Farming Checklist</button><button>Weapon Compare</button><button>Export Build</button></div></div>
+</aside>
+</div></main>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+window.__DS_PRE_DATA_KEYS__ = new Set(Object.keys(window));
+</script>
+<script src="https://deadsignaldb.com/build-planner/data/community-data.js" id="productionCorpus"></script>
+<script>
+(function(){
+  const fallback={weapons:120,armor:173,calibrations:94,attachments:119,deviations:97,cradles:120};
+  const $=id=>document.getElementById(id);
+  const toast=(msg)=>{const t=$('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1500)};
+  function newGlobals(){return Object.keys(window).filter(k=>!window.__DS_PRE_DATA_KEYS__.has(k) && !/^__DS_/.test(k));}
+  function collectArrays(value,path='',depth=0,seen=new Set(),out=[]){
+    if(depth>4||value==null)return out;
+    if(typeof value!=='object'&&typeof value!=='function')return out;
+    if(seen.has(value))return out;seen.add(value);
+    if(Array.isArray(value)){out.push({path,value});return out;}
+    let keys=[];try{keys=Object.keys(value)}catch(e){return out}
+    for(const key of keys.slice(0,250)){
+      let next;try{next=value[key]}catch(e){continue}
+      if(next&&typeof next==='object')collectArrays(next,path?path+'.'+key:key,depth+1,seen,out);
+    }
+    return out;
+  }
+  function corpusArrays(){
+    const roots=newGlobals().map(k=>({k,v:window[k]})).filter(x=>x.v&&(['object','function'].includes(typeof x.v)));
+    let all=[];for(const r of roots)collectArrays(r.v,r.k,0,new Set(),all);
+    return all.filter((x,i,a)=>a.findIndex(y=>y.value===x.value)===i);
+  }
+  function pick(arrays,re){return arrays.filter(a=>re.test(a.path)).sort((a,b)=>b.value.length-a.value.length)[0]||null}
+  function updateMetric(id,candidate,fallbackValue){$(id).textContent=candidate&&candidate.value?candidate.value.length:fallbackValue}
+  function nameOf(x){if(!x)return null;if(typeof x==='string')return x;for(const k of ['name','Name','display_name','displayName','title','item_name','weapon_name']){if(typeof x[k]==='string'&&x[k].trim())return x[k].trim()}return null}
+  function rarityOf(x){if(!x||typeof x!=='object')return '—';for(const k of ['rarity','Rarity','quality','Quality'])if(x[k]!=null)return String(x[k]);return '—'}
+  function typeOf(x){if(!x||typeof x!=='object')return '—';for(const k of ['type','Type','category','Category','weapon_type','weaponType'])if(x[k]!=null)return String(x[k]);return '—'}
+  function simpleStats(x){if(!x||typeof x!=='object')return '';const keys=Object.keys(x);const wanted=keys.filter(k=>/(attack|damage|rpm|fire.?rate|magazine|reload|range)/i.test(k)).slice(0,2);return wanted.map(k=>k+': '+String(x[k])).join(' · ')}
+  function renderWeapons(candidate){
+    const list=$('liveWeaponList');
+    if(!candidate||!candidate.value.length){$('liveSampleState').textContent='VERIFIED SNAPSHOT — LIVE ARRAY NOT IDENTIFIED';return}
+    const records=candidate.value.filter(x=>nameOf(x)).slice(0,3);
+    if(!records.length){$('liveSampleState').textContent='LIVE ARRAY FOUND — NO DISPLAY NAMES';return}
+    list.innerHTML=records.map((x,i)=>'<div class="live-card"><small>LIVE 0'+(i+1)+'</small><strong>'+escapeHtml(nameOf(x))+'</strong><span>'+escapeHtml(simpleStats(x)||typeOf(x)||'Production corpus record')+'</span></div>').join('');
+    $('liveSampleState').textContent='PRODUCTION ARRAY: '+candidate.path;
+    const second=records[1]||records[0], melee=records[2]||records[0];
+    $('secondaryName').textContent=nameOf(second)||'Live corpus weapon';$('secondaryType').textContent=typeOf(second);$('secondaryIndex').textContent='LIVE';$('secondaryRarity').textContent=rarityOf(second);$('secondaryStat').textContent=typeOf(second);
+    $('meleeName').textContent=nameOf(melee)||'Live corpus weapon';$('meleeType').textContent=typeOf(melee);$('meleeIndex').textContent='LIVE';$('meleeRarity').textContent=rarityOf(melee);$('meleeStat').textContent=typeOf(melee);
+  }
+  function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function connect(){
+    const arrays=corpusArrays();
+    const weapons=pick(arrays,/weapon/i), armor=pick(arrays,/armor/i), cal=pick(arrays,/calibration/i), attachments=pick(arrays,/(attachment|accessor)/i), deviations=pick(arrays,/deviation/i), cradles=pick(arrays,/cradle/i);
+    const any=arrays.length>0;
+    updateMetric('countWeapons',weapons,fallback.weapons);updateMetric('countArmor',armor,fallback.armor);updateMetric('countCalibrations',cal,fallback.calibrations);updateMetric('countAttachments',attachments,fallback.attachments);updateMetric('countDeviations',deviations,fallback.deviations);updateMetric('countCradles',cradles,fallback.cradles);
+    if(any){$('feedTitle').textContent='LIVE CORPUS CONNECTED';$('feedSubtitle').textContent='Production community-data.js loaded · '+arrays.length+' arrays discovered';$('sideFeedState').textContent='LIVE PRODUCTION CORPUS';$('feedStamp').textContent='LIVE';$('reportFeed').textContent='LIVE';renderWeapons(weapons)}
+    else{$('feedTitle').textContent='VERIFIED SNAPSHOT';$('feedSubtitle').textContent='Production script unavailable or opaque — using last proven player-facing counts';$('sideFeedState').textContent='VERIFIED SNAPSHOT';$('feedStamp').textContent='FALLBACK';$('reportFeed').textContent='SNAPSHOT';$('liveSampleState').textContent='NO LIVE ARRAY — FALLBACK ACTIVE'}
+  }
+  document.querySelectorAll('.mode').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.mode').forEach(b=>b.classList.remove('active'));btn.classList.add('active');const god=btn.dataset.mode==='god';$('reportMode').textContent=god?'◆ GOD ROLL // THEORETICAL BUILD':'● MY GEAR // ACTUAL BUILD';toast(god?'God Roll instrumentation enabled':'My Gear instrumentation enabled')}));
+  document.querySelectorAll('.nav a').forEach(a=>a.addEventListener('click',()=>{document.querySelectorAll('.nav a').forEach(n=>n.classList.remove('active'));a.classList.add('active')}));
+  document.querySelectorAll('.btn,.report-actions button').forEach(b=>b.addEventListener('click',()=>toast(b.textContent.trim()+' // concept interaction')));
+  setTimeout(connect,120);
+})();
+</script>
+</body>
+</html>
