@@ -28,9 +28,9 @@ Dead Signal advantage:
 - Accessibility/readability controls are a first-class planner feature.
 - Build Data Integrity warns when account-specific Calibration information is incomplete.
 
-Material gaps:
+Material gaps after current changes:
 
-1. Weapon Compare.
+1. Progression-aware / configured Weapon Compare once proven static stat families are available.
 2. Public/featured build discovery.
 3. Broader recipe/item/memetic database presentation.
 4. Trustworthy derived DPS once stat/combat consumers are fully traced.
@@ -64,18 +64,21 @@ Material gaps:
 
 ## Changes made from this audit
 
-PLAYER v1.5.2 now adds two low-risk player workflows directly to the Loadout Report:
+PLAYER v1.5.2 now adds three low-risk player workflows:
 
 - **Copy Loadout Text** — produces a compact plain-text build summary suitable for Discord, Reddit, notes, guild chat, or troubleshooting.
 - **Copy Farming Checklist** — produces a deduplicated checkbox list of selected gear, mods, systems and Cradles.
+- **Weapon Compare** — side-by-side comparison of the player-facing weapon records already indexed by Dead Signal, including known DMG, RPM, magazine, reload, crit, weakspot, range, mobility, pellets, weapon effects, and an arithmetic B-minus-A delta.
 
-These complement URL sharing rather than duplicate competitor behavior. Neither feature changes game math or persistence semantics.
+The Weapon Compare deliberately labels itself **RAW INDEXED ITEM STATS**. It does not pretend that Tier, Blueprint Stars, Calibration, attachments, or derived DPS have been applied. This closes the basic comparison-workflow gap without inventing stat math.
+
+These features complement URL sharing rather than duplicate competitor behavior. None changes persistence semantics or introduces unverified mechanics.
 
 ## Recommended next differentiation sequence
 
 1. Finish live persistence round-trip verification.
 2. Reconcile 119 mined true weapon-slot accessories into the player-facing attachment corpus.
-3. Add a stat-aware Weapon Compare only from proven static stat families.
+3. Upgrade Weapon Compare from raw indexed records to configured/progression-aware comparison only as each static stat family becomes proven.
 4. Add a local/public build-library layer after the core build schema is fully source-controlled.
 5. Expand database surfaces for recipes/items only from normalized mined exports.
 6. Add derived DPS last, after runtime buff/proc ordering is directly evidenced.
