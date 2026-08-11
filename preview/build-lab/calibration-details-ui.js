@@ -113,7 +113,14 @@ function renderSecondary(card){
 }
 
 function run(){document.querySelectorAll('.pick-card').forEach(cleanPickerCard);document.querySelectorAll('.weapon-card').forEach(renderSecondary);}
+function resetState(){
+  state={};
+  try{localStorage.removeItem(STATE_KEY);}catch(_){}
+  document.querySelectorAll('.ds-cal-secondary-editor').forEach(box=>box.remove());
+  run();
+}
 function queue(){if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;run();});}
+window.DSCalibrationDetailsUI={...(window.DSCalibrationDetailsUI||{}),reset:resetState};
 new MutationObserver(queue).observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['data-calibration-rarity','data-calibration-name','data-rarity','data-quality','data-grade']});
 window.addEventListener('dead-signal:build-mode-change',()=>setTimeout(run,0));
 document.addEventListener('change',e=>{if(e.target.closest?.('.weapon-card,#picker'))setTimeout(run,0);});
