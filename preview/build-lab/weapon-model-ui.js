@@ -121,15 +121,13 @@ function renderCard(card){
     if(buildMode==='god'){
       calHtml=`<section class="ds-wm-cal ds-cal-roll-card ds-wm-god">
         <div class="ds-cal-roll-head"><span class="ds-cal-step">1</span><div><small>WEAPON DMG ROLL</small><strong>${cal.q} Calibration</strong></div><em>${fmt(cal.min)}–${fmt(cal.max)}%</em></div>
-        <div class="ds-wm-rollline"><input type="range" min="${cal.min}" max="${cal.max}" step="0.1" value="${cal.max}" disabled><output>${fmt(cal.max)}%</output></div>
-        <p>God Roll uses the maximum legal Weapon DMG roll.</p>
+        <div class="ds-cal-locked-value"><small>GOD ROLL VALUE</small><strong>${fmt(cal.max)}%</strong></div>
       </section>`;
     }else{
       const has=roll!=null;
       calHtml=`<section class="ds-wm-cal ds-cal-roll-card">
         <div class="ds-cal-roll-head"><span class="ds-cal-step">1</span><div><small>WEAPON DMG ROLL</small><strong>${cal.q} Calibration</strong></div><em>${fmt(cal.min)}–${fmt(cal.max)}%</em></div>
-        <div class="ds-wm-rollgrid"><input data-wm-roll-range type="range" min="${cal.min}" max="${cal.max}" step="0.1" value="${has?roll:cal.min}"><label><input data-wm-roll-number type="number" min="${cal.min}" max="${cal.max}" step="0.1" value="${has?fmt(roll):''}" placeholder="Exact roll"><b>%</b></label></div>
-        <div class="ds-wm-range"><span>${fmt(cal.min)}%</span><span data-wm-roll-status>${has?`Your roll: ${fmt(roll)}%`:'Drag or type your exact roll'}</span><span>${fmt(cal.max)}%</span></div>
+        <label class="ds-cal-number-field"><span>Exact Weapon DMG roll</span><div><input data-wm-roll-number type="number" min="${cal.min}" max="${cal.max}" step="0.1" value="${has?fmt(roll):''}" placeholder="${fmt(cal.min)}–${fmt(cal.max)}"><b>%</b></div><small data-wm-roll-status>${has?`Saved roll: ${fmt(roll)}%`:`Enter a value from ${fmt(cal.min)}% to ${fmt(cal.max)}%`}</small></label>
       </section>`;
     }
   }else if(cal){
@@ -138,31 +136,34 @@ function renderCard(card){
     calHtml='<section class="ds-wm-cal ds-cal-roll-card ds-wm-empty"><div class="ds-cal-roll-head"><span class="ds-cal-step">1</span><div><small>WEAPON DMG ROLL</small><strong>Select a Calibration Blueprint first</strong></div></div></section>';
   }
 
-  panel.innerHTML=`
-    ${(tierControl||starControl)?`<div class="ds-wm-controls">${tierControl}${starControl}</div>`:''}
-    ${calHtml}`;
+  panel.innerHTML=`${(tierControl||starControl)?`<div class="ds-wm-controls">${tierControl}${starControl}</div>`:''}${calHtml}`;
   panel.dataset.signature=signature;
 
   panel.querySelector('[data-wm-tier]')?.addEventListener('change',e=>{storeChoice(key,{tier:Number(e.target.value)});panel.dataset.signature='';renderCard(card);});
   panel.querySelector('[data-wm-star]')?.addEventListener('change',e=>{storeChoice(key,{star:Number(e.target.value)});panel.dataset.signature='';renderCard(card);});
   panel.querySelector('[data-wm-cal-quality]')?.addEventListener('change',e=>{const q=e.target.value;if(q){storeChoice(key,{calQuality:q,calRoll:null});panel.dataset.signature='';renderCard(card);}});
 
-  const range=panel.querySelector('[data-wm-roll-range]'),number=panel.querySelector('[data-wm-roll-number]'),status=panel.querySelector('[data-wm-roll-status]');
-  if(range&&number&&cal){
-    const applyLive=v=>{
+  const number=panel.querySelector('[data-wm-roll-number]'),status=panel.querySelector('[data-wm-roll-status]');
+  if(number&&cal){
+    const saveValid=v=>{
       v=Math.round(Number(v)*10)/10;
       if(!Number.isFinite(v)||v<cal.min||v>cal.max)return false;
       storeChoice(key,{calRoll:v,calId:cal.id});
-      range.value=String(v);number.value=fmt(v);if(status)status.textContent=`Your roll: ${fmt(v)}%`;
+      number.value=fmt(v);
+      if(status)status.textContent=`Saved roll: ${fmt(v)}%`;
       panel.dataset.signature=signatureFor(w,tier,star,cal,buildMode,v);
       return true;
     };
-    range.addEventListener('input',()=>applyLive(range.value));
-    number.addEventListener('input',()=>{if(number.value!=='')applyLive(number.value);});
+    number.addEventListener('input',()=>{
+      if(number.value===''){if(status)status.textContent=`Enter a value from ${fmt(cal.min)}% to ${fmt(cal.max)}%`;return;}
+      const v=Number(number.value);
+      if(Number.isFinite(v)&&v>=cal.min&&v<=cal.max){saveValid(v);}
+      else if(status)status.textContent=`Allowed range: ${fmt(cal.min)}%–${fmt(cal.max)}%`;
+    });
     number.addEventListener('change',()=>{
       if(number.value===''){storeChoice(key,{calRoll:null,calId:cal.id});panel.dataset.signature='';renderCard(card);return;}
       let v=Number(number.value);if(!Number.isFinite(v))return;
-      v=Math.round(Math.min(cal.max,Math.max(cal.min,v))*10)/10;applyLive(v);
+      v=Math.round(Math.min(cal.max,Math.max(cal.min,v))*10)/10;saveValid(v);
     });
   }
 }
