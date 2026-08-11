@@ -34,22 +34,38 @@ function tagTitleControls(card){
   if(favorite&&rarity)row.classList.add('ds-picker-title-controls-fixed');
 }
 
-function moveCalibrationEffect(card){
+function syncCalibrationEffect(card){
   if(!/Calibration Blueprint/i.test(norm(card.textContent||'')))return;
-  const effect=card.querySelector('.ds-cal-mined-description');
-  if(!effect)return;
+
+  const sources=[...card.querySelectorAll('.ds-cal-mined-description')];
+  let source=sources.find(el=>el.parentElement===card)||sources[0]||null;
+  if(!source)return;
+
+  /* The source script searches only direct children. Keep exactly one source
+     there so it never respawns a second footer copy. */
+  if(source.parentElement!==card)card.append(source);
+  for(const extra of sources){if(extra!==source)extra.remove();}
+  source.classList.add('ds-cal-source-hidden');
+  source.setAttribute('aria-hidden','true');
 
   const titleRow=card.querySelector('.pick-title-row');
   const content=titleRow?.parentElement;
   if(!content||content===card)return;
 
-  if(effect.parentElement!==content)content.append(effect);
-  effect.classList.add('ds-cal-mined-description-inside');
+  let visible=content.querySelector('.ds-cal-mined-effect-inline');
+  const text=norm(source.textContent);
+  if(!text){visible?.remove();return;}
+  if(!visible){
+    visible=document.createElement('p');
+    visible.className='ds-cal-mined-effect-inline';
+    content.append(visible);
+  }
+  if(norm(visible.textContent)!==text)visible.textContent=text;
 }
 
 function polishCard(card){
   tagTitleControls(card);
-  moveCalibrationEffect(card);
+  syncCalibrationEffect(card);
 }
 
 function run(){document.querySelectorAll('#picker .pick-card').forEach(polishCard);}
