@@ -1,0 +1,16 @@
+/* PLAYER v1.5.2 — build integrity / saved-mode presentation */
+.ds-build-integrity{margin:0 0 14px;padding:12px 13px;border:1px solid #30363a;background:linear-gradient(145deg,#0b0f12,#080b0d);clip-path:polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,8px 100%,0 calc(100% - 8px))}
+.ds-integrity-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.ds-integrity-head small{color:#7f878d;font-size:var(--ds-type-micro,9px);font-weight:900;letter-spacing:.12em;text-transform:uppercase}
+.ds-integrity-head strong{color:#e6eaec;font-size:var(--ds-type-small,11px);font-weight:900;letter-spacing:.04em}
+.ds-integrity-state{margin-left:auto;padding:3px 7px;border:1px solid #3c4348;background:#11161a;color:#cfd5d8;font-size:var(--ds-type-micro,9px);font-weight:950;letter-spacing:.08em}
+.ds-integrity-state.ok{border-color:#31563c;background:#0d1911;color:#9fd3ad}
+.ds-integrity-state.warn{border-color:#704028;background:#1b100b;color:#efb17f}
+.ds-integrity-state.theory{border-color:#6d2932;background:#1e0c10;color:#ff8b95}
+.ds-build-integrity p{margin:8px 0 0;color:#aeb5b9;font-size:var(--ds-type-small,11px);line-height:1.5}
+.ds-build-integrity ul{margin:8px 0 0;padding:8px 10px 8px 25px;border-top:1px solid #2b3034;color:#e1b08a;font-size:var(--ds-type-small,11px);line-height:1.55}
+.ds-build-integrity li+li{margin-top:3px}
+.ds-saved-mode-badge{display:inline-block;margin-left:8px;padding:2px 6px;border:1px solid #354047;background:#10161a;color:#bdc7cc;font-size:var(--ds-type-micro,8px);font-weight:950;letter-spacing:.08em;vertical-align:middle}
+.ds-saved-mode-badge[data-mode="god"]{border-color:#6d2932;background:#1e0c10;color:#ff8b95}
+.ds-saved-mode-badge[data-mode="gear"]{border-color:#31563c;background:#0d1911;color:#9fd3ad}
+@media(max-width:700px){.ds-integrity-state{margin-left:0}.ds-integrity-head{align-items:flex-start}.ds-build-integrity{padding:11px}}
