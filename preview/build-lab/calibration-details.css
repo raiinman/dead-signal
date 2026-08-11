@@ -8,4 +8,7 @@
 
 .ds-cal-secondary-select{display:grid;grid-template-columns:92px minmax(160px,1fr);align-items:center;gap:10px;margin-top:11px}.ds-cal-secondary-select>span{color:#858c91;font-size:8px;font-weight:800;text-transform:uppercase}.ds-cal-secondary-select select{min-height:36px;border:1px solid #3b4348;background:#06080a;color:#e5e8ea;padding:6px 8px}.ds-cal-secondary-help,.ds-cal-roll-card>p{margin:8px 0 0;color:#81898e;font-size:9px;line-height:1.4}
 
+/* v1.4.7: corrected calibration copy hierarchy */
+.ds-wm-cal .ds-cal-roll-head small{color:#edf0f1;font-size:12px;font-weight:900;letter-spacing:.02em}.ds-wm-cal .ds-cal-roll-head strong{margin-top:2px;color:#8d9499;font-size:8px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.ds-cal-number-field{grid-template-columns:1fr;align-items:start;gap:6px}.ds-cal-number-field>span{display:block;color:#d1d6d9;font-size:9px;font-weight:900}.ds-cal-number-field>div{width:min(180px,100%);justify-self:start}.ds-cal-number-field input[type=number]{text-align:left}.ds-cal-number-field input[type=number]::placeholder{color:transparent}.ds-cal-number-field>small{grid-column:auto;margin-top:1px}.ds-cal-secondary-editor .ds-cal-number-field>div{width:min(180px,100%)}
+
 @media(max-width:700px){.ds-calibration-facts{grid-template-columns:1fr}.ds-cal-roll-head{grid-template-columns:28px 1fr}.ds-cal-roll-head em{grid-column:2}.ds-cal-secondary-select,.ds-cal-number-field{grid-template-columns:1fr}.ds-cal-secondary-select>span{margin-bottom:-5px}.ds-cal-number-field>small{grid-column:auto}}
