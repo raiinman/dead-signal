@@ -5,6 +5,40 @@ deployment:
     - export DEPLOYPATH=$HOME/public_html/build-planner/
     - /bin/cp -f index.html $ROOTPATH/index.html
     - /bin/cp -f site.css $ROOTPATH/site.css
+    - /bin/cp -f database.css $ROOTPATH/database.css
+    - /bin/cp -f hero-art.css $ROOTPATH/hero-art.css
+    - /bin/mkdir -p $ROOTPATH/assets/hero
+    - /bin/cp -f assets/hero/dead-signal-database-hero-960.avif $ROOTPATH/assets/hero/dead-signal-database-hero-960.avif
+    - /bin/cp -f assets/hero/dead-signal-database-hero-960.webp $ROOTPATH/assets/hero/dead-signal-database-hero-960.webp
+    - /bin/cp -f assets/hero/dead-signal-database-hero-1600.avif $ROOTPATH/assets/hero/dead-signal-database-hero-1600.avif
+    - /bin/cp -f assets/hero/dead-signal-database-hero-1600.webp $ROOTPATH/assets/hero/dead-signal-database-hero-1600.webp
+    - /bin/cp -f assets/hero/dead-signal-database-hero-2560.avif $ROOTPATH/assets/hero/dead-signal-database-hero-2560.avif
+    - /bin/cp -f assets/hero/dead-signal-database-hero-2560.webp $ROOTPATH/assets/hero/dead-signal-database-hero-2560.webp
+    - /bin/mkdir -p $ROOTPATH/assets/database-icons
+    - /bin/cp -f assets/database-icons/weapons-v2-256.avif $ROOTPATH/assets/database-icons/weapons-v2-256.avif
+    - /bin/cp -f assets/database-icons/weapons-v2-512.avif $ROOTPATH/assets/database-icons/weapons-v2-512.avif
+    - /bin/cp -f assets/database-icons/weapons-v2-256.webp $ROOTPATH/assets/database-icons/weapons-v2-256.webp
+    - /bin/cp -f assets/database-icons/weapons-v2-512.webp $ROOTPATH/assets/database-icons/weapons-v2-512.webp
+    - /bin/cp -f assets/database-icons/armor-sets-256.avif $ROOTPATH/assets/database-icons/armor-sets-256.avif
+    - /bin/cp -f assets/database-icons/armor-sets-512.avif $ROOTPATH/assets/database-icons/armor-sets-512.avif
+    - /bin/cp -f assets/database-icons/armor-sets-256.webp $ROOTPATH/assets/database-icons/armor-sets-256.webp
+    - /bin/cp -f assets/database-icons/armor-sets-512.webp $ROOTPATH/assets/database-icons/armor-sets-512.webp
+    - /bin/cp -f assets/database-icons/mods-256.avif $ROOTPATH/assets/database-icons/mods-256.avif
+    - /bin/cp -f assets/database-icons/mods-512.avif $ROOTPATH/assets/database-icons/mods-512.avif
+    - /bin/cp -f assets/database-icons/mods-256.webp $ROOTPATH/assets/database-icons/mods-256.webp
+    - /bin/cp -f assets/database-icons/mods-512.webp $ROOTPATH/assets/database-icons/mods-512.webp
+    - /bin/cp -f assets/database-icons/calibrations-256.avif $ROOTPATH/assets/database-icons/calibrations-256.avif
+    - /bin/cp -f assets/database-icons/calibrations-512.avif $ROOTPATH/assets/database-icons/calibrations-512.avif
+    - /bin/cp -f assets/database-icons/calibrations-256.webp $ROOTPATH/assets/database-icons/calibrations-256.webp
+    - /bin/cp -f assets/database-icons/calibrations-512.webp $ROOTPATH/assets/database-icons/calibrations-512.webp
+    - /bin/cp -f assets/database-icons/deviations-butterfly-emissary-256.avif $ROOTPATH/assets/database-icons/deviations-butterfly-emissary-256.avif
+    - /bin/cp -f assets/database-icons/deviations-butterfly-emissary-512.avif $ROOTPATH/assets/database-icons/deviations-butterfly-emissary-512.avif
+    - /bin/cp -f assets/database-icons/deviations-butterfly-emissary-256.webp $ROOTPATH/assets/database-icons/deviations-butterfly-emissary-256.webp
+    - /bin/cp -f assets/database-icons/deviations-butterfly-emissary-512.webp $ROOTPATH/assets/database-icons/deviations-butterfly-emissary-512.webp
+    - /bin/cp -f assets/database-icons/cradle-overrides-256.avif $ROOTPATH/assets/database-icons/cradle-overrides-256.avif
+    - /bin/cp -f assets/database-icons/cradle-overrides-512.avif $ROOTPATH/assets/database-icons/cradle-overrides-512.avif
+    - /bin/cp -f assets/database-icons/cradle-overrides-256.webp $ROOTPATH/assets/database-icons/cradle-overrides-256.webp
+    - /bin/cp -f assets/database-icons/cradle-overrides-512.webp $ROOTPATH/assets/database-icons/cradle-overrides-512.webp
     - /bin/cp -f site.js $ROOTPATH/site.js
     - /bin/mkdir -p $ROOTPATH/shared
     - /bin/cp -f shared/readability.css $ROOTPATH/shared/readability.css
