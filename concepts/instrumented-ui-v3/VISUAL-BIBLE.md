@@ -94,6 +94,33 @@ Every major Build Lab section should share one structure:
 
 Use color as instrumentation: rails, small icons, headings, status details, restrained inner tints. Do not fill entire sections with loud color.
 
+## Self-explaining UI rule
+
+**If a player has to ask what a control, card, number, or slot represents, the label is not finished.**
+
+Dead Signal should not require the player to already understand planner-internal vocabulary before they can use the planner.
+
+Every interactive or configurable region should communicate four things without outside explanation:
+
+1. What this thing is.
+2. What belongs here.
+3. What is currently selected or missing.
+4. What the player can do next.
+
+Avoid anonymous labels such as `Slot 1`, `Configured`, `System Online`, `Ready`, or `Value` when a specific player-facing term exists.
+
+Examples:
+
+- Prefer `Cradle Override 1` over `Slot 1`.
+- Prefer `0 / 8 Cradle Overrides selected` over `Systems Online`.
+- Prefer `No Combat Deviation selected` over `Empty` when the empty slot type matters.
+- Prefer `Base Attack` over internal implementation language such as `Intrinsic Attack`.
+- Prefer `Choose Primary Weapon` over a generic `Select` dialog title.
+
+Status labels may still use terms such as `READY` or `VALID`, but only after the UI has already made clear **what** is ready or valid.
+
+The interface should pass a first-visit test: a player who did not help design Dead Signal should be able to identify the purpose of each major section without documentation or verbal explanation.
+
 ## Information priority
 
 Every important card should answer, in this order:
