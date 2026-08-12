@@ -2,7 +2,7 @@
 
 > **Purpose:** Canonical current-state handoff for ChatGPT/Codex sessions working on Dead Signal. Read this file and `PROJECT-RULES.md` before changing anything.
 >
-> Last updated: **2026-08-12 (landing page and repository direction handoff)**
+> Last updated: **2026-08-12 (public landing page and catalogue handoff)**
 
 ## 1. Project identity
 
@@ -13,8 +13,9 @@
 - Live planner: `https://deadsignaldb.com/build-planner/`
 - Root site: `https://deadsignaldb.com/`
 - Hosting: Namecheap shared hosting / cPanel.
-- Product architecture: the Build Planner is the primary product; the root site is a lightweight static landing page.
+- Product architecture: Dead Signal is a connected player-facing database and Build Planner. The database supports research and discovery; the planner turns selected data into complete loadouts.
 - Root landing source: `index.html`, `site.css`, and `site.js` (no WordPress, PHP, or server-side application runtime).
+- The approved database-forward landing page and its six category artworks were committed to public `main` at `114514a05b24b15945ae741aab2e8f1a37952cfc`. cPanel still requires **Update from Remote** followed by **Deploy HEAD Commit** to publish a new `main` commit to the live domain.
 - Production planner target: `$HOME/public_html/build-planner/`
 - Current player release line: **PLAYER v1.5.2**.
 - `main` HEAD fetched immediately before the Codex handoff work: `b112baca5d501123b5043d52817fd960495e48c2`.
@@ -427,18 +428,64 @@ The auditor detects publicly reachable feature evidence; it does **not** prove w
 
 Do not chase competitor DPS numbers by inventing formulas. Trustworthiness comes first.
 
-## 14. Immediate priorities
+## 14. Approved database catalogue direction
 
-1. Review the root landing-page mock and deploy it through the existing copy-only cPanel workflow when approved.
+The landing-page category cards are currently presentation/navigation placeholders. Their present `#database` targets are not the finished interaction. The next product milestone is a real catalogue, starting with Weapons.
+
+Approved route family:
+
+- `/database/weapons/`
+- `/database/armor/`
+- `/database/mods/`
+- `/database/calibrations/`
+- `/database/deviations/`
+- `/database/cradle/`
+
+Build the **Weapons catalogue first** and use its architecture as the reusable pattern for the other five categories. The catalogue must use the same normalized, provenance-aware data as the planner; do not create a second manually maintained factual dataset.
+
+Weapons catalogue requirements:
+
+- search by weapon name;
+- filters for weapon type, rarity, damage/status characteristics, and other fields proven by normalized data;
+- sorting by useful player-facing fields such as name, rarity, Base Attack, Fire Rate, and Magazine where supported;
+- grid/list views designed for research rather than only quick selection;
+- real weapon artwork and important stats on each card;
+- Compare and Add to Build actions;
+- honest incomplete/unverified-data indicators;
+- individual weapon detail routes with Tier I–V stats, Blueprint Star progression, weapon feature/status mechanics, Calibration compatibility, attachments, compatible/recommended mods when proven, source/verification information, and a Configure in Build Planner action.
+
+The intended user flow is:
+
+**Discover in database → inspect details → compare → send configured item to planner.**
+
+The catalogue should be more informative than the planner picker. The picker remains optimized for fast selection; the catalogue provides explanation, comparison, filtering, and research depth. The landing-page search should eventually search real records across all categories and route to catalogue results.
+
+Implementation constraints:
+
+- keep the public surface lightweight and static-hosting compatible;
+- preserve the copy-only cPanel workflow;
+- prefer reusable catalogue components/styles/data adapters rather than six unrelated implementations;
+- use shared readability controls and player-facing terminology;
+- do not invent recommendations, compatibility, mechanics, or derived rankings without evidence;
+- preserve normalized-record provenance internally and clearly mark uncertainty;
+- connect the Weapons landing card to its catalogue as soon as that route exists.
+
+### Next-chat starting task
+
+Read `AI-CONTINUITY.md`, `PROJECT-RULES.md`, the current root landing files, the planner weapon picker/compare modules, and the normalized weapon-data sources. Then inspect the exact available weapon schema before proposing or building UI. Implement a polished static Weapons catalogue vertical slice, including catalogue browsing, filters/search/sort, one representative detail view, and a safe handoff into the planner. Verify it in a real browser at desktop and mobile widths before expanding to other categories.
+
+## 15. Immediate priorities
+
+1. Build the Weapons catalogue vertical slice described above and connect the Weapons landing-page card to it.
 2. Upload and verify the v1.5.8.0 Windows ZIP as a GitHub release when the user wants to distribute it, then update `tools/miner/release/latest.json` **last** with the exact public URL, size, and SHA-256.
 3. Run one full v1.5.8.0 mining pass against the installed game and inspect the generated snapshot before replacing any player-facing site data.
 4. Continue visual review from `concepts/color-flow-v6-10/`; do not fork into unrelated design directions.
 5. Preserve the real-browser persistence torture test as an open production gate.
 6. Reconcile 108 older planner attachments against 119 verified weapon-slot accessories.
-7. Expand player-facing database surfaces from normalized mined data, especially recipes/crafting.
+7. After Weapons establishes the reusable catalogue pattern, expand it to Armor, Mods, Calibrations, Deviations, and Cradle Overrides.
 8. Keep configured DPS/runtime proc math last unless each layer is fully proven.
 
-## 15. Files future sessions should read first
+## 16. Files future sessions should read first
 
 1. `AI-CONTINUITY.md`
 2. `PROJECT-RULES.md`
@@ -462,7 +509,7 @@ For Miner logic, **do not default back to an old extracted `_internal/extractor/
 
 Start with the canonical GitHub `tools/miner/` source/migration state. If an executable/build-system task is required, hand that implementation to **Codex**, which owns the local Windows build environment and EXE lifecycle.
 
-## 16. Continuity rules
+## 17. Continuity rules
 
 - Read this file and `PROJECT-RULES.md` first.
 - Fetch current `main` HEAD before repository writes because other sessions may commit concurrently.
