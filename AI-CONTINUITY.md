@@ -531,7 +531,15 @@ Generic weapon detail routes now expose legal Gear Tier and rarity-capped Bluepr
 
 Real-browser verification passed at desktop and 390 px mobile widths: 120/120 cards rendered, filtering status was correct, no horizontal overflow occurred, the math controls reflowed and remained usable, and a clean AKM detail load produced Tier V 3-star Base Attack 204 from `182 x 1.13 = 204.75`, truncated to 204, with no console errors.
 
-## 16. Immediate priorities
+## 16. Cohesive workstation shell milestone
+
+On 2026-08-12, the production landing page, Weapons catalogue, weapon detail routes, and Build Planner were moved under one shared workstation shell. `shared/workstation-shell.css` and `.js` now own the persistent route-aware sidebar, brand, workspace/database/intelligence navigation, text-size controls, desktop frame, and mobile drawer. Page-specific toolbars and content remain local to their route; duplicate global headers and the planner-only legacy sidebar are suppressed by the shell.
+
+The architecture rule is now: one global shell, route-local tools, and shared canonical data. New database verticals should register in the shared navigation and reuse this frame instead of creating another header/sidebar system. Unbuilt destinations remain visibly marked `SOON`; do not imply that they are live. The sidebar's Weapon Compare route opens the planner compare workspace when the canonical weapon payload is available, and Mining Coverage targets the current weapon relationship map.
+
+Desktop browser checks passed for the landing, Weapons, and planner routes: exactly one workstation sidebar rendered, route state was correct, displaced legacy navigation was hidden, and the planner's former horizontal overflow was removed. The mobile shell is CSS-driven below 1100 px with an explicit menu button, scrim, Escape close, and reduced-motion handling.
+
+## 17. Immediate priorities
 
 1. Migrate Armor from the remaining compatibility corpus to the normalized Miner snapshot using the same canonical-data pattern established for Weapons.
 2. Package, upload, and verify the v1.5.9.0 Windows ZIP as a GitHub release when the user wants to distribute it, then update `tools/miner/release/latest.json` **last** with the exact public URL, size, and SHA-256.
@@ -542,7 +550,7 @@ Real-browser verification passed at desktop and 390 px mobile widths: 120/120 ca
 7. After Weapons establishes the reusable catalogue pattern, expand it to Armor, Mods, Calibrations, Deviations, and Cradle Overrides.
 8. Keep configured DPS/runtime proc math last unless each layer is fully proven.
 
-## 17. Files future sessions should read first
+## 18. Files future sessions should read first
 
 1. `AI-CONTINUITY.md`
 2. `PROJECT-RULES.md`
@@ -566,7 +574,7 @@ For Miner logic, **do not default back to an old extracted `_internal/extractor/
 
 Start with the canonical GitHub `tools/miner/` source/migration state. If an executable/build-system task is required, hand that implementation to **Codex**, which owns the local Windows build environment and EXE lifecycle.
 
-## 18. Continuity rules
+## 19. Continuity rules
 
 ### 2026-08-12 weapon-configuration mining milestone
 

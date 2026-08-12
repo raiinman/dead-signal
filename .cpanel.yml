@@ -43,6 +43,8 @@ deployment:
     - /bin/mkdir -p $ROOTPATH/shared
     - /bin/cp -f shared/readability.css $ROOTPATH/shared/readability.css
     - /bin/cp -f shared/readability.js $ROOTPATH/shared/readability.js
+    - /bin/cp -f shared/workstation-shell.css $ROOTPATH/shared/workstation-shell.css
+    - /bin/cp -f shared/workstation-shell.js $ROOTPATH/shared/workstation-shell.js
     - /bin/mkdir -p $ROOTPATH/database/weapons/sks-pathfinder
     - /bin/mkdir -p $ROOTPATH/database/weapons/detail
     - /bin/cp -f database/weapons/index.html $ROOTPATH/database/weapons/index.html
