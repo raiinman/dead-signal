@@ -1,0 +1,54 @@
+# Python build/cache
+__pycache__/
+*.py[cod]
+*.pyd
+.pytest_cache/
+.venv/
+venv/
+
+# Packaged Miner/runtime output
+build/
+dist/
+_internal/
+*.exe
+*.msi
+*.zip
+*.7z
+*.7z.*
+
+# Generated Miner output
+output/
+outputs/
+raw/
+normalized/
+published/
+reports/
+indexes/
+investigations/
+logs/
+
+# Large generated indexes / databases
+*.sqlite
+*.sqlite3
+*.db
+*.db-wal
+*.db-shm
+
+# Once Human / game archives and extracted payloads
+*.npk
+*.pak
+*.ucas
+*.utoc
+*.pck
+*.bin
+
+# Local configuration / secrets
+.env
+.env.*
+*.local.json
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
