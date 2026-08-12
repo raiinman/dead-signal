@@ -2,7 +2,7 @@
 
 > **Purpose:** Canonical current-state handoff for ChatGPT/Codex sessions working on Dead Signal. Read this file and `PROJECT-RULES.md` before changing anything.
 >
-> Last updated: **2026-08-11 15:35 MST**
+> Last updated: **2026-08-11 21:22 MST**
 
 ## 1. Project identity
 
@@ -70,15 +70,17 @@ The first meaningful reliable copy-only deployment was commit:
 
 `c3a62dbb414ad1368850f60032890b4b4f0d75d4`
 
-The Build Lab core references were recently changed to same-origin relative paths for its own `styles.css`, `data/community-data.js`, and `app.js`. Preserve that deployment-safe behavior; do not hard-wire production-domain URLs back into those core asset references.
+The Build Lab core references were changed to same-origin relative paths for its own `styles.css`, `data/community-data.js`, and `app.js`. Preserve that deployment-safe behavior; do not hard-wire production-domain URLs back into those core asset references.
 
-## 4. Latest `main` state / recent planner work
+**Concept folders are isolated review artifacts. Do not add concept folders to `.cpanel.yml` or deploy a concept to production unless the user explicitly asks to begin production translation.**
+
+## 4. Latest `main` state / recent work
 
 Last known `main` HEAD immediately before this continuity refresh:
 
-`3e9b75614241a4dd4f624469af3631e802fa9788` — **Update AI continuity for SSL work and planner state**
+`8274f08b6bc8f2608ae360228f47ee8ba8b4c6d1` — **Add Color Flow v6.6 theme colors and scrolling nav**
 
-Recent operational work already completed on `main` includes:
+Recent operational planner work already completed on `main` includes:
 
 - Hardened Calibration persistence bridge for per-build/per-weapon-slot state.
 - Persisted **MY GEAR / GOD ROLL** mode metadata through planner extension state.
@@ -91,10 +93,10 @@ Recent operational work already completed on `main` includes:
 - Weapon Compare intentionally does **not** claim configured DPS or apply Tier/Stars/Calibration/attachments yet.
 - Calibration picker duplicate fixed-effect footer was resolved; screenshot verification showed exactly one contained `FIXED STYLE EFFECT` block per rarity card.
 - Calibration rarity/favorite spacing was hardened across picker locations.
-- Planner core assets now use same-origin relative paths instead of hard-coded production-domain URLs.
+- Planner core assets use same-origin relative paths instead of hard-coded production-domain URLs.
 - `.cpanel.yml` remains copy-only.
 
-Important recent commits in sequence:
+Important production/planner commits in sequence:
 
 - `32372b604dcc611245f8ffc742878a76f157603c` — persistence hardening stage
 - `166aa0f4df3dbb3834b1223af3ebe8c42d43535b` — Build Data Integrity / build-mode labeling
@@ -106,23 +108,68 @@ Important recent commits in sequence:
 - `3dec26d23a1fe6c796bcda12ae920d7bd21727ac` — Weapon Compare search/images
 - `f9185b9f9b8a41956b654d6a6f591ea7030ca684` — filtered Swap fix/cache bust
 - `33c7bc97193b03968195be0db510f8ebb2eaf87f` — same-origin planner core assets
-- `3e9b75614241a4dd4f624469af3631e802fa9788` — continuity refresh during SSL diagnosis
+- `3e9b75614241a4dd4f624469af3631e802fa9788` — earlier continuity refresh during SSL diagnosis
 
-The authoritative production `app.js` source was supplied by the user during v1.5.2 persistence work and proved the native planner already owns the Calibration fields and Save/Load/Clone/Import/Export/Share functions. The current bridge remains a compatibility layer; fully vendoring/extending the core source is still preferable when it can be done safely without regressing production behavior.
+Recent isolated visual-concept commits:
+
+- `4b4a06313a0197e79ea44b8d7643a66c308db3ee` — Color Breakup v2
+- `3da2a7d0c1d4e1001ccf9d294ee1940e3a3412a5` — Instrumented UI v3
+- `10a366c68243f1aec5436b133740bf0151ee46f3` — Visual Bible bottom-results/readability update
+- `10cbda2b7d514622c6674a6f77037837060694bc` — Color Flow v4
+- `faec1089284b34a1054ae68f1ead15b8fa240641` — Color Flow v5
+- `56355c836d193becc8006eac9ab3dafffe1c46bd` — v5 snapshot separation + Base Attack wording
+- `80284e9009d76a3fd1645286fcaecb5179501a46` — first functional Color Flow v6 weapon picker
+- `14bfafbf237867db37a6e24e411369ed18c961de` — rebuilt v6 picker / clean player-facing calculation language
+- `2406df03b83b687911285cb54a44b742d1bf85b8` — Cradle Override clarity / self-explaining labels
+- `772db8029d86b43b702e4185158ffccc99141b08` — self-explaining UI rule added to Visual Bible
+- `85eff0e0589570c2c3d3ad06fe2e94510b3e60dc` — Color Flow v6.4 Build Systems hierarchy
+- `d230c51610dab0b175e3cf417ea6088377623b06` — Color Flow v6.5 unmistakable system-color zones
+- `8274f08b6bc8f2608ae360228f47ee8ba8b4c6d1` — Color Flow v6.6 new colors + scrolling section-aware nav
+
+The authoritative production `app.js` source proved the native planner already owns the Calibration fields and Save/Load/Clone/Import/Export/Share functions. The current bridge remains a compatibility layer; fully vendoring/extending the core source is still preferable when it can be done safely without regressing production behavior.
 
 ## 5. Current Build Lab / UX rules
 
 Dead Signal is a full-width tactical Build Lab, not a cramped dashboard.
 
-Confirmed direction:
+Current settled/favored direction:
 
-- Real weapon and armor images in picker and selected cards.
+- Preserve the familiar vertical planner workflow: **Plan → Weapons → Armor + Mods → Build Systems → Notes → Results**.
+- Real weapon and armor images belong in picker and selected cards.
 - Readability outranks maximum information density.
 - Shared text-size system: `compact`, `default`, `large`, `xlarge`.
 - Origin-wide preference key: `dead-signal-font-size`.
+- The text-size selector belongs in the persistent left sidebar as **A− / A / A+ / A++**.
 - Prefer small, visible, screenshot-driven iterations over giant rewrites.
-- Loadout Report belongs below/with the workspace rather than consuming a permanent right rail.
-- Cradle Overrides stays a contained tactical sub-card with internal scroll.
+- **Results / Loadout Report belongs full-width at the bottom of the planner flow**, not squeezed into a narrow permanent right rail.
+- Important output must use the clearest typography on the page. Do not shrink result text just to fit more rows.
+- Structural color should create visible landmarks as the player scrolls. Rarity-safe does **not** mean monochrome.
+- Rarity colors remain item-only; especially **gold/amber is reserved for Legendary meaning**, not section identity.
+- Sidebar navigation should remain visible and follow the player’s scroll position, automatically highlighting the section currently being viewed.
+- The active sidebar state may inherit the section’s structural color so the sidebar participates in the visual rhythm rather than always being red.
+- Cradle Overrides must be explicitly named and explained. Do not show anonymous `Slot 1`–`Slot 8` cards.
+- Build Systems should have internal visual separation; Deviation / Food / Drink / Whim / Cradle Overrides should not collapse into one teal/charcoal slab.
+- Controls should explain themselves on first visit. If the user has to ask what a slot, number, or card means, the label/design is unfinished.
+
+### Current structural palette direction
+
+Core/established:
+
+- Signal Red: `#E6323E`
+- Gunmetal / Weapons blue: `#58778C`
+- Technical Cyan: `#39BFC6`
+- Muted Indigo family for supporting systems
+- Instrument / Ice Blue family for report/tooling
+- Deep Teal for system/status meaning where appropriate
+
+New colors tested in Color Flow v6.6 and explicitly liked by the user:
+
+- **Signal Rose: `#C25578`** — warm structural accent for food/consumables/supporting systems.
+- **Ash Violet: `#85708F`** — dusty violet-gray for Whim/utility/support panels.
+
+These two colors are considered approved visual direction from the user’s reaction. They should be formally added to the Visual Bible on the next design-system update unless superseded.
+
+Do not use Signal Rose or Ash Violet as item rarity semantics. The item rarity layer stays distinct.
 
 ### Build modes
 
@@ -136,7 +183,7 @@ Confirmed direction:
    - Uses legal maximum RNG values.
    - Must clearly state values may not match owned gear.
 
-Build mode is now carried in the planner extension persistence layer; do not regress this.
+Build mode is carried in the planner extension persistence layer; do not regress this.
 
 ### Calibration RNG input
 
@@ -247,13 +294,33 @@ No universal Tier multiplier reproduces every weapon. Store mined Tier values pe
 
 Blueprint Star behavior currently resolves as 82 weapons through `preset_attack_radio`, 13 through `fixed_skill_lv`, 25 through neither, 0 through both.
 
-Proven intrinsic Attack formula:
+Internal/proven progression formula:
 
 ```text
 IntrinsicAttack = int(gun_preset_attack[GearTier] * preset_attack_radio[BlueprintStars])
 ```
 
-Example: SKS — Pathfinder T5 6★ = `int(547 × 1.25) = 683`, not 684.
+Example internally: SKS — Pathfinder T5 6★ = `int(547 × 1.25) = 683`, not 684.
+
+### Player-facing terminology rule
+
+Do **not** expose `Intrinsic Attack` or `int(...)` as primary player-facing language.
+
+Use:
+
+**Base Attack**
+
+Meaning:
+
+> Attack after Gear Tier and Blueprint Stars, before external Weapon DMG bonuses and Calibration Weapon DMG.
+
+If showing the arithmetic in UI, prefer the plain readable form:
+
+```text
+547 × 1.25 = 683
+```
+
+The user explicitly found **Intrinsic Attack** confusing. Keep that name only as an internal/code/math term when necessary.
 
 Canonical Attack IDs:
 
@@ -405,7 +472,7 @@ Do not chase competitor DPS numbers by inventing formulas. Dead Signal’s strat
 
 ## 15. Planner operability gate
 
-The largest remaining verification gate is **live browser round-trip testing**. Source-level persistence protections are in place, but real browser behavior still needs to be verified with the user present.
+The largest remaining production verification gate is **live browser round-trip testing**. Source-level persistence protections are in place, but real browser behavior still needs to be verified with the user present.
 
 Required torture test:
 
@@ -425,34 +492,40 @@ Do not call persistence fully closed until these tests pass in a real browser.
 
 ## 16. Immediate priorities
 
-1. Run the live planner persistence torture test with the user.
-2. Fix any browser/runtime failures found by that test before adding more architecture.
-3. Reconcile the older **108 planner attachments** against the verified **119 true weapon-slot accessories** from mined data once a safe normalized/player-facing source is available.
-4. Inspect the auditor’s one unlabeled-input lead and fix it only if it maps to a real player-facing accessibility gap.
-5. Consider HSTS/CSP only as a carefully staged technical-hardening project; do not risk breaking WordPress/Build Lab for a score increase.
-6. Expand real player-facing database surfaces from normalized mined data, with recipes/crafting as a high-value ecosystem gap.
-7. Plan community build discovery/publishing only after the core build schema and persistence behavior are browser-proven.
-8. Upgrade Weapon Compare to progression/configuration-aware comparison only as each static stat family becomes fully proven.
-9. Keep advanced derived DPS/runtime proc math last.
-10. Improve the website auditor SPA confidence model before relying on automatic competitor-delta output.
+Current user-facing focus has shifted temporarily from architecture/data-mining work to **settling the Build Lab visual system through isolated concepts**.
+
+Priority order now:
+
+1. Continue visual review using the strongest concept direction rather than creating unrelated layouts.
+2. Treat **Color Breakup v2 flow/rhythm + v6.6 palette/scroll nav + full-width bottom Results + self-explaining labels** as the current target combination.
+3. Finish deciding structural color usage, including approved Signal Rose and Ash Violet placement.
+4. Keep concepts isolated from production until the user explicitly says the direction is settled and asks to translate it.
+5. When production translation begins, migrate design decisions deliberately into the real Build Lab rather than replacing the planner core wholesale.
+6. Preserve the live-browser persistence torture test as an open production gate; do not forget it because design work is active.
+7. Reconcile the older **108 planner attachments** against the verified **119 true weapon-slot accessories** from mined data once visual direction / production migration permits.
+8. Expand real player-facing database surfaces from normalized mined data, with recipes/crafting as a high-value ecosystem gap.
+9. Plan community build discovery/publishing only after the core build schema and persistence behavior are browser-proven.
+10. Keep advanced configured DPS/runtime proc math last unless mined evidence fully proves each layer.
 
 ## 17. Files future sessions should read first
 
 1. `AI-CONTINUITY.md`
 2. `PROJECT-RULES.md`
-3. `OPERABILITY-AUDIT.md`
-4. `.cpanel.yml`
-5. latest `RELEASE-v*.md`
-6. `COMPETITOR-AUDIT-2026-08-11.md`
-7. `preview/build-lab/index.html`
-8. planner persistence/transition/integrity bridge files under `preview/build-lab/`
-9. `preview/build-lab/planner-report-tools.js`
-10. `preview/build-lab/weapon-compare.js`
-11. `preview/build-lab/weapon-compare.css`
-12. Calibration Style/picker/details modules under `preview/build-lab/`
-13. `shared/readability.css`
-14. `shared/readability.js`
-15. player image maps/assets
+3. `.cpanel.yml`
+4. `concepts/instrumented-ui-v3/VISUAL-BIBLE.md`
+5. latest active concept, currently `concepts/color-flow-v6-6/index.html`
+6. `OPERABILITY-AUDIT.md`
+7. latest `RELEASE-v*.md`
+8. `COMPETITOR-AUDIT-2026-08-11.md`
+9. `preview/build-lab/index.html`
+10. planner persistence/transition/integrity bridge files under `preview/build-lab/`
+11. `preview/build-lab/planner-report-tools.js`
+12. `preview/build-lab/weapon-compare.js`
+13. `preview/build-lab/weapon-compare.css`
+14. Calibration Style/picker/details modules under `preview/build-lab/`
+15. `shared/readability.css`
+16. `shared/readability.js`
+17. player image maps/assets
 
 For miner work, inspect the actual miner package/source under `_internal/extractor/`. GitHub sidecar probes are not the authoritative miner implementation.
 
@@ -461,8 +534,11 @@ For the latest quantitative competitor check, prefer the most recent **v0.1.1+ D
 ## 18. Continuity rules
 
 - Read this file and `PROJECT-RULES.md` first.
+- Fetch current `main` HEAD before changing repository files because automation/other sessions may have committed.
 - Work on `main`; do not create branches unless the user asks.
 - Preserve copy-only cPanel deployment.
+- Keep concepts isolated from production unless the user explicitly asks to deploy/translate them.
+- Do not modify `.cpanel.yml` merely to expose a concept mockup.
 - Do not reopen DNS/SSL/redirect/domain settings without new evidence; the 2026-08-11 public-site SSL fault was fixed and verified.
 - Preserve same-origin relative planner core asset paths.
 - Do not upload the 3 GB master archive or `reference-tracer.sqlite` to normal production.
@@ -479,3 +555,286 @@ For the latest quantitative competitor check, prefer the most recent **v0.1.1+ D
 - Calibration selection stays Style-first, then rarity/owned RNG.
 - The Calibration fixed Style effect is vital information and must not be visually demoted to footer/fine-print treatment.
 - A website-auditor detection is evidence of reachable text/assets, not proof that a workflow is operational end-to-end.
+- Player-facing language must favor clarity over internal terminology.
+- Gold/amber structural accents are forbidden because they collide with Legendary rarity semantics.
+
+## 19. Current visual-design direction — 2026-08-11 evening
+
+The visual work began because the live Build Lab felt too minimalist / monochrome / dreary despite having a good underlying workflow. The user wanted more color and stronger section breakup without sacrificing readability or making the planner feel like generic cyberpunk.
+
+### Design identity
+
+Current one-line target:
+
+> **Dark tactical workstation with controlled colored instrumentation layered over the existing planner flow.**
+
+Personality:
+
+**Dark • Tactical • Precise • Dangerous • Technical • Readable • Alive**
+
+“Alive” should come from information hierarchy, color landmarks, responsive state, and useful interaction — not constant animation or gratuitous glow.
+
+### 80 / 20 rule
+
+Keep roughly 80% of the familiar Build Lab workflow and improve the remaining 20% through:
+
+- section identity
+- color rhythm
+- spacing
+- depth
+- status feedback
+- readability
+- self-explaining controls
+- clearer final output
+
+Do not redesign the planner simply because a new visual treatment is possible.
+
+### Concept lineage and user reactions
+
+#### Color Breakup v2
+
+This remains an important reference because the user repeatedly felt that **something about v2 worked**.
+
+What worked:
+
+- more color landmarks
+- stronger page rhythm
+- smoother vertical flow
+- changing visual temperature as the player moved down the page
+
+Problem:
+
+- it originally used amber/gold structurally in places, which clashes with rarity semantics.
+
+Lesson:
+
+> Preserve v2’s visual rhythm, not its rarity-conflicting color assignments.
+
+#### Instrumented UI v3
+
+What worked:
+
+- clean tactical grammar
+- clear technical/instrument feel
+
+Problem:
+
+- too gray / too restrained
+- lost the life and color rhythm the user liked in v2
+
+Lesson:
+
+> Semantic discipline is good, but “rarity-safe” must not become nearly monochrome.
+
+#### Color Flow v4
+
+Major outcome:
+
+- moved Results / Loadout Report to a **full-width bottom payoff** rather than a narrow right-side rail.
+
+The user strongly preferred this because everything in Results can be read clearly.
+
+#### Color Flow v5 / v5.1
+
+Added/refined:
+
+- persistent sidebar text-size selector
+- stronger section color beats
+- better top snapshot separation
+- individual snapshot cards with real gutters/surfaces instead of one long dark strip
+- `Intrinsic Attack` replaced by player-facing **Base Attack**
+
+#### Color Flow v6 / v6.2
+
+The concept became lightly functional.
+
+Initial v6 picker attempt failed in the user’s browser and still exposed internal `int(...)` language. The user called this out.
+
+v6.2 rebuilt the picker as a normal fixed overlay rather than relying on native `<dialog>` behavior and removed player-facing `int(...)`, `Intrinsic Attack`, and dev-style calculation labels.
+
+The mockup uses a verified embedded weapon-progression sample (20 records in the concept) so opening the picker does not depend on production scripts. Selecting a weapon updates the Primary card and bottom Results; Gear Tier and Blueprint Stars are adjustable and update Base Attack.
+
+This is still a **concept interaction**, not a production migration or claim that the entire 120-weapon picker has been ported into the concept.
+
+#### Color Flow v6.3
+
+The user asked what `Slot 1` through `Slot 8` meant. They were intended to be the eight **Cradle Override** positions.
+
+This became a major design rule:
+
+> **If the project owner has to ask what a control/card/slot is, a normal player will not know either.**
+
+Cradle design direction:
+
+- call the subsystem **Cradle Overrides**
+- explain that the build can equip up to 8
+- show `0 / 8 selected`
+- use a readable **4 × 2** card arrangement
+- cards should say `Cradle Override 1`, etc., not anonymous `Slot 1`
+- empty state should say `Not selected` + what belongs there + a clear selection action
+
+#### Color Flow v6.4 / v6.5
+
+The user said the Loadout System / Build Systems section still blended together.
+
+v6.4 attempted stronger tints but the screenshot proved the whole area still read as teal/charcoal.
+
+v6.5 corrected the underlying problem by reducing the parent teal wash and making internal subsystem color zones much more obvious.
+
+Current Build Systems principle:
+
+- parent section should not drown all children in one color family
+- Deviation, Food, Drink, Whim, and Cradle Overrides need visibly different instrument treatments
+- colored header bands / card tints should be strong enough to read instantly, not only exist as 1px CSS border differences
+
+#### Color Flow v6.6 — current leading concept
+
+Path:
+
+`concepts/color-flow-v6-6/index.html`
+
+Key additions:
+
+- **Signal Rose `#C25578`**
+- **Ash Violet `#85708F`**
+- user explicitly reacted positively to both colors
+- sticky/fixed left sidebar continues to follow page scrolling
+- current section is automatically highlighted as the player moves through the planner
+- active sidebar color follows the structural color of the current section
+- visible current-section indicator in the sidebar
+
+Current sidebar color mapping in the concept:
+
+- Plan → Signal Red
+- Weapons → Gunmetal / Steel Blue
+- Armor + Mods → Indigo family
+- Build Systems → Instrument Blue
+- Notes → Technical Cyan
+- Results → Ice Blue
+
+### Rarity vs structural color law
+
+Rarity colors identify the **item**.
+
+Structural colors identify **where the player is / what system they are using**.
+
+Do not blur those meanings.
+
+Especially:
+
+- **Gold / amber = Legendary item meaning only**
+- do not use gold/amber as Weapons/Armor/section/nav identity
+- saturated rarity purple/blue should not be copied directly as structural colors either; use darker/more muted related families
+
+Current structural spectrum is intentionally broader than before:
+
+**Signal Red → Signal Rose → Ash Violet → Indigo → Instrument Blue → Steel Blue → Technical Cyan → Teal**
+
+This broader spectrum is a strength as long as it remains controlled and does not become “rainbow soup.”
+
+### Snapshot / corpus strip rule
+
+The top player-facing data snapshot must read as a set of **individual instruments/cards**.
+
+Do not present seven corpus counts as one continuous dark table strip.
+
+Use:
+
+- real gutters
+- individual surfaces
+- individual borders
+- restrained per-card tone
+- clear count + label hierarchy
+
+### Results rule
+
+**Results are the payoff.**
+
+Full-width bottom Results is now a core design law, not just a concept experiment.
+
+Flow:
+
+**Build identity → weapon/gear choices → systems → notes → final Results**
+
+Results should have enough width for:
+
+- build identity
+- integrity/state
+- slot completion
+- primary weapon result
+- long weapon/style effects
+- progression/Base Attack explanation
+- loadout summary
+- warnings/formulas
+- copy/export/share/compare tools
+
+Do not use tiny gray microtype for important output.
+
+If a player has to lean toward the monitor to read the result, the design failed.
+
+### Player-facing language rule
+
+Internal names are not automatically good UI labels.
+
+Known example:
+
+- internal/dev term: `Intrinsic Attack`
+- preferred player-facing term: **Base Attack**
+
+Preferred explanation:
+
+> Attack after Gear Tier and Blueprint Stars, before external Weapon DMG bonuses and Calibration Weapon DMG.
+
+When showing the calculation, use a human-readable expression such as:
+
+`547 × 1.25 = 683`
+
+Do not foreground programming implementation such as `int(...)` in player-facing UI.
+
+### Self-explaining UI law
+
+Every important interactive region should answer:
+
+1. What is this?
+2. What belongs here?
+3. What is selected/missing?
+4. What can I do next?
+
+Avoid vague labels such as:
+
+- `Slot 1`
+- `Configured`
+- `System Online`
+- generic `Value`
+- generic `Select` without the target noun
+
+Status words such as READY/VALID are fine only after the UI already makes clear **what** is ready or valid.
+
+### Template comparison render
+
+A side-by-side design-review flowchart render was generated in chat comparing:
+
+1. Current Live Site
+2. Color Breakup v2
+3. Instrumented UI v3
+4. Color Flow v4
+5. Color Flow v5
+6. Color Flow v6.6
+
+The render’s settling direction matched the current discussion:
+
+- keep the old/familiar vertical planner flow
+- use stronger structural color landmarks without colliding with rarity colors
+- keep Results full-width at the bottom for readability
+
+The generated comparison image itself is not currently checked into the repository; treat the textual decisions above as canonical unless the image is later added explicitly.
+
+### Current best synthesis
+
+The visual target is best summarized as:
+
+> **v2 color/flow + v3 semantic discipline + v6.6 expanded palette/scrolling navigation + maximum Results readability.**
+
+Do not return to a mostly gray instrument panel. Do not return to amber/gold structural sections. Do not throw away the familiar planner flow.
+
+The user is currently comparing/refining this direction before production translation.
