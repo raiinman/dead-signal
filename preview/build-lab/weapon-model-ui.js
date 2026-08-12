@@ -7,7 +7,7 @@ const WEAPONS=(window.DS_WEAPON_MATH?.weapons||[]).map(record=>({
   t:(record.tier_star_matrix||[]).map(row=>[Number(row.gear_tier),Number(row.tier_base_attack_at_1_star)]),
   s:(record.tier_star_matrix?.at(-1)?.blueprint_star_values||[]).map(row=>[Number(row.blueprint_stars),Number(row.preset_attack_ratio),Number(row.base_attack)])
 }));
-const CAL_RANGES=DATA.calibrationRanges||{Rare:[18,25],Epic:[26,33],Legendary:[34,50]};
+const CAL_RANGES=window.DATA?.calibrationRanges||{Rare:[18,25],Epic:[26,33],Legendary:[34,50]};
 const weaponByName=new Map(WEAPONS.map(x=>[String(x.n||'').trim().toLowerCase(),x]));
 
 const STATE_KEY='dead-signal-weapon-model-v1';
