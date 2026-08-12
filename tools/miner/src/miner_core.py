@@ -479,15 +479,20 @@ def required_dictionary(archive: Path, executable: Path, dictionary_dir: Path, l
     )
 
 
-def cache_is_complete(raw_dir: Path, mined_dir: Path, archive_sha: str, mode: str) -> bool:
+def cache_is_complete(raw_dir: Path, mined_dir: Path, archive_sha: str, mode: str, layer: str) -> bool:
     marker = load_json(raw_dir / ".dead-signal-complete.json", {})
     snapshot = load_json(mined_dir / "snapshot.json", {})
     localization = list((mined_dir / "translate").glob("translate_data_en*.json"))
+    required = BASE_REQUIRED if layer == "base" else CURRENT_REQUIRED
+    required_tables = [
+        mined_dir / "game_common" / "data" / f"{name}.json" for name in required
+    ]
     return bool(
         marker.get("archive_sha256") == archive_sha
         and marker.get("mode") == mode
         and snapshot
         and localization
+        and all(path.is_file() for path in required_tables)
     )
 
 
@@ -502,7 +507,7 @@ def extract_and_export_layer(
     dictionary: Path | None,
     log: LogCallback,
 ) -> None:
-    if cache_is_complete(raw_dir, mined_dir, archive_sha, mode):
+    if cache_is_complete(raw_dir, mined_dir, archive_sha, mode, layer):
         log(f"{layer.title()} script layer is unchanged; using its cached snapshot.")
         return
 
@@ -1005,6 +1010,27 @@ def normalize_site_data(base: Path, current: Path, published: Path, log: LogCall
         ["--base", base, "--current", current, "--published", published],
         log,
     )
+    log("Exporting validated static weapon math for every Tier and Blueprint Star combination...")
+    weapon_math_output = data_dir / "weapon-math.json"
+    run_module_main(
+        "export_weapon_math",
+        ["--weapons", weapons_output, "--output", weapon_math_output],
+        log,
+    )
+    log("Exporting fail-closed configured-weapon modifier inputs...")
+    weapon_configuration_output = data_dir / "weapon-configuration.json"
+    run_module_main(
+        "export_weapon_configuration",
+        ["--data-dir", data_dir, "--output", weapon_configuration_output],
+        log,
+    )
+    log("Exporting canonical item-to-gun profiles and their directly linked parameter tables...")
+    gun_profiles_output = data_dir / "gun-profiles.json"
+    run_module_main(
+        "export_gun_profiles",
+        ["--base", base, "--current", current, "--weapons", weapons_output, "--output", gun_profiles_output],
+        log,
+    )
 
     armor = load_json(armor_output, {})
     weapons = load_json(weapons_output, {})
@@ -1013,6 +1039,9 @@ def normalize_site_data(base: Path, current: Path, published: Path, log: LogCall
         "weapons": weapons.get("record_counts", {}),
         "armor_output": str(armor_output),
         "weapons_output": str(weapons_output),
+        "weapon_math_output": str(weapon_math_output),
+        "weapon_configuration_output": str(weapon_configuration_output),
+        "gun_profiles_output": str(gun_profiles_output),
     }
     for path in sorted(data_dir.glob("*.json")):
         if path.name in {"armor-sets.json", "weapons.json", "reference-images.json", "image-coverage.json"}:
@@ -1308,6 +1337,9 @@ def self_test() -> dict:
         EXTRACTOR_ROOT / "link_published_images.py",
         EXTRACTOR_ROOT / "combat_resolver.py",
         EXTRACTOR_ROOT / "weapon_progression.py",
+        EXTRACTOR_ROOT / "export_weapon_math.py",
+        EXTRACTOR_ROOT / "export_weapon_configuration.py",
+        EXTRACTOR_ROOT / "export_gun_profiles.py",
         EXTRACTOR_ROOT / "reference_images.py",
         NEOXTRACTOR_ROOT / "core" / "bindict" / "parser.py",
     )
@@ -1323,6 +1355,9 @@ def self_test() -> dict:
         "link_published_images",
         "combat_resolver",
         "weapon_progression",
+        "export_weapon_math",
+        "export_weapon_configuration",
+        "export_gun_profiles",
         "reference_images",
     ):
         try:

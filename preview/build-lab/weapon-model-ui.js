@@ -1,9 +1,12 @@
 (()=>{
 'use strict';
 
-const DATA=window.DS_WEAPON_MODEL_DATA||{};
-const RECORDS=Array.isArray(DATA.records)?DATA.records:(Array.isArray(window.DS_WEAPON_MODEL_RECORDS)?window.DS_WEAPON_MODEL_RECORDS:[]);
-const WEAPONS=Array.isArray(DATA.weapons)?DATA.weapons:RECORDS.map((r,idx)=>({n:r[0],id:idx+1,t:(r[1]||[]).map((v,i)=>[i+1,v]).filter(x=>x[1]!=null),s:(r[2]||[]).map((v,i)=>[i+1,v,0]),b:r[3]||[],a:r[4]||[]}));
+const WEAPONS=(window.DS_WEAPON_MATH?.weapons||[]).map(record=>({
+  n:record.name,
+  id:record.canonical_id,
+  t:(record.tier_star_matrix||[]).map(row=>[Number(row.gear_tier),Number(row.tier_base_attack_at_1_star)]),
+  s:(record.tier_star_matrix?.at(-1)?.blueprint_star_values||[]).map(row=>[Number(row.blueprint_stars),Number(row.preset_attack_ratio),Number(row.base_attack)])
+}));
 const CAL_RANGES=DATA.calibrationRanges||{Rare:[18,25],Epic:[26,33],Legendary:[34,50]};
 const weaponByName=new Map(WEAPONS.map(x=>[String(x.n||'').trim().toLowerCase(),x]));
 

@@ -1,8 +1,7 @@
 (()=>{
 'use strict';
 
-const D=window.DS_COMMUNITY||{};
-const weapons=(D.weapons||[]).filter(x=>x&&x.id&&x.name);
+const weapons=(window.DS_WEAPON_DATA||[]).filter(x=>x&&x.id&&x.name);
 if(!weapons.length)return;
 
 const byId=new Map(weapons.map(x=>[String(x.id),x]));

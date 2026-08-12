@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#08090b">
+  <meta name="description" content="Browse and compare 120 player-facing Once Human weapons using Dead Signal's mined database.">
+  <title>Weapons Database — Dead Signal</title>
+  <link rel="stylesheet" href="../../shared/readability.css">
+  <link rel="stylesheet" href="catalogue.css">
+  <script src="../../shared/readability.js" defer></script>
+  <script src="weapon-math-data.js"></script>
+  <script src="catalogue.js" defer></script>
+</head>
+<body data-catalogue-view="browse">
+  <a class="skip-link" href="#catalogue">Skip to weapons</a>
+  <header class="catalogue-header">
+    <a class="wordmark" href="../../"><span class="signal-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>DEAD <b>SIGNAL</b></span></a>
+    <nav aria-label="Primary navigation"><a href="../../">Database home</a><a class="header-cta" href="/build-planner/">Open Build Planner</a></nav>
+  </header>
+
+  <main id="catalogue">
+    <section class="catalogue-hero">
+      <div><p class="eyebrow"><span></span> Database // Weapons</p><h1>Find your next <em>signal.</em></h1><p>Search mined, player-facing weapon records. Compare raw indexed stats, inspect progression, then continue configuration in the Build Planner.</p><a class="hero-text-link" href="#weapon-data-map">See what the Miner has connected <span aria-hidden="true">↓</span></a></div>
+      <div class="hero-stat"><strong id="weaponTotal">120</strong><span>current records</span><small>Installed-game snapshot</small></div>
+    </section>
+
+    <section id="weapon-data-map" class="weapon-data-map" aria-labelledby="weapon-data-map-title">
+      <div class="data-map-intro"><p class="section-code">Miner 1.5.11 // Weapon system map</p><h2 id="weapon-data-map-title">One identity now connects the weapon system.</h2><p>The installed client maps every catalogue weapon to its internal configuration. Firearm parameters are complete; runtime effects remain separated until their trigger math is proven.</p></div>
+      <div class="data-map-summary" aria-label="Weapon profile coverage"><div><strong>120</strong><span>weapon identities mapped</span></div><div><strong>95 / 95</strong><span>firearm profiles resolved</span></div><div><strong>0</strong><span>unresolved firearm profiles</span></div></div>
+      <div class="signal-flow" role="img" aria-label="Weapon item maps through gun number to firing, projectile, reload, handling, accessory, and skill data">
+        <div class="flow-origin"><span>Weapon item</span><strong>item_id</strong><small>120 catalogue records</small></div>
+        <div class="flow-bridge"><span>Canonical bridge</span><strong>gun_no</strong><small>Item-to-gun mapping</small></div>
+        <div class="flow-branches"><article><span>01</span><h3>Firing</h3><p>RPM, fire intervals, magazine and bullet cost</p></article><article><span>02</span><h3>Projectile</h3><p>Bullet identity, velocity, gravity and distance behavior</p></article><article><span>03</span><h3>Reload</h3><p>Loop, empty and staged reload timing templates</p></article><article><span>04</span><h3>Handling</h3><p>Accuracy, scatter, stability, recoil and ADS references</p></article><article><span>05</span><h3>Configuration</h3><p>Accessory slots, ammunition bindings and static modifiers</p></article><article><span>06</span><h3>Effects</h3><p>Weapon skill IDs and runtime logic queued for resolution</p></article></div>
+      </div>
+      <div class="coverage-track" aria-label="Current mining progress"><div class="coverage-proven"><strong>Proven and connected</strong><span>Identity → static firearm profile → configuration inputs</span></div><div class="coverage-next"><strong>Next vein</strong><span>Skill triggers → stacks → duration → resulting stat change</span></div></div>
+      <p class="data-map-note"><b>25 melee weapons</b> are mapped separately and correctly excluded from firearm-only parameter coverage. Raw fields are preserved as evidence—not treated as formulas without proof.</p>
+    </section>
+
+    <section class="catalogue-controls" aria-label="Weapon catalogue controls">
+      <label class="search-control"><span>Search weapons</span><input id="weaponSearch" type="search" placeholder="Name, type, effect…" autocomplete="off"></label>
+      <label><span>Weapon type</span><select id="typeFilter"><option value="">All types</option></select></label>
+      <label><span>Rarity</span><select id="rarityFilter"><option value="">All rarities</option></select></label>
+      <label><span>Sort</span><select id="weaponSort"><option value="name">Name</option><option value="rarity">Rarity</option><option value="damage-desc">Base Attack: high to low</option><option value="rpm-desc">Fire Rate: high to low</option><option value="magazine-desc">Magazine: high to low</option></select></label>
+      <div class="view-toggle" role="group" aria-label="View style"><button type="button" data-view="grid" class="active" aria-pressed="true">Grid</button><button type="button" data-view="list" aria-pressed="false">List</button></div>
+    </section>
+
+    <div class="result-bar"><p id="resultStatus" aria-live="polite">Loading weapon records…</p><button id="clearFilters" type="button">Clear filters</button></div>
+    <section id="weaponGrid" class="weapon-grid" aria-label="Weapons"></section>
+    <div id="catalogueError" class="catalogue-error" hidden><strong>WEAPON DATA UNAVAILABLE</strong><p>The catalogue could not load the current Build Planner dataset. No fallback facts were substituted.</p></div>
+  </main>
+
+  <footer><span>Dead Signal // Player-facing database</span><p>Raw indexed values are not configured DPS. Unverified fields remain visibly incomplete.</p></footer>
+</body>
+</html>

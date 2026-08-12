@@ -2,7 +2,34 @@
 
 > **Purpose:** Canonical current-state handoff for ChatGPT/Codex sessions working on Dead Signal. Read this file and `PROJECT-RULES.md` before changing anything.
 >
-> Last updated: **2026-08-12 (public landing page and catalogue handoff)**
+> Last updated: **2026-08-12 (Miner-backed weapon corpus migration)**
+
+### 2026-08-12 Weapons catalogue vertical slice — implemented locally by Codex
+
+Codex resumed from commit `ab71438cf15d0c023879417bcf103f624c9d13d3` and implemented the approved first database catalogue slice on `main` in the local working tree:
+
+- `database/weapons/` now provides a static, responsive catalogue over the 120-record installed-game Miner snapshot;
+- search, weapon-type and rarity filters, name/rarity/Base Attack/Fire Rate/Magazine sorting, and grid/list views are implemented;
+- two-record raw indexed comparison is implemented and explicitly excludes Tier, Blueprint Stars, Calibration, attachments, and derived DPS;
+- all weapon cards expose artwork, important indexed stats, provenance, an inspect route, comparison selection, and safe Build Planner handoff;
+- `database/weapons/sks-pathfinder/` is the representative canonical detail route, with indexed stats, weapon effect, Tier I–V progression, Blueprint Star multipliers, source/coverage, and explicit limits on unproven relationships;
+- `database/weapons/detail/?weapon=<id>` supplies the reusable detail architecture for the remaining current records;
+- the root Weapons category now links to `/database/weapons/`;
+- `preview/build-lab/catalogue-handoff.js` opens the appropriate planner weapon picker, prefiltered to the requested catalogue record, without overwriting an existing build;
+- `.cpanel.yml` remains copy-only and now copies the prepared catalogue/detail files plus the planner handoff script.
+
+Verification completed against a local deployment mirror reconstructed from the existing prepared planner/player-corpus bundles:
+
+- JavaScript syntax checks passed;
+- all 11 Miner unit tests passed;
+- `git diff --check` passed;
+- real-browser desktop catalogue rendering showed 120/120 records;
+- search isolated SKS — Pathfinder correctly;
+- representative detail progression rendered 5 Tier values and 6 Blueprint Star multipliers;
+- planner handoff opened the primary picker prefiltered to SKS — Pathfinder;
+- 390 × 844 mobile verification produced a one-column catalogue with no horizontal overflow.
+
+These changes are not a live deployment until they are committed/pushed to public `main` and cPanel runs **Update from Remote** followed by **Deploy HEAD Commit**.
 
 ## 1. Project identity
 
@@ -474,18 +501,48 @@ Implementation constraints:
 
 Read `AI-CONTINUITY.md`, `PROJECT-RULES.md`, the current root landing files, the planner weapon picker/compare modules, and the normalized weapon-data sources. Then inspect the exact available weapon schema before proposing or building UI. Implement a polished static Weapons catalogue vertical slice, including catalogue browsing, filters/search/sort, one representative detail view, and a safe handoff into the planner. Verify it in a real browser at desktop and mobile widths before expanding to other categories.
 
-## 15. Immediate priorities
+## 15. Miner v1.5.9.0 full weapon-math milestone
 
-1. Build the Weapons catalogue vertical slice described above and connect the Weapons landing-page card to it.
-2. Upload and verify the v1.5.8.0 Windows ZIP as a GitHub release when the user wants to distribute it, then update `tools/miner/release/latest.json` **last** with the exact public URL, size, and SHA-256.
-3. Run one full v1.5.8.0 mining pass against the installed game and inspect the generated snapshot before replacing any player-facing site data.
+On 2026-08-12, Codex ran the canonical Miner against the installed Once Human game and completed a full pass successfully. The output root was `C:\Users\mikea\Documents\Dead Signal Miner`; `last-run.json` records Miner `1.5.9.0` completing at `2026-08-12T21:41:39.577441+00:00`.
+
+The run processed the full installed weapon database and published `published/data/weapon-math.json` with:
+
+- 120 weapons total: 95 ranged and 25 melee;
+- 600 tier rows and 545 blueprint-star rows;
+- 2,725 legal Tier x Star combinations;
+- complete proven static math for 120/120 weapons;
+- zero weapon-math validation issues;
+- 530 current recipes, 76 weapon effects, 188 calibrations, and 202 attachments in the wider normalized snapshot;
+- combat validation passing and zero table parse errors.
+
+Miner `1.5.9.0` adds an evidence-backed static weapon-math export. Its proven base-attack rule is `int(tier_base_attack * preset_attack_ratio[stars])`. The static modifier contract groups D0101 and D0102 additively, then applies D0100 as flat attack: `base_attack * (1 + sum(D0101) + sum(D0102)) + sum(D0100_flat)`. Python integer conversion intentionally truncates positive fractional results, matching the extracted computation.
+
+The export fails closed when required tier/star source data is incomplete. It explicitly does not claim configured DPS, runtime proc frequency, enemy mitigation, conditional buffs, or contributions from mods, armor, cradles, deviations, consumables, or team buffs until those layers are independently proven. Do not present the unit-test fixture `547 * 1.25 = 683` as an SKS value; the mined common SKS has three legal blueprint stars and Tier V base attack 769.
+
+The Miner cache check was also hardened. Cached layers are now accepted only when every layer-specific required table is present, preventing an archive-SHA match from reusing an incomplete extraction. A previously incomplete current-layer cache was correctly rejected and refreshed during the canonical run.
+
+All 18 Miner tests pass, including four weapon-math tests and three cache-regression tests. The project-local `.venv-miner/`, Python bytecode, and cache directories are ignored by Git.
+
+The Weapons catalogue now consumes a prepared public projection at `database/weapons/weapon-math-data.js`. It retains all 120 weapons and all 2,725 legal Tier x Star calculations in a roughly 1.4 MB static payload while removing duplicated internal resolver metadata from the 8.7 MB audit export. The payload now also carries canonical `ds-w-<blueprint-id>` IDs, mined acquisition text, and 120/120 resolved installed-game image paths. The catalogue has no `DS_COMMUNITY`, `community-data.js`, or old `wm-data-*` dependency.
+
+The planner loads the same payload before `app.js`. `weapon-data-adapter.js` replaces the legacy planner core's weapon pool with `DS_WEAPON_DATA`, so no old-corpus weapon survives initialization; it leaves non-weapon categories intact until each receives its own Miner-backed migration. Weapon comparison, progression controls, imagery lookup, and catalogue handoff now consume this canonical weapon set. The eight obsolete `wm-data-01.js` through `wm-data-08.js` shards were removed from the repository and are explicitly removed by cPanel deployment.
+
+Generic weapon detail routes now expose legal Gear Tier and rarity-capped Blueprint Star controls, show the verified Base Attack result and calculation trace, and include the selected weapon/tier/stars in the Build Planner handoff. The planner opens its filtered picker and applies the requested configuration after the player selects the weapon. cPanel deployment copies the prepared payload without performing server-side generation.
+
+Real-browser verification passed at desktop and 390 px mobile widths: 120/120 cards rendered, filtering status was correct, no horizontal overflow occurred, the math controls reflowed and remained usable, and a clean AKM detail load produced Tier V 3-star Base Attack 204 from `182 x 1.13 = 204.75`, truncated to 204, with no console errors.
+
+## 16. Immediate priorities
+
+1. Migrate Armor from the remaining compatibility corpus to the normalized Miner snapshot using the same canonical-data pattern established for Weapons.
+2. Package, upload, and verify the v1.5.9.0 Windows ZIP as a GitHub release when the user wants to distribute it, then update `tools/miner/release/latest.json` **last** with the exact public URL, size, and SHA-256.
+3. Make the prepared public-data projection reproducible from Miner outputs for every migrated category, keeping cPanel deployment copy-only.
 4. Continue visual review from `concepts/color-flow-v6-10/`; do not fork into unrelated design directions.
 5. Preserve the real-browser persistence torture test as an open production gate.
 6. Reconcile 108 older planner attachments against 119 verified weapon-slot accessories.
 7. After Weapons establishes the reusable catalogue pattern, expand it to Armor, Mods, Calibrations, Deviations, and Cradle Overrides.
 8. Keep configured DPS/runtime proc math last unless each layer is fully proven.
 
-## 16. Files future sessions should read first
+## 17. Files future sessions should read first
 
 1. `AI-CONTINUITY.md`
 2. `PROJECT-RULES.md`
@@ -509,7 +566,20 @@ For Miner logic, **do not default back to an old extracted `_internal/extractor/
 
 Start with the canonical GitHub `tools/miner/` source/migration state. If an executable/build-system task is required, hand that implementation to **Codex**, which owns the local Windows build environment and EXE lifecycle.
 
-## 17. Continuity rules
+## 18. Continuity rules
+
+### 2026-08-12 weapon-configuration mining milestone
+
+- Miner `1.5.11.0` now publishes `published/data/gun-profiles.json`, promoting `item_to_gun_mapping_data` and `gun_no` into the canonical firearm relationship spine.
+- All 95 ranged weapons resolve to base, stability, scatter, range-template, reload-template, skill-ID, projectile-ID, and available accessory-slot evidence. The remaining 25 catalogue weapons are melee and are correctly classified as not applicable; unresolved firearm profiles: 0.
+- Raw gun fields are preserved as evidence and provenance, but are not automatically treated as combat formulas until their semantics are proven.
+- The weapons catalogue now includes a responsive visual system map showing the `item_id` -> `gun_no` spine, verified 95/95 firearm coverage, six connected data branches, and the next runtime-effect resolution target.
+- Miner `1.5.10.0` publishes `published/data/weapon-configuration.json` using a fail-closed application policy.
+- The installed-client run proved 30 ammunition slot/affix bindings, containing 23 static modifiers, and connected proven ammo packs to 81 of 95 ranged weapon records.
+- The provenance chain is `item_to_gun_mapping_data` -> `gun_accessory_slot_params_data` slot 8 -> `gun_accessory_bullet_map_data` -> `gun_accessory_base_params_data` -> `gun_accessory_attr_data`.
+- Fourteen ranged weapons remain explicitly unresolved; do not fill them by category/name inference.
+- Static attachment modifiers may be calculated directly. Passive buffs and conditional/runtime weapon-mod nodes remain excluded until their trigger/stack/duration semantics are resolved.
+- Current calibration styles are mined, but rolled values and term choices are player inputs and must not be silently invented.
 
 - Read this file and `PROJECT-RULES.md` first.
 - Fetch current `main` HEAD before repository writes because other sessions may commit concurrently.

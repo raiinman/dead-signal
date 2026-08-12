@@ -1546,6 +1546,108 @@ class CombatPipeline:
                 row["player_usable"] = False
                 row["ammo_category"] = "npc_or_system_ammunition"
             row["classification_source"] = {"table": f"{GAME_DATA}/item_data.json", "record_id": str(row.get("item_id")), "page": page, "tab": tab, "sub_type": subtype}
+
+        # Ammunition is configured through gun accessory slot 8.  Inventory
+        # items are ordered in gun_accessory_bullet_map_data; the matching
+        # slot-accessory rows carry the actual affixes.  Preserve only exact
+        # positional bindings whose derived accessory code exists in the
+        # installed tables, and leave every other item unresolved.
+        accessory_params = self.corpus.merged(f"{GAME_DATA}/gun_accessory_base_params_data.json")
+        accessory_attrs = self.corpus.merged(f"{GAME_DATA}/gun_accessory_attr_data.json")
+        ammo_packs = self.corpus.merged(f"{GAME_DATA}/gun_accessory_bullet_map_data.json")
+        slot_params = self.corpus.merged(f"{GAME_DATA}/gun_accessory_slot_params_data.json")
+        item_to_gun = self.corpus.merged(f"{GAME_DATA}/item_to_gun_mapping_data.json")
+        ammo_by_id = {as_int(row.get("item_id")): row for row in ammo.get("ammo", [])}
+        pack_bindings = defaultdict(list)
+        proven_ammo_bindings = 0
+        static_ammo_modifiers = 0
+        passive_ammo_bindings = 0
+
+        for pack_code, pack in ammo_packs.items():
+            stem = str(pack_code)
+            if not stem.endswith("_pack"):
+                continue
+            stem = stem[:-5]
+            for index, item_id in enumerate(pack.get("item_no_lst") or [], start=1):
+                accessory_code = f"810_{stem}_lv{index}"
+                param = accessory_params.get(accessory_code)
+                row = ammo_by_id.get(as_int(item_id))
+                if not isinstance(param, dict) or not row:
+                    continue
+                affix_code = str(param.get("affix_name") or "")
+                affix = accessory_attrs.get(affix_code, {})
+                raw_pairs = affix.get("affix_list_new") or affix.get("affix_list") or []
+                modifiers = [
+                    self.stats.modifier(pair[0], pair[1], context=f"ammo:{item_id}:{accessory_code}")
+                    for pair in raw_pairs
+                    if isinstance(pair, (list, tuple)) and len(pair) >= 2
+                    and isinstance(pair[0], str) and STAT_CODE.fullmatch(pair[0])
+                ]
+                binding = {
+                    "pack_code": pack_code,
+                    "pack_index": index,
+                    "accessory_slot": 8,
+                    "accessory_code": accessory_code,
+                    "affix_code": affix_code,
+                    "static_modifiers": modifiers,
+                    "passive_buff_id": as_int(affix.get("passive_buff_id")),
+                    "resolution_status": "proven-static" if all(
+                        value.get("resolution_status") == "resolved" for value in modifiers
+                    ) else "partial",
+                    "source": {
+                        "item_order": {"table": f"{GAME_DATA}/gun_accessory_bullet_map_data.json", "record_id": str(pack_code), "index": index},
+                        "slot_accessory": {"table": f"{GAME_DATA}/gun_accessory_base_params_data.json", "record_id": accessory_code},
+                        "affix": {"table": f"{GAME_DATA}/gun_accessory_attr_data.json", "record_id": affix_code},
+                    },
+                }
+                row.setdefault("configuration_bindings", []).append(binding)
+                row["modifier_resolution_status"] = binding["resolution_status"]
+                pack_bindings[str(pack_code)].append({"item_id": as_int(item_id), **binding})
+                proven_ammo_bindings += 1
+                static_ammo_modifiers += len(modifiers)
+                passive_ammo_bindings += bool(binding["passive_buff_id"])
+
+        for row in ammo.get("ammo", []):
+            if not row.get("configuration_bindings"):
+                row["configuration_bindings"] = []
+                row["modifier_resolution_status"] = "unresolved-no-proven-slot-affix-binding"
+
+        slot_eight_by_gun = {}
+        for slot in slot_params.values():
+            if as_int(slot.get("slot_type")) == 8:
+                slot_eight_by_gun[as_int(slot.get("gun_no"))] = str(slot.get("slot_default_accessory_no") or "")
+        packs_by_default = {
+            bindings[0]["accessory_code"]: (pack_code, bindings)
+            for pack_code, bindings in pack_bindings.items() if bindings
+        }
+        configured_weapons = 0
+        for weapon in weapons.get("weapons", []):
+            item_id = as_int(weapon.get("item_id"))
+            gun_no = as_int((item_to_gun.get(str(item_id)) or {}).get("gun_no"))
+            default_code = slot_eight_by_gun.get(gun_no, "")
+            matched = packs_by_default.get(default_code)
+            if matched:
+                pack_code, bindings = matched
+                weapon["ammo_configuration"] = {
+                    "accessory_slot": 8,
+                    "default_accessory_code": default_code,
+                    "pack_code": pack_code,
+                    "selectable_ammo_item_ids": [entry["item_id"] for entry in bindings],
+                    "resolution_status": "proven-table-relationship",
+                    "source": {
+                        "item_to_gun_table": f"{GAME_DATA}/item_to_gun_mapping_data.json",
+                        "item_to_gun_record_id": str(item_id),
+                        "slot_table": f"{GAME_DATA}/gun_accessory_slot_params_data.json",
+                        "slot_record_id": f"({gun_no}, 8)",
+                    },
+                }
+                configured_weapons += 1
+            elif weapon.get("category") != "Melee":
+                weapon["ammo_configuration"] = {
+                    "accessory_slot": 8, "default_accessory_code": default_code,
+                    "selectable_ammo_item_ids": [], "resolution_status": "unresolved",
+                }
+        write_json(self.data_dir / "weapons.json", weapons)
         write_json(self.data_dir / "ammo.json", ammo)
 
         consumables = self._payload("consumables.json")
@@ -1586,6 +1688,10 @@ class CombatPipeline:
         write_json(self.data_dir / "deviations.json", deviations)
         return {
             "player_ammo": sum(row.get("player_usable") is True for row in ammo.get("ammo", [])),
+            "proven_ammo_slot_affix_bindings": proven_ammo_bindings,
+            "static_ammo_modifiers": static_ammo_modifiers,
+            "passive_ammo_bindings": passive_ammo_bindings,
+            "weapons_with_proven_ammo_pack": configured_weapons,
             "player_deviations": len(deviations["player_deviations"]),
         }
 

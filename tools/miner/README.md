@@ -36,6 +36,19 @@ python tools/miner/src/dead_signal_miner.py
 
 The existing interface remains centered on one action: **Mine Complete Database**. It includes all database categories and referenced display artwork. The optional WordPress copy is local-only and does not deploy the production website.
 
+Version 1.5.11.0 writes `published/data/weapon-math.json`. This is a validated, player-facing static-math export for every normalized weapon and every legal Gear Tier × Blueprint Star combination. It implements only formulas proven from installed-game tables and client metadata:
+
+- `BaseAttack = int(TierBaseAttack × BlueprintStarMultiplier)`;
+- D0101 Weapon DMG and D0102 Calibration Weapon DMG share one additive ratio bucket;
+- D0100 flat Attack is added after the ratio bucket;
+- the final D0100 card value is displayed with zero-decimal fixed-point formatting.
+
+The export explicitly lists excluded runtime layers and fails the mining run if a weapon has incomplete Tier or Blueprint Star data. It does not claim configured DPS, proc frequency, enemy mitigation, or conditional-buff math without complete evidence.
+
+Version 1.5.11.0 also writes `published/data/weapon-configuration.json`. It traces configured-weapon inputs across ammunition, attachments, weapon Mods, and current Calibration Blueprints. Ammunition is resolved through weapon accessory slot 8, its ordered ammo-pack item mapping, and the matching accessory affix. Only direct, fully resolved static modifiers are eligible for automatic calculation; passive buffs, conditions, runtime logic, missing ammo bindings, and unspecified Calibration rolls remain explicitly excluded.
+
+It additionally writes `published/data/gun-profiles.json`. This promotes the canonical item-to-gun mapping into a reusable weapon spine and preserves each weapon's directly linked base firing, stability, scatter, accessory-slot, range-template, reload-template, and downstream identifier data. Raw fields remain evidence, not automatically assumed formulas.
+
 ## Verify
 
 ```powershell

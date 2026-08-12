@@ -4,8 +4,8 @@ These are the working constraints for the Ultimate Planner.
 
 ## Product direction
 - Finish the player-facing database, imagery, and planner workflow before advanced damage math.
-- The normalized v1.3 player corpus is the current planner baseline.
-- Mined game data is integrated and should be preferred for extractable factual data; community and official references are used to validate, fill gaps, and correct current-patch behavior.
+- The installed-game Miner snapshot is the canonical source for migrated player-facing categories. Weapons are fully migrated; the v1.3 compatibility corpus remains only for categories not yet migrated.
+- Mined game data should be preferred for extractable factual data. Community and official references may validate unresolved behavior, but must not silently override canonical mined records or serve as a runtime fallback for migrated categories.
 - Do not invent mechanics or numeric relationships that are not verified.
 
 ## Deployment architecture
