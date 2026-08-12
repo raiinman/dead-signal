@@ -2,7 +2,7 @@
 
 > **Purpose:** Canonical current-state handoff for ChatGPT/Codex sessions working on Dead Signal. Read this file and `PROJECT-RULES.md` before changing anything.
 >
-> Last updated: **2026-08-12 (Codex Miner v1.5.8.0 handoff)**
+> Last updated: **2026-08-12 (landing page and repository direction handoff)**
 
 ## 1. Project identity
 
@@ -13,6 +13,8 @@
 - Live planner: `https://deadsignaldb.com/build-planner/`
 - Root site: `https://deadsignaldb.com/`
 - Hosting: Namecheap shared hosting / cPanel.
+- Product architecture: the Build Planner is the primary product; the root site is a lightweight static landing page.
+- Root landing source: `index.html`, `site.css`, and `site.js` (no WordPress, PHP, or server-side application runtime).
 - Production planner target: `$HOME/public_html/build-planner/`
 - Current player release line: **PLAYER v1.5.2**.
 - `main` HEAD fetched immediately before the Codex handoff work: `b112baca5d501123b5043d52817fd960495e48c2`.
@@ -346,6 +348,8 @@ Raw Weapon Compare is intentionally allowed because it compares indexed player-f
 
 **Build/transform before deployment. cPanel only copies prepared static files.**
 
+The root landing page deploys to `$HOME/public_html/`; the planner continues to deploy independently to `$HOME/public_html/build-planner/`. Keep both surfaces static and preserve the planner's same-origin relative paths.
+
 Allowed cPanel deployment operations are lightweight `mkdir`, `cp`, `rm`, and `echo`. Do not reintroduce Python, recursive scans, archive extraction, database generation, or external downloads into `.cpanel.yml`.
 
 Persistent game PNGs remain under:
@@ -425,13 +429,14 @@ Do not chase competitor DPS numbers by inventing formulas. Trustworthiness comes
 
 ## 14. Immediate priorities
 
-1. Upload and verify the v1.5.8.0 Windows ZIP as a GitHub release when the user wants to distribute it, then update `tools/miner/release/latest.json` **last** with the exact public URL, size, and SHA-256.
-2. Run one full v1.5.8.0 mining pass against the installed game and inspect the generated snapshot before replacing any player-facing site data.
-3. Continue visual review from `concepts/color-flow-v6-10/`; do not fork into unrelated design directions.
-4. Preserve the real-browser persistence torture test as an open production gate.
-5. Reconcile 108 older planner attachments against 119 verified weapon-slot accessories.
-6. Expand player-facing database surfaces from normalized mined data, especially recipes/crafting.
-7. Keep configured DPS/runtime proc math last unless each layer is fully proven.
+1. Review the root landing-page mock and deploy it through the existing copy-only cPanel workflow when approved.
+2. Upload and verify the v1.5.8.0 Windows ZIP as a GitHub release when the user wants to distribute it, then update `tools/miner/release/latest.json` **last** with the exact public URL, size, and SHA-256.
+3. Run one full v1.5.8.0 mining pass against the installed game and inspect the generated snapshot before replacing any player-facing site data.
+4. Continue visual review from `concepts/color-flow-v6-10/`; do not fork into unrelated design directions.
+5. Preserve the real-browser persistence torture test as an open production gate.
+6. Reconcile 108 older planner attachments against 119 verified weapon-slot accessories.
+7. Expand player-facing database surfaces from normalized mined data, especially recipes/crafting.
+8. Keep configured DPS/runtime proc math last unless each layer is fully proven.
 
 ## 15. Files future sessions should read first
 

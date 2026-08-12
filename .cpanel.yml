@@ -1,7 +1,14 @@
 ---
 deployment:
   tasks:
+    - export ROOTPATH=$HOME/public_html/
     - export DEPLOYPATH=$HOME/public_html/build-planner/
+    - /bin/cp -f index.html $ROOTPATH/index.html
+    - /bin/cp -f site.css $ROOTPATH/site.css
+    - /bin/cp -f site.js $ROOTPATH/site.js
+    - /bin/mkdir -p $ROOTPATH/shared
+    - /bin/cp -f shared/readability.css $ROOTPATH/shared/readability.css
+    - /bin/cp -f shared/readability.js $ROOTPATH/shared/readability.js
     - /bin/mkdir -p $DEPLOYPATH
     - /bin/echo 'Dead Signal static image deployment' > $DEPLOYPATH/deploy-status.txt
     - /bin/echo 'RUN copy Build Lab files' >> $DEPLOYPATH/deploy-status.txt

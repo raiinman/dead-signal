@@ -1,48 +1,37 @@
 # Dead Signal
 
-Dead Signal is an independent Once Human database and build-planning project. The current player-facing planner is deployed from this repository to `https://deadsignaldb.com/build-planner/`.
+Dead Signal is an independent, data-driven Once Human build-planning project. The planner is the product; the root website is a lightweight landing page that introduces it.
+
+- Website: `https://deadsignaldb.com/`
+- Build Planner: `https://deadsignaldb.com/build-planner/`
 
 ## Repository layout
 
-- `.cpanel.yml` — canonical cPanel deployment recipe.
-- `deploy/site-v1.2.b64.part*` — base planner bundle.
-- `deploy/patch-v1.2.*.py` — incremental planner patches still required by the current base bundle.
-- `deploy/player-corpus-v1.3.b64.part*` — normalized player-facing v1.3 data corpus.
-- `deploy/patch-player-images-v1.3.py` — resolves mined image references against the hosted player-image directory.
-- `preview/build-lab/` — live Build Lab presentation files copied over the planner shell during deployment. The folder name is historical; these files are production inputs.
+- `index.html`, `site.css`, `site.js` — static root landing page.
+- `preview/build-lab/` — production planner presentation files. The directory name is historical; do not treat it as disposable preview output.
+- `shared/` — shared readability controls used across Dead Signal interfaces.
+- `deploy/` — required prepared planner bundles and patches used by the current deployment path.
+- `tools/miner/` — canonical Miner source, tests, build support, and updater metadata.
+- `concepts/` — isolated design explorations; not production deployment inputs.
+- `archive/` — superseded continuity records retained for history.
+- `RELEASE-v*.md` — historical planner release notes retained at the root pending a deliberate documentation migration.
 
-## Persistent player images
-
-The player-facing PNG assets are hosted directly on the web server and are not transferred by Git deployment.
-
-Expected production location:
-
-```text
-$HOME/public_html/build-planner/assets/reference-images/
-```
-
-The current set contains 712 player-facing PNG files. `.cpanel.yml` verifies the directory, checks a known AKM asset, and requires at least 700 PNG files before the image resolver runs.
-
-The original full mined asset archive remains separate from the production website. Do not place the multi-gigabyte source archive in `public_html`.
+No WordPress or PHP runtime is required.
 
 ## Deployment
 
-Dead Signal uses one deployment path:
+Dead Signal uses cPanel Git Version Control from `main`:
 
-1. Update `main`.
-2. In cPanel Git Version Control, run **Update from Remote**.
-3. Run **Deploy HEAD Commit**.
+1. Update from Remote.
+2. Deploy HEAD Commit.
 
-The planner deploys to:
+`.cpanel.yml` performs copy-only deployment:
 
-```text
-$HOME/public_html/build-planner/
-```
+- root landing files → `$HOME/public_html/`
+- planner files → `$HOME/public_html/build-planner/`
 
-Deployment reconstructs the base planner, applies the required patches, installs the v1.3 player corpus, verifies the persistent hosted image set, resolves image paths, and copies the Build Lab presentation layer. It does not download or extract the player-image archive.
+Builds, data transforms, downloads, and archive extraction must happen before deployment, never in cPanel. Persistent player-facing PNGs remain on the server under `build-planner/assets/reference-images/`.
 
-## Current development phase
+## Working rules
 
-Finish player-facing database completeness and imagery first. Exact combat/stat modeling comes after the visible corpus is stable and verified.
-
-Do not invent missing game mechanics or numeric relationships. Preserve uncertainty until the underlying data can be verified.
+Read `AI-CONTINUITY.md` and `PROJECT-RULES.md` before making changes. Preserve the planner, mined-data provenance, Miner source, and uncertainty around unproven game mechanics.
