@@ -1,0 +1,20 @@
+Dead Signal Miner v1.5.2.1 Hotfix
+=================================
+
+Fixes a crash in _internal/extractor/combat_resolver.py during the
+resolve_stats_across_datasets annotation pass:
+
+    NameError: name 'STAT_CODE' is not defined
+
+Root cause:
+A prior patch accidentally wrote literal "\\n" escape sequences into a
+comment block. This caused the STAT_CODE assignment to remain on the same
+physical commented line, so Python never created the global variable.
+
+Fix:
+- Replaced the escaped comment block with real source-code line breaks.
+- STAT_CODE is now a real top-level assignment:
+    ^[A-Z][0-9]{2}(?:[0-9]{2})?$
+- Scanned extractor source for additional escaped structural-newline mistakes.
+- Removed extractor __pycache__ before packaging so corrected source is authoritative.
+- No progression/stat-model feature changes from v1.5.2.

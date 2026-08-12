@@ -1,0 +1,26 @@
+Dead Signal Miner v1.5.6 - Static Weapon Card Stat Families
+
+Changes
+- Expands the static weapon-card prototype scan beyond D0100/D0101/D0102 to:
+  Q0100, Q0300, Q0500, Q0800, Q0900, Q1100, Q1101, Q1600,
+  Q2000, Q2400, and Q2600.
+- Adds planner-facing static_weapon_card_stat_map to
+  reports/weapon-stat-aggregator-investigation.json.
+- Adds Q1101 to the static trace. This is the non-zero-suffix Magazine Capacity
+  affix variant seen on Expanded Magazine.
+- StatResolver now uses affix_prototype_data.attr_id + type when available to
+  resolve non-zero-suffix affix variants generically instead of dropping them.
+  Existing proven D0101/D0102 Attack-ratio handling remains intact.
+- Adds deeper static-card focus targets for RPM/fire rate, accuracy, range,
+  reload, and stability mechanics:
+    get_gun_shoot_attr_weapon_rpm
+    get_gun_shoot_interval
+    get_weapon_accuracy_rate
+    get_weapoon_range_value
+    get_reload_add_bullet_time_value
+    get_init_weapon_stability
+    get_weapon_stability_affix
+- Progression investigation schema bumped to 10.
+
+Safety
+- Static analysis only. No extracted game bytecode is executed.

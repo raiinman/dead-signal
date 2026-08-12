@@ -1,0 +1,18 @@
+Dead Signal Miner v1.5.7.2 — Embedded Preflight Hotfix
+
+Problem fixed:
+- v1.5.7.1 added base/current fallback handling in the external extractor,
+  but the PyInstaller-embedded miner_core preflight still required these
+  stable/base-owned tables to physically exist in the sparse current patch:
+    game_common/data/char_property_data.json
+    game_common/data/equip_origin_data.json
+    game_common/data/buff_level_data.json
+- That embedded check ran before the external fallback could help, producing
+  "Required normalized-data inputs are missing".
+
+Fix:
+- Patched embedded miner_core CURRENT_REQUIRED so the current snapshot preflight
+  only effectively requires item_data and equip_data.
+- Stable tables are allowed to resolve from base via the v1.5.7.1 fallback code.
+- No true current table is overwritten.
+- Calibration Style localization bridge from v1.5.7 remains intact.

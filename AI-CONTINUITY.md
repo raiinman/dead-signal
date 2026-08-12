@@ -2,7 +2,7 @@
 
 > **Purpose:** Canonical current-state handoff for ChatGPT/Codex sessions working on Dead Signal. Read this file and `PROJECT-RULES.md` before changing anything.
 >
-> Last updated: **2026-08-12 00:02 MST**
+> Last updated: **2026-08-12 (Codex Miner v1.5.8.0 handoff)**
 
 ## 1. Project identity
 
@@ -15,7 +15,7 @@
 - Hosting: Namecheap shared hosting / cPanel.
 - Production planner target: `$HOME/public_html/build-planner/`
 - Current player release line: **PLAYER v1.5.2**.
-- Latest known `main` immediately before this continuity update: `926cd87f74f3d00f8931295f4d46fd9847ff6c11`.
+- `main` HEAD fetched immediately before the Codex handoff work: `b112baca5d501123b5043d52817fd960495e48c2`.
 - Previous expanded historical handoff: `archive/AI-CONTINUITY-2026-08-10-v1.5.0.md`.
 
 ## 2. Ownership split — IMPORTANT
@@ -46,6 +46,29 @@ This ownership rule supersedes the older workflow where ChatGPT repeatedly produ
 
 ## 3. Miner source migration — v1.5.7.4 baseline
 
+### 2026-08-12 integrity correction and v1.5.8.0 handoff
+
+The earlier Base64 transport snapshot was structurally readable but did **not** match its documented SHA-256. A byte comparison with the exact verified v1.5.7.4 package proved that only `extractor/weapon_progression.py` was corrupted; the other 25 transported files matched.
+
+- reconstructed transport SHA-256: `d6680766d1d9014c14f2c5af6480c37e4748abde2b7cf3e9f52a91b59a0e3400`
+- claimed transport SHA-256: `8f307bf54f8da494505d2aaa4a0fd9d11f818b043449489f5df166e80e54e2e6`
+- corrupted `weapon_progression.py`: `179da89e7b9fe8152e1e3abbe70988e12c731008b489b720cf0fe79f7f2a0e9d`
+- verified release `weapon_progression.py`: `b2ad070e1f96fd7dae5a15094ff7d7a9a22ccee2f19703865d77beefffad94df`
+
+Codex recovered the fourteen authored source files directly from the exact local package whose size and SHA-256 already matched this continuity record. `SOURCE-MANIFEST-v1.5.7.4.json` records each imported file. The broken Base64 chunks/materializer are retired; normal files in `tools/miner/src/` are authoritative and CI verifies without auto-committing to `main`.
+
+Miner **v1.5.8.0** now includes maintained source for:
+
+- the existing red/black Windows GUI and complete-harvest workflow;
+- the local pipeline coordinator connected to the recovered v1.5.7.4 engine;
+- a GitHub manifest-based **Check for Updates** control;
+- size/SHA-256-verified downloads and a separate rollback-capable updater helper;
+- reproducible PyInstaller build and release packaging scripts;
+- stale circular-reference diagnostic cleanup at the start of combat resolution;
+- automated source-integrity and updater tests.
+
+The final local v1.5.8.0 packaged build passed its packaged `--self-test`. The local release ZIP is 30,074,202 bytes with SHA-256 `4a06bf1492b5c915cf4fb3a51b759205e2829f1d7646c6d8c4279e01aec32b58`. This ZIP is a local artifact until explicitly uploaded as a GitHub release; `release/latest.json` intentionally contains no download URL before that upload exists.
+
 The user supplied:
 
 `Dead-Signal-Miner-v1.5.7.4-Raw-Level-Fallback-Source-Fix(1).zip`
@@ -69,12 +92,12 @@ Important migration files:
 - `tools/miner/MIGRATION-v1.5.7.4.md`
 - `tools/miner/VERSION`
 - `tools/miner/requirements.txt`
-- `tools/miner/imports/v1.5.7.4/`
-- `tools/miner/scripts/materialize_source_snapshot.py`
+- `tools/miner/SOURCE-MANIFEST-v1.5.7.4.json`
+- `tools/miner/scripts/import_verified_release.py`
 - `.github/workflows/materialize-miner-source.yml`
 - GitHub Issue **#1** — canonical Miner source migration tracker
 
-The source snapshot was transported into GitHub as 15 numbered Base64 text segments because the available connector could write repository text but could not attach the local binary ZIP directly as a Release asset. The Git blob SHAs were verified byte-for-byte against the locally generated segments. Reassembly reproduces the exact source snapshot SHA-256 above.
+The original 15-part Base64 bridge was removed after the integrity correction above. Do not restore or rely on it. The exact verified package was used once to recover the direct source tree; ordinary development now uses those maintained source files.
 
 Recovered authored source includes:
 
@@ -100,18 +123,13 @@ Pinned package dependency baseline:
 - `texture2ddecoder==1.0.6`
 - `zstandard==0.25.0`
 
-### GUI/launcher gap
+### GUI/launcher gap — closed by Codex in v1.5.8.0
 
 The supplied v1.5.7.4 package did **not** contain the Windows GUI/launcher as loose maintained `.py` source. That entrypoint is frozen inside `Dead Signal Miner.exe`.
 
-Therefore:
+Codex recreated the maintained entrypoint from Dead Signal's own earlier v1.4.0 GUI/core foundation and connected it to the verified recovered engine. This does not claim the frozen EXE was decompiled. Future GUI, engine, build, and updater work begins with `tools/miner/src/`; do not return to repeated ZIP source handoffs.
 
-- the recovered extraction/normalization engine is now the canonical GitHub baseline;
-- do not pretend the existing GUI source was recovered;
-- **Codex should recover or recreate the maintained GUI/launcher source**, add it to `tools/miner/`, and own future EXE builds;
-- the in-app updater should be implemented only after the GUI/launcher is maintained as source.
-
-The GitHub materializer workflow exists, but automated Actions materialization was not proven during the migration session. Do not assume it ran merely because the workflow file exists; verify Actions state before relying on it.
+The former auto-writing materializer workflow is now a read-only Windows verification workflow that installs pinned runtime dependencies, compile-checks source, and runs unit tests.
 
 ## 4. Miner factual hierarchy / safety rules
 
@@ -407,14 +425,13 @@ Do not chase competitor DPS numbers by inventing formulas. Trustworthiness comes
 
 ## 14. Immediate priorities
 
-1. **Codex:** take ownership of the local Windows Miner GUI/launcher and EXE build/update workflow from GitHub source.
-2. **Codex:** recover/recreate maintained GUI source under `tools/miner/`, then implement the in-app updater.
-3. Verify/materialize the complete v1.5.7.4 extraction source tree from the hash-checked GitHub snapshot if not already present as normal source files.
-4. Continue visual review from `concepts/color-flow-v6-10/`; do not fork into unrelated design directions.
-5. Preserve the real-browser persistence torture test as an open production gate.
-6. Reconcile 108 older planner attachments against 119 verified weapon-slot accessories.
-7. Expand player-facing database surfaces from normalized mined data, especially recipes/crafting.
-8. Keep configured DPS/runtime proc math last unless each layer is fully proven.
+1. Upload and verify the v1.5.8.0 Windows ZIP as a GitHub release when the user wants to distribute it, then update `tools/miner/release/latest.json` **last** with the exact public URL, size, and SHA-256.
+2. Run one full v1.5.8.0 mining pass against the installed game and inspect the generated snapshot before replacing any player-facing site data.
+3. Continue visual review from `concepts/color-flow-v6-10/`; do not fork into unrelated design directions.
+4. Preserve the real-browser persistence torture test as an open production gate.
+5. Reconcile 108 older planner attachments against 119 verified weapon-slot accessories.
+6. Expand player-facing database surfaces from normalized mined data, especially recipes/crafting.
+7. Keep configured DPS/runtime proc math last unless each layer is fully proven.
 
 ## 15. Files future sessions should read first
 

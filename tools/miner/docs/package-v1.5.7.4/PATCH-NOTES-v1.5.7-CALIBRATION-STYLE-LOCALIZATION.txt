@@ -1,0 +1,21 @@
+Dead Signal Miner v1.5.7 — Calibration Style Localization Bridge
+
+Purpose
+- Recover the player-facing fixed Calibration Style description that is already present in buff_level_data but was being missed by the normalizer.
+
+Fixes
+- normalize_extended.build_buffs now recognizes current-client buff_level_data fields:
+  buff_template_id, buff_lv, buff_desc, desc_value.
+- Existing legacy aliases remain supported.
+- Calibration style_buff records now carry:
+  name, description, raw_name, raw_description, resolved_effects,
+  unresolved_nodes, mechanics resolution status, and display_text_status.
+- calibration-investigation.json now contains a style_localization section with
+  per-current-blueprint display-text results and exact source provenance.
+
+Important
+- This does not invent Style names or wording.
+- English text is accepted only when resolved through the mined current English translation tables.
+- If a Style name remains blank while its description resolves, the report says so.
+- Complex style mechanics may remain partial even when their player-facing description resolves exactly.
+- No game bytecode is executed.

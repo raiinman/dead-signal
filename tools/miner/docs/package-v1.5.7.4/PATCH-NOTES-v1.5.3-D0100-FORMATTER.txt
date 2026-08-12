@@ -1,0 +1,18 @@
+Dead Signal Miner v1.5.3 — D0100 Final Formatter Branch Probe
+
+Purpose
+- Preserve the proven static weapon Attack aggregator from v1.5.2.1.
+- Bind final displayed D0100 Attack to the correct AffixUtils formatting branch instead of assuming that every int()/round()/percent formatter applies to Attack.
+
+Changes
+- Targets affix_prototype_data plus AP_CALC_TYPE_ABS/AP_CALC_TYPE_RATE and ATTR_VAL_ABS/ATTR_VAL_RATE.
+- Captures attr_const.py as a full static code capsule when those branch constants are present.
+- Adds static recognizers for get_affix_name_and_val2() and get_format_attr_val().
+- Scans live extracted affix/prototype JSON tables for D0100/D0101/D0102 records and preserves their calc/type/format metadata.
+- Expands reports/weapon-stat-aggregator-investigation.json with formatter_function_evidence and affix_prototype_display_records.
+- Does not execute game bytecode.
+
+Existing proven behavior retained
+- Intrinsic positive Attack: int(Tier gun_preset_attack * preset_attack_radio[Blueprint Stars]).
+- Static Attack aggregation: base D0100 * (1 + sum(active D0101/D0102)) + flat D0100 delta.
+- D0101/D0102 attachment modifiers normalize to Weapon DMG percentage modifiers.

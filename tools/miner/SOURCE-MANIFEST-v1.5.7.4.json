@@ -1,0 +1,169 @@
+{
+  "schema_version": 1,
+  "miner_version": "1.5.7.4",
+  "generated_utc": "2026-08-12T07:17:25.164472+00:00",
+  "package": {
+    "filename": "Dead-Signal-Miner-v1.5.7.4-Raw-Level-Fallback-Source-Fix.zip",
+    "size": 31452630,
+    "sha256": "dff5a8b5e9602e3964c365f90d219899ca0f86ef196813a1cb4d0a5a6ded88e2"
+  },
+  "scope": "Authored source and package documentation only; runtime and executable excluded.",
+  "files": [
+    {
+      "path": "tools/miner/docs/package-v1.5.7.4/PATCH-NOTES-Blueprint-Progression.md",
+      "package_member": "Dead Signal Miner/PATCH-NOTES-Blueprint-Progression.md",
+      "size": 21447,
+      "sha256": "0e83adb6b2d7886b54949fdab1721ce6382c5759396c27c8cf6d79ef31b8bf7b"
+    },
+    {
+      "path": "tools/miner/docs/package-v1.5.7.4/PATCH-NOTES-v1.5.2.1-HOTFIX.txt",
+      "package_member": "Dead Signal Miner/PATCH-NOTES-v1.5.2.1-HOTFIX.txt",
+      "size": 841,
+      "sha256": "f615d15e27bea85b7e22d45647905f400763e4e0e6177ef5b837c720d824913c"
+    },
+    {
+      "path": "tools/miner/docs/package-v1.5.7.4/PATCH-NOTES-v1.5.2.txt",
+      "package_member": "Dead Signal Miner/PATCH-NOTES-v1.5.2.txt",
+      "size": 1210,
+      "sha256": "5783f52474d92794ae77c500eeb0d93bf800c54c5a37852dfcb72ef67b582d6a"
+    },
+    {
+      "path": "tools/miner/docs/package-v1.5.7.4/PATCH-NOTES-v1.5.3-D0100-FORMATTER.txt",
+      "package_member": "Dead Signal Miner/PATCH-NOTES-v1.5.3-D0100-FORMATTER.txt",
+      "size": 1192,
+      "sha256": "1f67b64afed9d16a0aba15890cd139e3f9c37ef7f05c61d94f099810f7550f00"
+    },
+    {
+      "path": "tools/miner/docs/package-v1.5.7.4/PATCH-NOTES-v1.5.5-D0100-FINAL-DISPLAY.txt",
+      "package_member": "Dead Signal Miner/PATCH-NOTES-v1.5.5-D0100-FINAL-DISPLAY.txt",
+      "size": 1321,
+      "sha256": "a1345d6169064aaa2dbf83db032360006c2b8474aefa2b19b22be56abbfc0514"
+    },
+    {
+      "path": "tools/miner/docs/package-v1.5.7.4/PATCH-NOTES-v1.5.6-STATIC-WEAPON-STATS.txt",
+      "package_member": "Dead Signal Miner/PATCH-NOTES-v1.5.6-STATIC-WEAPON-STATS.txt",
+      "size": 1133,
+      "sha256": "9a85ce7ae3d1839ffe5addcfedbf1bccdf697e4311ee264ab8a1d61f170a6e63"
+    },
+    {
+      "path": "tools/miner/docs/package-v1.5.7.4/PATCH-NOTES-v1.5.7-CALIBRATION-STYLE-LOCALIZATION.txt",
+      "package_member": "Dead Signal Miner/PATCH-NOTES-v1.5.7-CALIBRATION-STYLE-LOCALIZATION.txt",
+      "size": 1130,
+      "sha256": "734d6842f5c97e9b29aff1bdacc5d9ad366b5b9bbc04aef244dda77b0adf49fb"
+    },
+    {
+      "path": "tools/miner/docs/package-v1.5.7.4/PATCH-NOTES-v1.5.7.1-SNAPSHOT-FALLBACK-HOTFIX.txt",
+      "package_member": "Dead Signal Miner/PATCH-NOTES-v1.5.7.1-SNAPSHOT-FALLBACK-HOTFIX.txt",
+      "size": 1222,
+      "sha256": "13d5b312f72666e92e9bcfd15408afeb4789f4db7fb1c54065205da6fd8dfe2e"
+    },
+    {
+      "path": "tools/miner/docs/package-v1.5.7.4/PATCH-NOTES-v1.5.7.2-EMBEDDED-PREFLIGHT-HOTFIX.txt",
+      "package_member": "Dead Signal Miner/PATCH-NOTES-v1.5.7.2-EMBEDDED-PREFLIGHT-HOTFIX.txt",
+      "size": 884,
+      "sha256": "6ed64a78c06c9590614c2c093edf19288188a90756de8079bb0c7b76b8e7a132"
+    },
+    {
+      "path": "tools/miner/docs/package-v1.5.7.4/PATCH-NOTES-v1.5.7.3-CIRCULAR-REFERENCE-HOTFIX.txt",
+      "package_member": "Dead Signal Miner/PATCH-NOTES-v1.5.7.3-CIRCULAR-REFERENCE-HOTFIX.txt",
+      "size": 851,
+      "sha256": "17da287be047757129b880dd510a9abc9774ec11898d0649d297eaae5428fe66"
+    },
+    {
+      "path": "tools/miner/docs/package-v1.5.7.4/PATCH-NOTES-v1.5.7.4-RAW-LEVEL-FALLBACK-FIX.txt",
+      "package_member": "Dead Signal Miner/PATCH-NOTES-v1.5.7.4-RAW-LEVEL-FALLBACK-FIX.txt",
+      "size": 1333,
+      "sha256": "f62b1c0bc37d475b7d949e697f1916e7679dab68972a00e213b30ca9ecaa4579"
+    },
+    {
+      "path": "tools/miner/docs/package-v1.5.7.4/README-PACKAGED.md",
+      "package_member": "Dead Signal Miner/_internal/README.md",
+      "size": 6232,
+      "sha256": "ea64a57883ac2fd3d260a21c2a42f132b47e24449aec7a3b6820961321a12940"
+    },
+    {
+      "path": "tools/miner/src/extractor/combat_resolver.py",
+      "package_member": "Dead Signal Miner/_internal/extractor/combat_resolver.py",
+      "size": 109203,
+      "sha256": "c22dbd6ac7434835f84fad98e636c4474d3d57242ceeb604f6cf7393efbdebba"
+    },
+    {
+      "path": "tools/miner/src/extractor/export_bindict.py",
+      "package_member": "Dead Signal Miner/_internal/extractor/export_bindict.py",
+      "size": 11337,
+      "sha256": "fdfbb0cc92375fb696e4deaa8a1c153a80546877854d6ad671a11d191ffdb334"
+    },
+    {
+      "path": "tools/miner/src/extractor/export_marshaled_bindict.py",
+      "package_member": "Dead Signal Miner/_internal/extractor/export_marshaled_bindict.py",
+      "size": 2084,
+      "sha256": "8be5c6c012ff4592fdecc130db84fac0ebe87064ae7dcd000c8d19617750b0e0"
+    },
+    {
+      "path": "tools/miner/src/extractor/find_zstd_dicts.py",
+      "package_member": "Dead Signal Miner/_internal/extractor/find_zstd_dicts.py",
+      "size": 2308,
+      "sha256": "97cc31bb1b33ad98542348982d23ddc73fceb237d8c0a12dacb93a81c1c33ba0"
+    },
+    {
+      "path": "tools/miner/src/extractor/link_published_images.py",
+      "package_member": "Dead Signal Miner/_internal/extractor/link_published_images.py",
+      "size": 4532,
+      "sha256": "0e11b7449c100148fc4f6eec6801987e4ddecf9396b438cb566bea2034cc275d"
+    },
+    {
+      "path": "tools/miner/src/extractor/normalize_armor.py",
+      "package_member": "Dead Signal Miner/_internal/extractor/normalize_armor.py",
+      "size": 31822,
+      "sha256": "5f48c9341e7cc44d7d64c8bd6b98ef1560f97754d180ba168aa49770fa7bcc14"
+    },
+    {
+      "path": "tools/miner/src/extractor/normalize_extended.py",
+      "package_member": "Dead Signal Miner/_internal/extractor/normalize_extended.py",
+      "size": 32770,
+      "sha256": "1f84c6134d86a8c98b523677ea121f7b6339e932ea2786118e039a8ae9e93b97"
+    },
+    {
+      "path": "tools/miner/src/extractor/normalize_weapons.py",
+      "package_member": "Dead Signal Miner/_internal/extractor/normalize_weapons.py",
+      "size": 30594,
+      "sha256": "5a7086f81dd02ae74651840a8948e45d7646c073a8b546f8204f13b27612f898"
+    },
+    {
+      "path": "tools/miner/src/extractor/npk_extract.py",
+      "package_member": "Dead Signal Miner/_internal/extractor/npk_extract.py",
+      "size": 7015,
+      "sha256": "d2127380a436584d926588e242ac7d1e137af5e02e20ef489b298c542cff3491"
+    },
+    {
+      "path": "tools/miner/src/extractor/pvr_to_png.py",
+      "package_member": "Dead Signal Miner/_internal/extractor/pvr_to_png.py",
+      "size": 5006,
+      "sha256": "9e68dd24ddf308d6576d75a16109594d37041fad1d538685b69358b1474062b7"
+    },
+    {
+      "path": "tools/miner/src/extractor/reference_images.py",
+      "package_member": "Dead Signal Miner/_internal/extractor/reference_images.py",
+      "size": 30134,
+      "sha256": "a4e766b3ab9d2a1a41c7948ede7dc89c245363713bf207d3901623e2eab085b0"
+    },
+    {
+      "path": "tools/miner/src/extractor/weapon_progression.py",
+      "package_member": "Dead Signal Miner/_internal/extractor/weapon_progression.py",
+      "size": 151435,
+      "sha256": "b2ad070e1f96fd7dae5a15094ff7d7a9a22ccee2f19703865d77beefffad94df"
+    },
+    {
+      "path": "tools/miner/src/neoxtractor/core/bindict/__init__.py",
+      "package_member": "Dead Signal Miner/_internal/neoxtractor/core/bindict/__init__.py",
+      "size": 134,
+      "sha256": "79a9b04566a96e80267be4dfabcd5b47d5d77e623fd6add27590f554917f1a50"
+    },
+    {
+      "path": "tools/miner/src/neoxtractor/core/bindict/parser.py",
+      "package_member": "Dead Signal Miner/_internal/neoxtractor/core/bindict/parser.py",
+      "size": 40945,
+      "sha256": "c89f163e26be9a0a0f209923bf800bcce3730a64f64a8fbc1b3542b85e825278"
+    }
+  ]
+}

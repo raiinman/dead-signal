@@ -1,0 +1,15 @@
+Dead Signal Miner v1.5.7.3 — Circular Reference Diagnostic Hotfix
+
+- Keeps the v1.5.7 Calibration Style localization bridge.
+- Keeps the v1.5.7.1 sparse-current snapshot fallback.
+- Keeps the v1.5.7.2 embedded preflight hotfix.
+- Adds cycle-safe JSON export to combat_resolver.write_json().
+- Normal json.dumps() remains the first path. The fallback activates only for
+  ValueError: Circular reference detected.
+- The fallback cuts only true ancestor back-references; ordinary repeated/shared
+  containers are preserved normally.
+- Each cut cycle is reported to:
+    reports/serialization-circular-references.json
+  with output_file, cycle_path, ancestor_path, and container_type.
+- This is a diagnostic safety valve, not a permanent substitute for removing the
+  source-level cycle. Upload the next reports bundle so the exact source can be fixed.

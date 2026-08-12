@@ -1,0 +1,26 @@
+Dead Signal Miner v1.5.7.1 — Sparse Current Snapshot Fallback Hotfix
+
+Fixes
+- Prevents normalization from stopping when a current script patch omits unchanged tables:
+  game_common/data/char_property_data.json
+  game_common/data/equip_origin_data.json
+  game_common/data/buff_level_data.json
+- export_bindict now materializes only missing copies from the newest mined base snapshot into the sparse current snapshot.
+- A real current table is never overwritten by a base fallback.
+- normalize_weapons and normalize_armor also read base as a direct fallback for these stable tables.
+
+Why
+- Once Human current patch archives can omit unchanged bindict tables.
+- Combat resolution already merges base + current, but legacy normalizer preflight still expects these three paths to physically exist under current/<hash>/tables.
+
+Calibration Style work
+- All v1.5.7 Calibration Style localization changes remain enabled:
+  buff_template_id, buff_lv, buff_desc, desc_value aliases;
+  style name/description provenance;
+  exact localization status reporting.
+
+Validation
+- Python 3.11 syntax validated.
+- Synthetic base/current snapshot test verified:
+  missing files inherit from base;
+  existing current files remain untouched.

@@ -1,0 +1,22 @@
+Dead Signal Miner v1.5.2 patch notes
+
+1. Fix D0101/D0102 attachment normalization
+- STAT_CODE now accepts canonical IDs such as D01/Q03 and 5-character affix IDs with non-zero suffixes such as D0101/D0102.
+- This fixes the v1.5.1 export bug where raw suppressor Weapon DMG penalties were present in attribute_codes but omitted from resolved_stats.
+- weapon-stat-aggregator-investigation.json now self-validates raw vs resolved D0101/D0102 counts and reports missing examples.
+
+2. Trace the final fully-aggregated weapon-card formatter
+- Added direct focus capture for AffixUtils.get_affix_name_and_val2 and its formatter family:
+  get_affix_format_name_and_val
+  convert_affix_format_str
+  get_format_attr_val
+  adjust_affix_val
+  get_affix_desc_format
+- calc_gun_attr_data is already proven to route D0100 through get_affix_name_and_val2.
+- Added refresh_base_prop / refresh_item_lst to the static-card display bridge trace.
+- The miner does NOT assume the final post-accessory/post-calibration integer conversion until the captured formatter consumer proves it.
+
+Static Attack formula retained:
+base D0100 * (1 + sum(active D0101/D0102)) + delta_attack
+
+No game bytecode is executed. Static inspection only.

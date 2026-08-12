@@ -1,0 +1,26 @@
+Dead Signal Miner v1.5.7.4 — Raw Buff-Level Fallback Source Fix
+
+Root cause proven by the real v1.5.7.3 run:
+- reports/serialization-circular-references.json recorded 1,248 cycles.
+- Every cycle was buffs/<row>/raw_level_definition -> the same parent buff row.
+- All affected normalized rows requested buff level 0 while the usable raw
+  buff_level_data record was level 1.
+
+Source fix in _internal/extractor/combat_resolver.py:
+- Resolve raw buff-level data by exact (buff_id, level) first.
+- If that is absent and the requested level is not 1, fall back to the real
+  (buff_id, 1) row from buff_level_data, matching the existing definition fallback.
+- If no raw game row exists at either level, use a detached deepcopy of the
+  presentation row as a final compatibility fallback.
+- Never use the mutable normalized parent row itself as raw_level_definition.
+
+Expected result:
+- A normal v1.5.7.4 run should serialize buffs.json without activating the
+  circular-reference safety fallback for this bug.
+- reports/serialization-circular-references.json should be absent/empty unless
+  a different genuine cycle exists elsewhere.
+
+Retained from v1.5.7.3:
+- Calibration Style localization bridge.
+- Sparse current-snapshot fallback and embedded preflight hotfix.
+- Cycle-safe JSON serializer remains as a diagnostic safety net only.

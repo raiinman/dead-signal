@@ -1,0 +1,22 @@
+Dead Signal Miner v1.5.5 — D0100 Final Display Rule
+
+Purpose
+- Distinguish the earlier intrinsic Blueprint-Star int() truncation from the final static weapon-card D0100 formatter.
+- Prove the role of int() inside get_affix_name_and_val2 without trusting stock disassembly opnames.
+
+Changes
+- Adds an exact remapped-wordcode recognizer for the AP_CALC_TYPE_RATE percent-precision branch.
+- Recognizes the sequence:
+    adjusted rate -> * 100 -> subtract int(integer portion) -> abs(fraction) -> epsilon test
+  which proves the formatter's int() is used to decide rate display precision ({:.0%} vs {:.1%}).
+- Combines that evidence with the mined D0100 prototype format ({:.0f}) and D0100/D0101/D0102 type split.
+- Adds D0100_final_display_rule to reports/weapon-stat-aggregator-investigation.json.
+- Promotes the final static-card D0100 rule only when all three pieces are present in the same run:
+    1) D0100 absolute-family prototype binding,
+    2) D0100 prototype contains {:.0f},
+    3) RATE int-role wordcode recognizer succeeds.
+- Schema version bumped to 9.
+
+Important distinction
+- Intrinsic Tier x Blueprint-Star base Attack: int(...) truncation (previously proven).
+- Final accessorized/calibrated D0100 weapon-card display: zero-decimal fixed-point formatting via {:.0f}; not another int() truncation step.

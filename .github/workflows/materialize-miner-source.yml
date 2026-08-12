@@ -1,19 +1,21 @@
-name: Materialize Miner source
+name: Verify Miner source
 
 on:
   workflow_dispatch:
   push:
     paths:
-      - 'tools/miner/imports/v1.5.7.4/**'
-      - 'tools/miner/scripts/materialize_source_snapshot.py'
+      - 'tools/miner/src/**'
+      - 'tools/miner/tests/**'
+      - 'tools/miner/requirements*.txt'
+      - 'tools/miner/VERSION'
       - '.github/workflows/materialize-miner-source.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  materialize:
-    runs-on: ubuntu-latest
+  verify:
+    runs-on: windows-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -22,22 +24,15 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: tools/miner/requirements.txt
 
-      - name: Reconstruct and verify source snapshot
-        run: python tools/miner/scripts/materialize_source_snapshot.py
+      - name: Install Miner dependencies
+        run: python -m pip install -r tools/miner/requirements.txt
 
-      - name: Compile-check recovered source with Python 3.11
-        run: python -m compileall -q tools/miner/src
+      - name: Compile-check maintained source
+        run: python -m compileall -q tools/miner/src tools/miner/tests
 
-      - name: Commit materialized source
-        shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add tools/miner/src tools/miner/docs/package-v1.5.7.4
-          if git diff --cached --quiet; then
-            echo "No materialized source changes."
-            exit 0
-          fi
-          git commit -m "Materialize Miner v1.5.7.4 source"
-          git push origin HEAD:main
+      - name: Run Miner unit tests
+        run: python -m unittest discover -s tools/miner/tests -v
+

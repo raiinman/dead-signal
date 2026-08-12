@@ -4,6 +4,7 @@ __pycache__/
 *.pyd
 .pytest_cache/
 .venv/
+.venv-build/
 venv/
 
 # Packaged Miner/runtime output
@@ -15,6 +16,7 @@ _internal/
 *.zip
 *.7z
 *.7z.*
+release/artifacts/
 
 # Generated Miner output
 output/
