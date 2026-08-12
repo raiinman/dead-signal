@@ -43,12 +43,31 @@ The same principle applies to saturated rarity blue and purple: section accents 
 - Global / Plan: Signal Red `#E6323E`
 - Weapons: Gunmetal Blue `#58778C`
 - Calibration / technical data: Technical Cyan `#39BFC6`
-- Armor: Cold Steel `#718394`
+- Armor: Cold Steel / Muted Indigo family
 - Mods / notes / analysis support: Muted Indigo `#6A6F9C`
 - Deviations / build systems: Deep Teal `#388C82`
-- Report / compare / tooling: Instrument Blue `#527EAD`
+- Report / compare / tooling: Instrument / Ice Blue family
 
 Structural colors identify location. Rarity colors identify the item.
+
+## Color rhythm rule
+
+**Rarity-safe does not mean nearly monochrome.**
+
+Dead Signal should use enough structural color that the player feels visual progression while moving through the page.
+
+Good color rhythm can come from:
+
+- stronger section washes at low opacity
+- colored section rails and header bands
+- multi-tone corpus/status strips
+- individually coded system cards such as Calibration, Mods, and Deviations
+- subtle colored top edges on report metrics
+- paired red/cyan atmosphere in the hero and major status regions
+
+The user should encounter a new visual landmark every few screen heights. Avoid long runs of identical charcoal panels.
+
+Do not solve color starvation by reusing Legendary gold/amber or by making section colors as saturated as item rarity colors.
 
 ## Surface ladder
 
@@ -86,6 +105,21 @@ Every important card should answer, in this order:
 5. What detail is secondary?
 
 Vital mechanical information must never be visually treated like footnote text.
+
+## Sidebar text-size control
+
+The global readability control belongs in the persistent Build Lab sidebar so it is always discoverable and available while the user works.
+
+Use four explicit choices:
+
+- `A−` — Compact
+- `A` — Default
+- `A+` — Large
+- `A++` — X-Large
+
+The selected size must be visually obvious and should update the entire planner, including Results. Do not hide text sizing inside a settings dialog.
+
+Production should continue to use the existing shared readability system and preference key rather than creating a second independent font-size model.
 
 ## Results are the payoff
 
