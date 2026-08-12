@@ -539,6 +539,8 @@ The architecture rule is now: one global shell, route-local tools, and shared ca
 
 Desktop browser checks passed for the landing, Weapons, and planner routes: exactly one workstation sidebar rendered, route state was correct, displaced legacy navigation was hidden, and the planner's former horizontal overflow was removed. The mobile shell is CSS-driven below 1100 px with an explicit menu button, scrim, Escape close, and reduced-motion handling.
 
+The planner's former stacked masthead and decorative hero were subsequently replaced by one compact command bar. It owns route identity, system state, and grouped Start/Build/Transfer/Share actions in a single header, using cyan for system state and red for primary/destructive emphasis. Preserve the existing action element IDs because planner modules bind to them.
+
 ## 17. Immediate priorities
 
 1. Migrate Armor from the remaining compatibility corpus to the normalized Miner snapshot using the same canonical-data pattern established for Weapons.

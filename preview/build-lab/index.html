@@ -24,6 +24,7 @@
 <link rel="stylesheet" href="planner-integrity.css?v=1.5.2.2">
 <link rel="stylesheet" href="planner-report-tools.css?v=1.5.2.6">
 <link rel="stylesheet" href="weapon-compare.css?v=1.5.2.7">
+<link rel="stylesheet" href="planner-header.css?v=1.6.0">
 </head>
 <body>
 <aside class="ds-sidebar" aria-label="Build Lab navigation">
@@ -58,14 +59,18 @@
 </aside>
 <div class="ds-page" id="top">
 <header class="topbar">
-  <div class="brand"><div class="eyebrow">DEAD SIGNAL // BUILD LAB</div><h1>ULTIMATE PLANNER <span>PLAYER v1.5.2</span></h1></div>
+  <div class="brand">
+    <div class="eyebrow">WORKSPACE // LOADOUT SYSTEM</div>
+    <div class="planner-title"><span class="planner-title-mark" aria-hidden="true">BL</span><div><h1>BUILD LAB</h1><p>Assemble, verify, and share one complete Once Human loadout.</p></div><span class="planner-version">PLAYER v1.5.2</span></div>
+    <div class="planner-status" aria-label="Planner status"><span><i></i> Core online</span><span>Compatibility active</span><span>8 Cradle slots</span></div>
+  </div>
   <div class="actions">
-    <button id="presetBtn">Templates</button><button id="saveBtn">Save</button><button id="loadBtn">My Builds</button><button id="cloneBtn">Clone</button><button id="importBtn">Import</button><button id="exportBtn">Export</button><button id="shareBtn" class="primary">Copy Share Link</button><button id="resetBtn" class="danger-ghost">New</button><input id="importFile" type="file" accept="application/json,.json" hidden>
+    <div class="action-group"><span>START</span><button id="presetBtn">Templates</button><button id="resetBtn" class="danger-ghost">New</button></div>
+    <div class="action-group"><span>BUILD</span><button id="saveBtn">Save</button><button id="loadBtn">My Builds</button><button id="cloneBtn">Clone</button></div>
+    <div class="action-group"><span>TRANSFER</span><button id="importBtn">Import</button><button id="exportBtn">Export</button></div>
+    <button id="shareBtn" class="primary">Copy Share Link</button><input id="importFile" type="file" accept="application/json,.json" hidden>
   </div>
 </header>
-<section class="lab-hero" aria-labelledby="lab-title">
-  <div class="lab-hero-copy"><div class="lab-kicker">TACTICAL LOADOUT WORKSTATION // CURRENT BUILD ENVIRONMENT</div><h2 id="lab-title">BUILD LAB</h2><p>Assemble weapons, armor, mods, Deviations, Cradles and consumables in one connected Once Human planning workspace.</p><div class="lab-status-row"><span><i></i> PLANNER CORE ONLINE</span><span>COMPATIBILITY FILTERING ACTIVE</span><span>8 CRADLE SLOTS</span><span>HOSTED GAME ART ACTIVE</span></div></div>
-</section>
 <div id="catalogStrip" class="catalog-strip"></div>
 <main><section class="planner-shell"><div class="stack">
 <section class="panel hero-panel" id="section-plan"><div class="section-title"><span>00</span><div><small>BUILD IDENTITY</small><h2>Plan</h2></div></div><div class="meta-grid"><label><span>Build name</span><input id="buildName" placeholder="Name this build"></label><label><span>Author</span><input id="buildAuthor" placeholder="Your name / handle"></label><label><span>Build type</span><select id="buildType"><option>PvE</option><option>PvP</option><option>Hybrid</option><option>Boss</option><option>Farming / Utility</option><option>Experimental</option></select></label><label><span>Tags</span><input id="buildTags" placeholder="Power Surge, AR, Solo"></label></div><label class="wide-field"><span>Short description</span><input id="buildDescription" placeholder="What this build is trying to do"></label></section>

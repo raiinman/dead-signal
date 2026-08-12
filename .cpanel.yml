@@ -82,6 +82,7 @@ deployment:
     - /bin/cp -f preview/build-lab/planner-report-tools.css $DEPLOYPATH/planner-report-tools.css
     - /bin/cp -f preview/build-lab/planner-report-tools.js $DEPLOYPATH/planner-report-tools.js
     - /bin/cp -f preview/build-lab/weapon-compare.css $DEPLOYPATH/weapon-compare.css
+    - /bin/cp -f preview/build-lab/planner-header.css $DEPLOYPATH/planner-header.css
     - /bin/cp -f preview/build-lab/weapon-compare.js $DEPLOYPATH/weapon-compare.js
     - /bin/cp -f preview/build-lab/catalogue-handoff.js $DEPLOYPATH/catalogue-handoff.js
     - /bin/cp -f database/weapons/weapon-math-data.js $DEPLOYPATH/weapon-math-data.js
