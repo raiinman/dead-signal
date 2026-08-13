@@ -39,6 +39,8 @@ class ExtendedRouteWiringTests(unittest.TestCase):
             "dead-signal-cradles",
         ):
             self.assertIn(schema, source)
+        self.assertIn("data.schema_version === 2", source)
+        self.assertIn("direct-localized-installed-game-text", source)
 
     def test_dedicated_current_category_routes_enforce_supported_contracts(self):
         calibrations = (ROOT / "database" / "calibrations" / "index.html").read_text(encoding="utf-8")
@@ -62,11 +64,20 @@ class ExtendedRouteWiringTests(unittest.TestCase):
             contract_index = route.index(f'src="{category}-data.js')
             self.assertLess(contract_index, guard_index)
 
-    def test_variant_guard_covers_family_contracts_that_preserve_source_variants(self):
+    def test_variant_guard_blocks_ambiguous_families_and_accepts_attachment_v2(self):
         source = (ROOT / "preview" / "build-lab" / "canonical-category-variant-guard.js").read_text(encoding="utf-8")
         self.assertIn("DS_DEVIATIONS_WEB", source)
         self.assertIn("DS_CRADLES_WEB", source)
         self.assertIn("family.variants.length !== 1", source)
+        self.assertIn("attachments.schema_version === 2", source)
+        self.assertIn("direct-localized-installed-game-text", source)
+
+    def test_calibration_bridge_requires_proven_secondary_pool(self):
+        source = (ROOT / "preview" / "build-lab" / "canonical-category-bridge.js").read_text(encoding="utf-8")
+        self.assertIn("secondary_pool_failure_ids", source)
+        self.assertIn("current-system-selected-from-proven-main-roll-and-secondary-pool", source)
+        self.assertIn("secondary_roll_candidates", source)
+        self.assertIn("observed_candidate_weights", source)
 
     def test_copy_only_manifest_deploys_prepared_routes_and_build_lab_bridge(self):
         manifest = (ROOT / ".cpanel.yml").read_text(encoding="utf-8")
