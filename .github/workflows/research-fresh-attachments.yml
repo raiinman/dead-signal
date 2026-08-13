@@ -1,0 +1,67 @@
+name: Research archived Attachment compatibility
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/research-fresh-attachments.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract archived fresh corpus
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq p7zip-full
+          mkdir -p /tmp/dead-signal-fresh
+          7z x -y data.7z -o/tmp/dead-signal-fresh >/dev/null
+      - name: Inspect Attachment contracts and localized evidence
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path('/tmp/dead-signal-fresh')
+          found = []
+          for path in root.rglob('*.json'):
+              try:
+                  payload = json.loads(path.read_text(encoding='utf-8'))
+              except Exception:
+                  continue
+              if isinstance(payload, dict) and payload.get('schema') == 'dead-signal-attachments':
+                  found.append((path, payload))
+
+          print('ATTACHMENT_CONTRACTS', len(found))
+          for path, payload in found:
+              rows = [row for row in payload.get('attachments', []) if isinstance(row, dict)]
+              print('CONTRACT', path)
+              print('ROWS', len(rows))
+              with_types = [row for row in rows if row.get('compatible_weapon_types')]
+              with_desc = [row for row in rows if str(row.get('description') or '').strip()]
+              print('WITH_TYPE_CODES', len(with_types))
+              print('WITH_DESCRIPTION', len(with_desc))
+              print('DIRECT_EVIDENCE_ROWS_BEGIN')
+              for row in rows:
+                  desc = str(row.get('description') or '').strip().replace('\n', ' ')
+                  if desc:
+                      print(json.dumps({
+                          'canonical_id': row.get('canonical_id'),
+                          'name': row.get('name'),
+                          'attachment_type': row.get('attachment_type'),
+                          'compatible_weapon_types': row.get('compatible_weapon_types') or [],
+                          'description': desc,
+                      }, ensure_ascii=False))
+              print('DIRECT_EVIDENCE_ROWS_END')
+
+          if not found:
+              print('JSON_INVENTORY_BEGIN')
+              for path in sorted(root.rglob('*.json')):
+                  if 'attachment' in path.name.lower() or 'accessor' in path.name.lower():
+                      print(path)
+              print('JSON_INVENTORY_END')
+          PY
