@@ -4,19 +4,21 @@ const query = document.getElementById('databaseQuery');
 const cards = [...document.querySelectorAll('.landing-category, .category')];
 const status = document.getElementById('searchStatus');
 const empty = document.getElementById('noResults');
-const mirror = document.querySelector('[data-search-mirror]');
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
 function applySearchDatabase() {
   const term = query.value.trim().toLowerCase();
   let visible = 0;
+
   cards.forEach((card) => {
-    const matches = !term || `${card.textContent} ${card.dataset.search}`.toLowerCase().includes(term);
+    const matches = !term || `${card.textContent} ${card.dataset.search || ''}`.toLowerCase().includes(term);
     card.classList.toggle('filtered-out', !matches);
     if (matches) visible += 1;
   });
+
   empty.hidden = visible !== 0;
-  status.textContent = term ? `${visible} database ${visible === 1 ? 'category' : 'categories'} match “${query.value.trim()}”.` : 'Search across the current player-facing database.';
+  status.hidden = !term;
+  status.textContent = term ? `${visible} database ${visible === 1 ? 'system' : 'systems'} match “${query.value.trim()}”.` : '';
 }
 
 function searchDatabase() {
@@ -24,21 +26,21 @@ function searchDatabase() {
     applySearchDatabase();
     return;
   }
+
   document.startViewTransition(applySearchDatabase);
 }
 
 query.addEventListener('input', searchDatabase);
-mirror?.addEventListener('input', () => {
-  query.value = mirror.value;
-  searchDatabase();
-});
-mirror?.addEventListener('keydown', (event) => {
+query.addEventListener('keydown', (event) => {
   if (event.key !== 'Enter') return;
-  document.getElementById('database')?.scrollIntoView({ behavior: 'smooth' });
-  query.focus();
+  document.getElementById('database')?.scrollIntoView({ behavior: reduceMotion.matches ? 'auto' : 'smooth', block: 'start' });
 });
+
 document.addEventListener('keydown', (event) => {
-  if (event.key === '/' && document.activeElement !== query) {
+  const active = document.activeElement;
+  const typing = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
+
+  if (event.key === '/' && !typing) {
     event.preventDefault();
     query.focus();
   }
