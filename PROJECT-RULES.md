@@ -26,6 +26,7 @@ These are the working constraints for the Ultimate Planner.
 - Desktop sidebar collapse must remain explicit and persisted with `dead-signal-nav-collapsed`; do not return to hover-only expansion.
 - Unbuilt database destinations remain visibly `SOON`; do not imply unfinished routes are live.
 - Shared motion should remain restrained, progressive-enhancement behavior with reduced-motion support.
+- The landing page uses **one canonical database search** in the top command strip. Do not reintroduce a second full-width `Search the Signal` field below the hero. The top search filters the database systems directly, Enter moves to the database section, and `/` focuses that same field.
 
 ## Readability / accessibility
 - Readability is a product requirement, not optional polish. Do not optimize information density to the point that normal text requires squinting.
