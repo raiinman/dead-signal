@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 import sys
+import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 MODULE_PATH = ROOT / "src" / "extractor" / "publish_current_calibrations.py"
@@ -103,3 +104,33 @@ def test_invalid_or_partial_range_is_not_current():
     assert not module.is_current_variant(make_variant(1, 34, 50, valid=False))
     assert not module.is_current_variant(make_variant(1, None, 50))
     assert not module.is_current_variant(make_variant(1, 50, 34))
+
+
+class CurrentCalibrationSecondaryTests(unittest.TestCase):
+    def test_exact_secondary_contract(self):
+        affixes = []
+        for index, (_label, stat_ids, minimum, maximum) in enumerate(module.EXPECTED_SECONDARIES["Legendary"]):
+            affixes.append(
+                {
+                    "affix_id": index + 1,
+                    "terms": [
+                        {
+                            "affix_ids": sorted(stat_ids),
+                            "min_val": minimum / 100.0,
+                            "max_val": maximum / 100.0,
+                        }
+                    ],
+                }
+            )
+        row = {
+            "rarity": "Legendary",
+            "affix_ids_weight": [200, 200, 200, 200],
+            "affixes": affixes,
+        }
+        candidates = module.secondary_roll_candidates(row)
+        self.assertEqual(4, len(candidates or []))
+        self.assertEqual([200, 200, 200, 200], [candidate["weight"] for candidate in candidates or []])
+
+
+if __name__ == "__main__":
+    unittest.main()
