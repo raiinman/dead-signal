@@ -13,6 +13,7 @@ class ExtendedRouteWiringTests(unittest.TestCase):
         "deviations": "DS_DEVIATIONS_WEB",
         "cradles": "DS_CRADLES_WEB",
     }
+    BUILD_LAB_CATEGORIES = ("calibrations", "attachments", "deviations", "cradles")
 
     def test_routes_reference_shared_renderer_and_own_contract(self):
         for category, variable in self.CATEGORIES.items():
@@ -35,13 +36,31 @@ class ExtendedRouteWiringTests(unittest.TestCase):
         ):
             self.assertIn(schema, source)
 
-    def test_copy_only_manifest_deploys_prepared_routes(self):
+    def test_build_lab_loads_canonical_contracts_before_legacy_app(self):
+        route = (ROOT / "preview" / "build-lab" / "index.html").read_text(encoding="utf-8")
+        app_index = route.index('src="app.js')
+        bridge_index = route.index('src="canonical-category-bridge.js')
+        self.assertLess(bridge_index, app_index)
+        for category in self.BUILD_LAB_CATEGORIES:
+            contract_index = route.index(f'src="{category}-data.js')
+            self.assertLess(contract_index, bridge_index)
+
+    def test_copy_only_manifest_deploys_prepared_routes_and_build_lab_bridge(self):
         manifest = (ROOT / ".cpanel.yml").read_text(encoding="utf-8")
         self.assertNotIn("/bin/rm", manifest)
         for category in ("armor", *self.CATEGORIES):
             self.assertIn(f"database/{category}", manifest)
         self.assertIn("database/extended-catalogue.js", manifest)
         self.assertIn("database/extended-catalogue.css", manifest)
+        for category in self.BUILD_LAB_CATEGORIES:
+            self.assertIn(
+                f"database/{category}/{category}-data.js $DEPLOYPATH/{category}-data.js",
+                manifest,
+            )
+        self.assertIn(
+            "preview/build-lab/canonical-category-bridge.js $DEPLOYPATH/canonical-category-bridge.js",
+            manifest,
+        )
         for forbidden in ("python ", "python3 ", "unzip ", "curl ", "wget ", "find "):
             self.assertNotIn(forbidden, manifest.casefold())
 
