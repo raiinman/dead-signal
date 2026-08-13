@@ -2,7 +2,7 @@
 
 > Canonical current-state handoff. Read this file and `PROJECT-RULES.md` first.
 >
-> Updated 2026-08-13 after the fresh v1.5.12.3 mine was inspected and Miner v1.5.12.4 was released.
+> Updated 2026-08-13 during Day Shift after fresh v1.5.12.3 evidence review, Miner v1.5.12.4 release, and Armor Tier recovery/variant investigation.
 
 ## Non-negotiables
 
@@ -18,9 +18,7 @@
 
 ## Current main / fresh evidence
 
-Latest functional HEAD before this continuity commit: `67438e824b92d81eb01f07e4d4d746aff32c7a37` (`Test weapon skill reference audit`).
-
-The user's fresh installed-game v1.5.12.3 output is repo-root `data.7z`, upload commit `ab78f62e34294a0fda4fadd3aa8d35d81ee59c13`. It extracted successfully and contains `web/`, `data/`, `reports/`, and `indexes/reference-tracer.sqlite`. Do not ask for another v1.5.12.3 run.
+Fresh installed-game v1.5.12.3 evidence is available from the user's uploaded Miner output and repo-root `data.7z` (upload commit `ab78f62e34294a0fda4fadd3aa8d35d81ee59c13`). Do not ask for another v1.5.12.3 run.
 
 Fresh compact counts:
 
@@ -33,15 +31,17 @@ Fresh compact counts:
 
 ## Miner v1.5.12.4 — released
 
-Fresh v1.5.12.3 data exposed a Calibration classifier defect. The old compact publisher grouped current/legacy records by broad `group_id`. Fresh normalized evidence proves the stable pair identity is the mined `buff_id` pair:
+Fresh v1.5.12.3 data exposed a Calibration classifier defect. Current/legacy pairing is proven by mined `buff_id`, not broad `group_id`.
 
-- 188 normalized rows = 94 current + 94 legacy;
-- exactly 94 unique `buff_id` pairs;
-- each pair has exactly one current and one legacy row;
-- current rarity counts remain Rare 24 / Epic 35 / Legendary 35;
-- Weapon DMG ranges remain Rare 18–25%, Epic 26–33%, Legendary 34–50%; main stat `D0102`.
+Verified result after the fix:
 
-Landed:
+- 188 normalized Calibration rows = 94 current + 94 legacy.
+- 94 unique current/legacy `buff_id` pairs.
+- 0 ambiguous families.
+- Current rarity counts: Rare 24 / Epic 35 / Legendary 35.
+- Current Weapon DMG ranges remain Rare 18–25%, Epic 26–33%, Legendary 34–50%; main stat `D0102`.
+
+Landed/released:
 
 - `660c47b900551c96f69750527e13a8e6a589d4e5` — fix current Calibration family classification.
 - `99deebe41640398b42da25a6138c6b9a09ca2c03` — regression tests.
@@ -49,10 +49,7 @@ Landed:
 - `5586b1a9366a631836520c021ab8f063e861db9e` — bump Miner to v1.5.12.4.
 - Release workflow `31746463876` — SUCCESS.
 - Updater-manifest commit `8e275eb674d9edece91259bd1294483c47124372`.
-
-Stable v1.5.12.4 manifest: SHA-256 `bffd30911a67a3ba782a3c905b1c73f0a1776b2dc0242354506ef8825d4a9bdd`, size 30,709,406 bytes.
-
-The release change is intentionally limited to Calibration classification.
+- Stable v1.5.12.4 SHA-256 `bffd30911a67a3ba782a3c905b1c73f0a1776b2dc0242354506ef8825d4a9bdd`, size 30,709,406 bytes.
 
 ## Weapons — current gold-standard vertical
 
@@ -66,7 +63,7 @@ Classification remains unresolved recipe evidence, never automatically non-craft
 
 ### Unresolved effects
 
-Reference-tracer evidence now proves 14 non-Common weapons reference exact fixed `WS...` skill codes in Blueprint progression that have no exact backing `record_id` in `passive_skill_data`. The dangling codes are:
+Reference-tracer evidence proves 14 non-Common weapons reference exact fixed `WS...` skill codes in Blueprint progression that have no exact backing `record_id` in `passive_skill_data`:
 
 `WS1001`, `WS1101`, `WS1301`, `WS1402`, `WS14503`, `WS1501`, `WS15203`, `WS15304`, `WS15502`, `WS1601`, `WS2001`.
 
@@ -80,37 +77,68 @@ Landed deterministic tracer audit:
 
 Weapon `short_description` stays withheld. Fresh normalized data reproduces the Kukri/frozen-fish cross-wire, so do not expose or patch around it until localization identity/source precedence is proven.
 
-## Armor & Sets — still blocked
+## Armor & Sets — current exact evidence
 
-Canonical public set-piece identity remains `ds-a-{suit_id}-{blueprint_id}`. Fresh data proves 11 Blueprint IDs are reused across multiple suits, so `suit_id` is required identity context.
+Canonical public set-piece identity remains `ds-a-{suit_id}-{blueprint_id}`. Fresh data proves Blueprint IDs can be reused across suit variants, so `suit_id` is required player-facing identity context.
 
-Fifteen Armor records are missing one Tier stat row. Every gap is backed by a Tier crafting recipe with an explicit output item ID, so the correct classification is `crafting-output-present-stat-row-missing`. Do not synthesize/interpolate stats and do not call these non-craftable.
+Fifteen Armor records are missing one Tier stat row. Every gap has a current Tier crafting recipe with an explicit output item ID, so none may be classified as non-craftable and no stats may be interpolated.
 
-Landed:
+The root cause is now narrowed: malformed/incomplete `equip_data` rows omit fields required by `normalize_armor.py`'s canonical filter (`art_lv`, `equip_type`, and/or `equip_lv`) even though the item, blueprint, recipe output, and origin-stat record exist.
+
+Fresh reference-tracer + compact Armor evidence proves two different classes:
+
+1. **13 of 15 gaps are exact-recovery candidates.** The recipe output item, `blueprint_art_to_equip_map` `(blueprint_id, tier)` mapping, equip `blueprint_no`, expected set/key `suit_id`, and `equip_origin_data` record all agree.
+2. **2 of 15 gaps are Blackstone variant conflicts and must remain blocked.** `Blackstone Boots - Cold` Tier III (`suit_id` 1033) and `Blackstone Gloves - Heat` Tier III (`suit_id` 1032) resolve through recipe/map to generic Blackstone suit `1031`. A matching blueprint is not sufficient to substitute the generic item into those player-facing variants.
+
+Examples:
+
+- Blast Pants Tier I: blueprint `23301401` → recipe/map output `23001401`; equip suit `1005`; exact recovery evidence agrees.
+- Charmed Mag Top Tier II: blueprint `22313101` → recipe/map output `22013102`; key-armor suit `0`; exact recovery evidence agrees.
+- Blackstone Boots - Cold Tier III: blueprint `24303101` → recipe/map output `24003103`; mapped equip suit is `1031`, not Cold suit `1033`; block as variant conflict.
+- Blackstone Gloves - Heat Tier III: blueprint `25303101` → recipe/map output `25003103`; mapped equip suit is `1031`, not Heat suit `1032`; block as variant conflict.
+
+Landed earlier:
 
 - `f67d55e6df8af10237131aa9b5f9fb0ba2cbec64` — `audit-armor-tier-evidence.py`.
 - `cb25f8ab06f8d7f7ce07004da7e74069ded40fc9` — tests.
-- Initial site CI `31746486437` — SUCCESS.
+- Site CI `31746486437` — SUCCESS.
 
-Armor remains `SOON` until exact Tier I–V stat evidence is recovered.
+New Day Shift audit:
+
+- `bdd2421cf5d7db8796d35382c3a6818dd43d774e` — `tools/site/audit-armor-tier-recovery.py`.
+- The audit requires recipe output + exact blueprint-art map + equip blueprint + expected suit/key identity + origin stat record before classifying a missing Tier as `recoverable-exact-game-evidence`.
+- Variant mismatch is classified `blocked-armor-variant-conflict`.
+- Two attempts to add its unit-test file were rejected by the GitHub connector safety classifier. Do not claim the test is landed until a later session successfully writes/runs it.
+
+Armor remains `SOON` until the normalizer safely recovers the 13 exact rows and separately resolves (or explicitly preserves) the two Blackstone variant gaps. Do not weaken the five-Tier public materializer merely to publish around those two gaps.
 
 ## Current Calibrations
 
-The fixed classifier was replayed against the v1.5.12.3 normalized rows and yields exactly 94 current families / 94 legacy review rows / 0 ambiguity. v1.5.12.4 must be used for the next compact output; do not hand-edit around the transactional materializer.
+The fixed v1.5.12.4 classifier is proven on the v1.5.12.3 normalized corpus to produce 94 current families / 94 legacy review rows / 0 ambiguity. Use v1.5.12.4 for the next compact Miner output; do not hand-edit around the transactional materializer.
 
 ## Mod 2.0
 
-`audit-mod-level-progression.py` is tested (`71968d87627ef1dda714dca104cd5d2a710c3d78`). Fresh progression has exactly 17 `mod_level` rows, Levels 1–17. There is zero numeric overlap with compact `mod_code` or `main_entry_code`, so numeric ID matching is not a valid join. Prove the consumer/meaning of `frame_lv_1..4` before changing public Mod semantics.
+`audit-mod-level-progression.py` is tested (`71968d87627ef1dda714dca104cd5d2a710c3d78`). Fresh progression has exactly 17 `mod_level` rows, Levels 1–17.
+
+Proven arithmetic invariant:
+
+`frame_lv_1 + frame_lv_2 + frame_lv_3 + frame_lv_4 = mod_level`
+
+for every Level 1–17 row. This proves the level encoding only. It does not prove which sub-attribute occupies each frame, assignment order, upgrade behavior, or Shiny semantics. There is zero numeric overlap with compact `mod_code` or `main_entry_code`; numeric ID matching is not a valid join.
 
 ## Attachments
 
-Fresh player-selectable target is confirmed: Sight 30 / Muzzle 36 / Tactical 36 / Magazine 17 = 119. Names/static effect evidence/images are present. Compact records currently have no proven `compatible_weapon_types`, so compatibility-aware Build Lab migration remains blocked. Do not invent compatibility.
+Fresh player-selectable target is confirmed: Sight 30 / Muzzle 36 / Tactical 36 / Magazine 17 = 119.
+
+Fresh localized installed-game evidence provides explicit compatibility wording for 109/119 records. Some rules are model-specific, so broad weapon-class inference would lose real semantics. Ten records still lack equivalent direct compatibility evidence and must remain unresolved until another table/consumer proves them.
+
+Do not invent compatibility from accessory-code names.
 
 ## Deviations / Cradles
 
 Deviations: 98 display-name families / 160 variants; 60 families are multi-variant. Preserve variants until identity is proven.
 
-Cradles: 120 display-name families / 170 variants; 32 families are multi-variant. Fresh evidence shows same display names can contain materially different descriptions/buff IDs, so display name alone is not safe canonical Cradle identity. Do not auto-select variant #1.
+Cradles: 120 display-name families / 170 variants; 32 families are multi-variant. Same display names can contain materially different record IDs, buff IDs, style codes, images, and descriptions. Display name alone is not safe canonical Cradle identity. Do not auto-select variant #1.
 
 ## Build Lab / ingestion
 
@@ -120,16 +148,18 @@ Hosting-only legacy Build Lab files `preview/build-lab/data/community-data.js` a
 
 ## Exact next sequence
 
-1. Continue source-specific weapon short-description localization investigation; keep descriptions withheld until proven.
-2. Continue Armor root-cause investigation for the 15 recipe-backed missing Tier stat rows.
-3. Use the next v1.5.12.4 installed-game output to verify the 94-family Calibration compact contract end-to-end; repository-side work should continue without waiting where possible.
-4. Prove Mod 2.0 `frame_lv_1..4` / Lv1–17 consumer semantics.
-5. Prove Attachment compatibility from direct table/consumer evidence.
-6. Resolve Deviation and Cradle variant identity, especially Cradles where display-name grouping is demonstrably unsafe.
-7. Continue Build Lab canonical migration only after each category contract is proven.
-8. Keep unready routes `SOON`.
-9. Only after core functionality is broadly complete, audit current Wikily and OnceHumanDB for UX/features and implement evidence-backed differentiators.
+1. Land/run regression coverage for `audit-armor-tier-recovery.py` if connector writes permit it.
+2. Modify `normalize_armor.py` with an evidence-gated fallback that recovers only the 13 exact Tier rows. The fallback must require recipe output + `blueprint_art_to_equip_map` + blueprint identity + expected suit/key identity + origin stat row. Do not recover the two Blackstone variant conflicts through generic suit `1031`.
+3. Re-run Armor normalization/integrity. Target: recover the 13 exact rows while keeping Blackstone conflicts explicit; do not relax public five-Tier invariants unless a separate product decision is made.
+4. Continue source-specific weapon short-description localization investigation; keep descriptions withheld until proven.
+5. Verify v1.5.12.4 Calibration compact output end-to-end when available; repository-side work should continue without waiting where possible.
+6. Prove Mod 2.0 `frame_lv_1..4` consumer semantics beyond the already-proven Level 1–17 sum invariant.
+7. Migrate the 109 direct-evidence Attachment compatibility rules; leave the remaining 10 unresolved.
+8. Resolve Deviation and Cradle variant identity, especially Cradles where display-name grouping is demonstrably unsafe.
+9. Continue Build Lab canonical migration only after each category contract is proven.
+10. Keep unready routes `SOON`.
+11. Only after core functionality is broadly complete, audit current Wikily and OnceHumanDB for UX/features and implement evidence-backed differentiators.
 
 ## Read first
 
-`PROJECT-RULES.md`, `data.7z`, `tools/miner/VERSION`, `tools/miner/release/latest.json`, `tools/miner/src/extractor/normalize_weapons.py`, `tools/miner/src/extractor/normalize_armor.py`, `tools/miner/src/extractor/publish_current_calibrations.py`, `tools/site/audit-weapon-skill-references.py`, `tools/site/audit-armor-tier-evidence.py`, `tools/site/audit-mod-level-progression.py`, `tools/site/audit-extended-contracts.py`, `tools/site/materialize-published-snapshot.py`, `preview/build-lab/canonical-category-bridge.js`, `.github/workflows/test-site-tools.yml`, `.cpanel.yml`.
+`PROJECT-RULES.md`, fresh Miner output, `tools/miner/VERSION`, `tools/miner/release/latest.json`, `tools/miner/src/extractor/normalize_weapons.py`, `tools/miner/src/extractor/normalize_armor.py`, `tools/miner/src/extractor/publish_current_calibrations.py`, `tools/site/audit-weapon-skill-references.py`, `tools/site/audit-armor-tier-evidence.py`, `tools/site/audit-armor-tier-recovery.py`, `tools/site/audit-mod-level-progression.py`, `tools/site/audit-extended-contracts.py`, `tools/site/materialize-published-snapshot.py`, `preview/build-lab/canonical-category-bridge.js`, `.github/workflows/test-site-tools.yml`, `.cpanel.yml`.
