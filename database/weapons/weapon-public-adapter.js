@@ -9,15 +9,58 @@
     && published.weapons.length > 0;
   if (!validContract) return;
 
+  const STAR_CAPS = Object.freeze({ common: 3, rare: 4, epic: 5, legendary: 6 });
+  const LEGAL_TIERS = Object.freeze([1, 2, 3, 4, 5]);
+
+  const isFiniteNumber = (value) => (
+    typeof value === 'number' && Number.isFinite(value)
+  );
+
+  const hasExactNumbers = (values, expected) => (
+    values.length === expected.length
+    && new Set(values).size === expected.length
+    && expected.every((value) => values.includes(value))
+  );
+
+  const validProgressionFor = (weapon) => {
+    const progression = weapon?.progression;
+    if (!progression || progression.formula_status !== 'proven-static-base-attack') return false;
+    if ((progression.validation_issues || []).length) return false;
+
+    const gearTiers = progression.gear_tiers;
+    if (!Array.isArray(gearTiers) || gearTiers.length !== 5) return false;
+    const tierNumbers = gearTiers.map((row) => row?.tier);
+    if (!hasExactNumbers(tierNumbers, LEGAL_TIERS)) return false;
+
+    const matrix = progression.tier_star_matrix;
+    if (!Array.isArray(matrix) || matrix.length !== 5) return false;
+    const matrixTiers = matrix.map((row) => row?.gear_tier);
+    if (!hasExactNumbers(matrixTiers, LEGAL_TIERS)) return false;
+
+    const rarity = String(weapon?.rarity || '').trim().toLowerCase();
+    const starCap = STAR_CAPS[rarity];
+    if (!starCap) return false;
+    const expectedStars = Array.from({ length: starCap }, (_, index) => index + 1);
+
+    return matrix.every((row) => {
+      if (!isFiniteNumber(row?.tier_base_attack_at_1_star)) return false;
+      const stars = row?.blueprint_star_values;
+      if (!Array.isArray(stars) || stars.length !== expectedStars.length) return false;
+      const starNumbers = stars.map((star) => star?.blueprint_stars);
+      if (!hasExactNumbers(starNumbers, expectedStars)) return false;
+
+      return stars.every((star) => {
+        if (!isFiniteNumber(star?.preset_attack_ratio)) return false;
+        if (!Number.isInteger(star?.base_attack)) return false;
+        const expectedAttack = Math.trunc(row.tier_base_attack_at_1_star * star.preset_attack_ratio);
+        return star.base_attack === expectedAttack;
+      });
+    });
+  };
+
   const canonicalIds = published.weapons.map((weapon) => String(weapon?.canonical_id || '').trim());
   const uniqueIds = canonicalIds.length === new Set(canonicalIds).size && canonicalIds.every(Boolean);
-  const validProgression = published.weapons.every((weapon) => (
-    weapon
-    && weapon.progression?.formula_status === 'proven-static-base-attack'
-    && Array.isArray(weapon.progression?.tier_star_matrix)
-    && weapon.progression.tier_star_matrix.length === 5
-    && !(weapon.progression?.validation_issues || []).length
-  ));
+  const validProgression = published.weapons.every(validProgressionFor);
   if (!uniqueIds || !validProgression) return;
 
   const weapons = published.weapons.map((weapon) => ({
