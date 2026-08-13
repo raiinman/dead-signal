@@ -3,7 +3,7 @@
 The normalized extended dataset preserves current and legacy Calibration Blueprint
 rows. The player-facing default must not mix those systems. Current post-2.3.1
 blueprints are identified fail-closed by the invariant already proven from mined
-snapshots: a valid record carries a numeric two-value Weapon DMG RNG roll range.
+snapshots: a valid record carries the rarity-specific Weapon DMG RNG roll range.
 
 No legacy row is discarded from diagnostics; non-current variants remain in the
 contract review section so a future explicit legacy UI can consume them safely.
@@ -18,6 +18,11 @@ from typing import Any
 
 
 EXPECTED_CURRENT_COUNT = 94
+EXPECTED_MAIN_RANGES = {
+    "Rare": (18.0, 25.0),
+    "Epic": (26.0, 33.0),
+    "Legendary": (34.0, 50.0),
+}
 
 
 def utc_now() -> str:
@@ -31,6 +36,9 @@ def _numeric(value: Any) -> bool:
 def is_current_variant(row: dict[str, Any]) -> bool:
     if not bool(row.get("is_valid", True)):
         return False
+    expected = EXPECTED_MAIN_RANGES.get(str(row.get("rarity") or "").strip())
+    if expected is None:
+        return False
     roll = row.get("roll_range")
     if not isinstance(roll, dict):
         return False
@@ -38,7 +46,7 @@ def is_current_variant(row: dict[str, Any]) -> bool:
     maximum = roll.get("maximum_percent")
     if not (_numeric(minimum) and _numeric(maximum)):
         return False
-    return float(minimum) <= float(maximum)
+    return (float(minimum), float(maximum)) == expected
 
 
 def project(payload: dict[str, Any]) -> dict[str, Any]:
@@ -71,7 +79,7 @@ def project(payload: dict[str, Any]) -> dict[str, Any]:
                 "family_key": family.get("family_key"),
                 "name": selected.get("name") or family.get("name") or "Unnamed",
                 "variant_count": 1,
-                "variant_status": "current-system-selected-from-mined-roll-range",
+                "variant_status": "current-system-selected-from-proven-rarity-roll-range",
                 "variants": [selected],
             }
         )
@@ -97,7 +105,13 @@ def project(payload: dict[str, Any]) -> dict[str, Any]:
             "ambiguous_families": len(ambiguous_families),
         },
         "publication_status": "ready-current-system" if ready else "blocked-current-system-classification",
-        "current_system_rule": "valid variant with numeric Weapon DMG RNG minimum_percent and maximum_percent",
+        "current_system_rule": "valid Rare/Epic/Legendary variant with its proven Weapon DMG RNG range",
+        "main_roll_semantics": {
+            "label": "Weapon DMG",
+            "stat_id": "D0102",
+            "aggregation": "same additive Attack-ratio bucket as D0101",
+            "rarity_ranges_percent": {name: list(values) for name, values in EXPECTED_MAIN_RANGES.items()},
+        },
         "expected_current_families": EXPECTED_CURRENT_COUNT,
         "duplicate_canonical_ids": duplicate_ids,
         "ambiguous_family_ids": ambiguous_families,
