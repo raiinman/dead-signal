@@ -14,6 +14,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+from attachment_compatibility import direct_compatibility_evidence
+
 
 PLAYER_ATTACHMENT_TYPES = {"Sight", "Muzzle", "Tactical", "Magazine"}
 
@@ -167,6 +169,7 @@ def build_attachments(payload: dict[str, Any]) -> dict[str, Any]:
                 "attribute_codes": row.get("attribute_codes") or [],
                 "passive_buff_id": row.get("passive_buff_id"),
                 "compatible_weapon_types": row.get("compatible_weapon_types") or [],
+                "compatibility_evidence": direct_compatibility_evidence(normalized.get("description")),
             }
         )
         if normalized["attachment_type"] in PLAYER_ATTACHMENT_TYPES:
@@ -175,13 +178,25 @@ def build_attachments(payload: dict[str, Any]) -> dict[str, Any]:
             excluded.append({"id": normalized["accessory_code"], "name": normalized["name"], "attachment_type": normalized["attachment_type"]})
     ids = [row["canonical_id"] for row in player]
     duplicates = sorted({value for value in ids if ids.count(value) > 1})
+    direct_compatibility = sum(
+        row.get("compatibility_evidence", {}).get("status") == "direct-localized-installed-game-text"
+        for row in player
+    )
+    unresolved_compatibility = len(player) - direct_compatibility
     return {
         "schema": "dead-signal-attachments",
-        "schema_version": 1,
+        "schema_version": 2,
         "generated_utc": utc_now(),
         "source_generated_utc": payload.get("generated_utc"),
-        "record_counts": {"source_records": len(source), "player_weapon_attachments": len(player), "excluded_non_weapon-slot_records": len(excluded)},
+        "record_counts": {
+            "source_records": len(source),
+            "player_weapon_attachments": len(player),
+            "excluded_non_weapon-slot_records": len(excluded),
+            "direct_compatibility_text": direct_compatibility,
+            "unresolved_compatibility": unresolved_compatibility,
+        },
         "publication_status": "ready" if not duplicates else "blocked-duplicate-canonical-id",
+        "compatibility_policy": "Direct localized installed-game wording is preserved verbatim; no English phrase is converted into inferred weapon IDs or class codes.",
         "slot_types": sorted(PLAYER_ATTACHMENT_TYPES),
         "duplicate_canonical_ids": duplicates,
         "attachments": sorted(player, key=lambda row: (row["attachment_type"], row["name"].casefold(), str(row["canonical_id"]))),
