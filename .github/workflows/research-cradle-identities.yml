@@ -1,0 +1,55 @@
+name: Research archived Cradle identities
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/research-cradle-identities.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract archive
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq p7zip-full
+          mkdir -p /tmp/ds
+          7z x -y data.7z -o/tmp/ds >/dev/null
+      - name: Audit Cradle collisions
+        run: |
+          python3 - <<'PY'
+          import json
+          from collections import Counter
+          from pathlib import Path
+          root=Path('/tmp/ds')
+          payload=None
+          for path in root.rglob('cradles.json'):
+              try: row=json.loads(path.read_text(encoding='utf-8'))
+              except Exception: continue
+              if row.get('schema')=='dead-signal-cradles': payload=row; print('SOURCE',path); break
+          fields=('description','buff_id','keyword_id','style_code','attribute_codes','attribute_values')
+          visual=('image_reference','selected_image_reference','equipped_image_reference')
+          families=payload['families']; multi=[f for f in families if len(f.get('variants',[]))>1]
+          changed=Counter(); semantic_distinct=[]; semantic_same=[]; ids=[]
+          freeze=lambda v: json.dumps(v,sort_keys=True,ensure_ascii=False,separators=(',',':'))
+          for family in multi:
+              variants=family['variants']; ids += [v.get('id') for v in variants]
+              sem={freeze({k:v.get(k) for k in fields}) for v in variants}
+              vis={freeze({k:v.get(k) for k in visual}) for v in variants}
+              diff=[k for k in fields+visual if len({freeze(v.get(k)) for v in variants})>1]
+              for k in diff: changed[k]+=1
+              out={'name':family.get('name'),'ids':[v.get('id') for v in variants],'semantic_signatures':len(sem),'visual_signatures':len(vis),'changed':diff}
+              (semantic_distinct if len(sem)>1 else semantic_same).append(out)
+          print('FAMILIES',len(families),'VARIANTS',sum(len(f.get('variants',[])) for f in families),'MULTI',len(multi))
+          print('SEMANTIC_DISTINCT',len(semantic_distinct),'SEMANTIC_SAME',len(semantic_same))
+          print('UNIQUE_IDS',len(set(ids)),'OF',len(ids))
+          print('CHANGED_FIELDS',json.dumps(changed,sort_keys=True))
+          print('DISTINCT_EXAMPLES')
+          for row in semantic_distinct[:20]: print(json.dumps(row,ensure_ascii=False,sort_keys=True))
+          print('SAME_EXAMPLES')
+          for row in semantic_same[:20]: print(json.dumps(row,ensure_ascii=False,sort_keys=True))
+          PY
