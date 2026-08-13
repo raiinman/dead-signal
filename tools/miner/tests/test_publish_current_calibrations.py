@@ -13,55 +13,82 @@ sys.modules[spec.name] = module
 spec.loader.exec_module(module)
 
 
-def make_variant(item_id: int, minimum=None, maximum=None, valid=True, rarity="Legendary"):
+def make_variant(item_id: int, minimum=None, maximum=None, valid=True, rarity="Legendary", buff_id=None):
     return {
         "item_id": item_id,
         "name": f"Calibration {item_id}",
         "rarity": rarity,
         "is_valid": valid,
+        "buff_id": buff_id if buff_id is not None else [item_id, 1],
         "roll_range": {"minimum_percent": minimum, "maximum_percent": maximum},
     }
 
 
 def make_family(index: int, variants):
     return {
-        "canonical_id": f"ds-cal-{index}",
+        "canonical_id": f"ds-cal-source-{index}",
         "family_key": str(index),
         "name": f"Family {index}",
         "variants": variants,
     }
 
 
-def test_selects_one_current_variant_per_family():
+def test_regroups_broad_source_families_by_shared_buff_identity():
+    variants = []
+    for i in range(1, 95):
+        shared = [900000 + i, 1]
+        variants.extend(
+            [
+                make_variant(i * 10, 34, 50, buff_id=shared),
+                make_variant(i * 10 + 1, valid=False, buff_id=shared),
+            ]
+        )
     payload = {
         "schema": "dead-signal-calibrations",
-        "families": [
-            make_family(i, [make_variant(i * 10, 34, 50), make_variant(i * 10 + 1)])
-            for i in range(1, 95)
-        ],
+        "families": [make_family(101, variants)],
     }
     result = module.project(payload)
     assert result["publication_status"] == "ready-current-system"
     assert result["record_counts"]["current_families"] == 94
     assert result["record_counts"]["legacy_or_noncurrent_variants"] == 94
     assert result["record_counts"]["ambiguous_families"] == 0
+    assert len({row["family_key"] for row in result["families"]}) == 94
+    assert all(row["family_key"].startswith("buff:") for row in result["families"])
     assert all(len(row["variants"]) == 1 for row in result["families"])
     assert result["main_roll_semantics"]["stat_id"] == "D0102"
     assert result["main_roll_semantics"]["rarity_ranges_percent"]["Legendary"] == [34.0, 50.0]
 
 
-def test_blocks_ambiguous_or_missing_current_family():
+def test_blocks_duplicate_current_records_for_same_buff_identity():
+    shared = [900001, 3]
     payload = {
         "schema": "dead-signal-calibrations",
         "families": [
-            make_family(1, [make_variant(10, 34, 50), make_variant(11, 26, 33, rarity="Epic")]),
-            make_family(2, [make_variant(20)]),
+            make_family(
+                1,
+                [
+                    make_variant(10, 34, 50, buff_id=shared),
+                    make_variant(11, 34, 50, buff_id=shared),
+                ],
+            )
         ],
     }
     result = module.project(payload)
     assert result["publication_status"] == "blocked-current-system-classification"
-    assert result["record_counts"]["ambiguous_families"] == 2
+    assert result["record_counts"]["ambiguous_families"] == 1
     assert result["families"] == []
+    assert result["ambiguous_family_ids"] == ["buff:900001:3"]
+
+
+def test_requires_buff_identity_for_current_classification():
+    payload = {
+        "schema": "dead-signal-calibrations",
+        "families": [make_family(1, [make_variant(10, 34, 50, buff_id=[])])],
+    }
+    result = module.project(payload)
+    assert result["publication_status"] == "blocked-current-system-classification"
+    assert result["record_counts"]["ambiguous_families"] == 1
+    assert result["ambiguous_family_ids"] == ["missing-buff-id:10"]
 
 
 def test_requires_exact_proven_rarity_range():
