@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#08090b">
+  <meta name="description" content="Browse current Once Human Calibration Blueprints from Dead Signal's mined database.">
+  <title>Calibrations — Dead Signal</title>
+  <link rel="stylesheet" href="../../shared/readability.css">
+  <link rel="stylesheet" href="../../shared/workstation-shell.css">
+  <link rel="stylesheet" href="../extended-catalogue.css">
+  <script src="../../shared/readability.js" defer></script>
+  <script src="../../shared/workstation-shell.js" defer></script>
+  <script src="calibrations-data.js?v=20260813a"></script>
+  <script src="../extended-catalogue.js?v=20260813a" defer></script>
+</head>
+<body data-category="calibrations">
+  <a class="skip-link" href="#databaseMain">Skip to Calibration database</a>
+  <main id="databaseMain" class="db-route">
+    <section class="db-hero"><div><p>DB // Current Calibrations</p><h1>Craft with the <em>current system.</em></h1><p>Dead Signal publishes current Calibration Blueprints only after the Miner proves one unambiguous current record per family. Legacy rows remain audit evidence, not silent defaults.</p></div><div class="db-count"><strong id="dbCount">—</strong><span>Current families</span></div></section>
+    <section class="db-controls" aria-label="Calibration filters"><label><span>Search</span><input id="dbSearch" type="search" placeholder="Calibration, style, effect…" autocomplete="off"></label><label><span>Style</span><select id="dbPrimary"><option value="">All styles</option></select></label><label><span>Rarity</span><select id="dbRarity"><option value="">All rarities</option></select></label><button id="dbClear" type="button">Clear filters</button></section>
+    <p id="dbStatus" class="db-status" aria-live="polite">Loading verified current Calibration contract…</p>
+    <section id="dbGrid" class="db-grid" aria-label="Calibration results"></section>
+    <section id="dbUnavailable" class="db-unavailable" hidden><strong>CALIBRATION DATA AWAITING VERIFIED SNAPSHOT</strong><p>The route is ready, but it stays fail-closed until a compact Miner contract proves exactly 94 current families with no current/legacy ambiguity.</p></section>
+  </main>
+</body>
+</html>
