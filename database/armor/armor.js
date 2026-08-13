@@ -13,8 +13,54 @@
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   const art = (row) => row?.image_asset ? `<img src="${esc(row.image_asset)}" alt="${esc(row.name || '')}" loading="lazy">` : '<span>IMAGE PENDING</span>';
   const tierLabel = (row) => ['I','II','III','IV','V'][Number(row?.data_level ?? row?.tier ?? 0)-1] || '—';
+  const tierNumber = (row) => Number(row?.data_level ?? row?.tier ?? 0);
 
-  if (!data || data.schema !== 'dead-signal-armor' || !Array.isArray(data.armor_sets) || !Array.isArray(data.key_armor)) {
+  function validPiece(piece, parentSuit = null, keyArmor = false) {
+    if (!piece || typeof piece !== 'object' || !String(piece.name || '').trim() || !String(piece.slot || '').trim()) return false;
+    const blueprint = String(piece.blueprint_id ?? '');
+    const canonical = String(piece.canonical_id || '');
+    if (!blueprint || !canonical) return false;
+    if (keyArmor) {
+      if (canonical !== `ds-ka-${blueprint}`) return false;
+    } else {
+      const suit = String(piece.suit_id ?? '');
+      if (!suit || suit !== String(parentSuit) || canonical !== `ds-a-${suit}-${blueprint}`) return false;
+    }
+    const tiers = Array.isArray(piece.tiers) ? piece.tiers : [];
+    const tierNumbers = tiers.map(tierNumber);
+    return tiers.length === 5 && new Set(tierNumbers).size === 5 && [1,2,3,4,5].every((value) => tierNumbers.includes(value));
+  }
+
+  function validContract(payload) {
+    if (!payload || payload.schema !== 'dead-signal-armor' || payload.schema_version !== 1 || !Array.isArray(payload.armor_sets) || !Array.isArray(payload.key_armor)) return false;
+    const ids = new Set();
+    let pieces = 0;
+    for (const armorSet of payload.armor_sets) {
+      const suit = String(armorSet?.suit_id ?? '');
+      const canonical = String(armorSet?.canonical_id || '');
+      if (!suit || canonical !== `ds-as-${suit}` || !String(armorSet?.name || '').trim() || !Array.isArray(armorSet?.pieces)) return false;
+      if (ids.has(canonical)) return false;
+      ids.add(canonical);
+      if (armorSet.piece_count != null && Number(armorSet.piece_count) !== armorSet.pieces.length) return false;
+      for (const piece of armorSet.pieces) {
+        if (!validPiece(piece, suit, false) || ids.has(piece.canonical_id)) return false;
+        ids.add(piece.canonical_id);
+        pieces += 1;
+      }
+    }
+    for (const piece of payload.key_armor) {
+      if (!validPiece(piece, null, true) || ids.has(piece.canonical_id)) return false;
+      ids.add(piece.canonical_id);
+      pieces += 1;
+    }
+    const counts = payload.record_counts || {};
+    if (counts.armor_sets != null && Number(counts.armor_sets) !== payload.armor_sets.length) return false;
+    if (counts.key_armor != null && Number(counts.key_armor) !== payload.key_armor.length) return false;
+    if (counts.armor_pieces != null && Number(counts.armor_pieces) !== pieces) return false;
+    return true;
+  }
+
+  if (!validContract(data)) {
     results.hidden = true;
     unavailable.hidden = false;
     status.textContent = 'Armor route prepared · verified compact contract not materialized.';
