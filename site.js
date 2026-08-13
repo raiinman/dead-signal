@@ -51,10 +51,11 @@ function initOfficialXFrame() {
   const frame = document.createElement('iframe');
   frame.className = 'official-x-frame';
   frame.title = 'Official Once Human posts on X';
-  frame.src = `/social/once-human-x.html?v=1`;
+  frame.src = '/social/once-human-x.html?v=1';
   frame.loading = 'eager';
   frame.referrerPolicy = 'strict-origin-when-cross-origin';
   frame.setAttribute('scrolling', 'yes');
+  frame.style.cssText = 'display:block;width:100%;height:100%;border:0;background:#07090b';
 
   body.replaceChildren(frame);
 }
