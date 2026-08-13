@@ -1,14 +1,17 @@
 (() => {
   'use strict';
+
   const category = document.body.dataset.category;
-  const config = {
-    calibrations: ['dead-signal-calibrations', window.DS_CALIBRATIONS_WEB, 'families', 'Calibration families'],
+  const configs = {
+    calibrations: ['dead-signal-calibrations-current', window.DS_CALIBRATIONS_WEB, 'families', 'Calibration families'],
     mods: ['dead-signal-mods', window.DS_MODS_WEB, 'families', 'Mod families'],
     attachments: ['dead-signal-attachments', window.DS_ATTACHMENTS_WEB, 'attachments', 'Weapon attachments'],
     deviations: ['dead-signal-deviations', window.DS_DEVIATIONS_WEB, 'families', 'Deviation families'],
     cradles: ['dead-signal-cradles', window.DS_CRADLES_WEB, 'families', 'Cradle families'],
-  }[category];
+  };
+  const config = configs[category];
   if (!config) return;
+
   const [schema, data, collection, label] = config;
   const grid = document.getElementById('dbGrid');
   const unavailable = document.getElementById('dbUnavailable');
@@ -17,7 +20,7 @@
   const primary = document.getElementById('dbPrimary');
   const rarity = document.getElementById('dbRarity');
   const count = document.getElementById('dbCount');
-  const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+  const clear = document.getElementById('dbClear');
   const text = (value) => String(value ?? '').trim();
   const variants = (row) => Array.isArray(row.variants) ? row.variants : [row];
   const name = (row) => text(row.name) || text(variants(row)[0]?.name) || 'Unnamed record';
@@ -40,13 +43,16 @@
     status.textContent = `${label} route prepared · verified compact contract not materialized.`;
     return;
   }
+
   const records = data[collection];
   count.textContent = records.length.toLocaleString();
 
   function calibrationSummary(row, item) {
     const roll = item?.roll_range || {};
-    const range = Number.isFinite(Number(roll.minimum_percent)) && Number.isFinite(Number(roll.maximum_percent))
-      ? `${Number(roll.minimum_percent)}–${Number(roll.maximum_percent)}% Weapon DMG roll`
+    const minimum = Number(roll.minimum_percent);
+    const maximum = Number(roll.maximum_percent);
+    const range = Number.isFinite(minimum) && Number.isFinite(maximum)
+      ? `${minimum}–${maximum}% Weapon DMG roll`
       : 'Weapon DMG roll range unresolved';
     const compatibility = (item?.weapon_type_codes || []).length
       ? `Weapon types ${item.weapon_type_codes.join(', ')}`
@@ -56,24 +62,76 @@
 
   function summary(row) {
     const list = variants(row);
-    if (category === 'attachments') return [text(row.attachment_type) || 'Weapon attachment', text(row.effects || row.description), `Accessory ${row.accessory_code ?? '—'} · Affix ${row.affix_code ?? '—'}`];
+    if (category === 'attachments') {
+      return [text(row.attachment_type) || 'Weapon attachment', text(row.effects || row.description), `Accessory ${row.accessory_code ?? '—'} · Affix ${row.affix_code ?? '—'}`];
+    }
     if (category === 'calibrations') return calibrationSummary(row, list[0]);
-    if (category === 'mods') return [`Mod code ${row.family_key ?? '—'}`, list.length > 1 ? 'All mined variants for this proven mod family are preserved.' : text(list[0]?.description), `${list.length} variant${list.length === 1 ? '' : 's'} · ${rarities(row).join(', ') || 'rarity unresolved'}`];
-    if (category === 'deviations') return [list.length > 1 ? `${list.length} source variants` : 'Player-facing Deviation', text(list[0]?.skills?.[0]?.description || list[0]?.skill_catalog?.[0]?.description), `Source IDs ${list.map((item) => item.id).filter((value) => value != null).join(', ') || '—'}`];
+    if (category === 'mods') {
+      return [`Mod code ${row.family_key ?? '—'}`, list.length > 1 ? 'All mined variants for this proven mod family are preserved.' : text(list[0]?.description), `${list.length} variant${list.length === 1 ? '' : 's'} · ${rarities(row).join(', ') || 'rarity unresolved'}`];
+    }
+    if (category === 'deviations') {
+      return [list.length > 1 ? `${list.length} source variants` : 'Player-facing Deviation', text(list[0]?.skills?.[0]?.description || list[0]?.skill_catalog?.[0]?.description), `Source IDs ${list.map((item) => item.id).filter((value) => value != null).join(', ') || '—'}`];
+    }
     return [list.length > 1 ? `${list.length} source variants` : 'Cradle Override', text(list[0]?.description), `Source IDs ${list.map((item) => item.id).filter((value) => value != null).join(', ') || '—'}`];
   }
 
-  [...new Set(records.map((row) => summary(row)[0]).filter(Boolean))].sort().forEach((value) => primary.add(new Option(value, value)));
+  function addOption(select, value) {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = value;
+    select.append(option);
+  }
+
+  [...new Set(records.map((row) => summary(row)[0]).filter(Boolean))].sort().forEach((value) => addOption(primary, value));
   const rarityValues = [...new Set(records.flatMap(rarities))].sort();
-  rarityValues.forEach((value) => rarity.add(new Option(value, value)));
+  rarityValues.forEach((value) => addOption(rarity, value));
   if (!rarityValues.length) rarity.closest('label')?.setAttribute('hidden', '');
+
+  function appendText(parent, tag, value, className = '') {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    node.textContent = value;
+    parent.append(node);
+    return node;
+  }
 
   function card(row) {
     const [primaryText, description, details] = summary(row);
     const list = variants(row);
     const rs = rarities(row);
-    const rarityClass = rs.length === 1 ? ` rarity-${esc(rs[0])}` : '';
-    return `<article class="db-card${rarityClass}"><small>${esc(primaryText)}</small><h2>${esc(name(row))}</h2><p>${esc(description || 'No player-facing description is resolved in the current compact contract.')}</p><div class="meta"><div><span>Evidence</span><b>${esc(details)}</b></div><div><span>Variants</span><b>${esc(list.length)}</b></div></div>${list.length > 1 ? `<div class="variant-list"><small>Source variants preserved</small>${list.slice(0,6).map((item) => `<div class="variant"><strong>${esc(text(item.name) || `Source ${item.id ?? item.item_id ?? 'record'}`)}</strong><span>${esc(text(item.rarity))}${item.item_id ? ` · item ${esc(item.item_id)}` : ''}</span></div>`).join('')}</div>` : ''}</article>`;
+    const article = document.createElement('article');
+    article.className = 'db-card';
+    if (rs.length === 1) article.classList.add(`rarity-${rs[0]}`);
+    appendText(article, 'small', primaryText);
+    appendText(article, 'h2', name(row));
+    appendText(article, 'p', description || 'No player-facing description is resolved in the current compact contract.');
+
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const evidence = document.createElement('div');
+    appendText(evidence, 'span', 'Evidence');
+    appendText(evidence, 'b', details);
+    const variantCount = document.createElement('div');
+    appendText(variantCount, 'span', 'Variants');
+    appendText(variantCount, 'b', String(list.length));
+    meta.append(evidence, variantCount);
+    article.append(meta);
+
+    if (list.length > 1) {
+      const variantList = document.createElement('div');
+      variantList.className = 'variant-list';
+      appendText(variantList, 'small', 'Source variants preserved');
+      list.slice(0, 6).forEach((item) => {
+        const variant = document.createElement('div');
+        variant.className = 'variant';
+        appendText(variant, 'strong', text(item.name) || `Source ${item.id ?? item.item_id ?? 'record'}`);
+        const suffix = item.item_id ? ` · item ${item.item_id}` : '';
+        appendText(variant, 'span', `${text(item.rarity)}${suffix}`);
+        variantList.append(variant);
+      });
+      article.append(variantList);
+    }
+    return article;
   }
 
   function render() {
@@ -81,13 +139,23 @@
     const visible = records.filter((row) => {
       const [primaryText, description, details] = summary(row);
       const haystack = `${name(row)} ${primaryText} ${description} ${details}`.toLowerCase();
-      return (!query || haystack.includes(query)) && (!primary.value || primaryText === primary.value) && (!rarity.value || rarities(row).includes(rarity.value));
+      return (!query || haystack.includes(query))
+        && (!primary.value || primaryText === primary.value)
+        && (!rarity.value || rarities(row).includes(rarity.value));
     });
-    grid.innerHTML = visible.map(card).join('');
+    grid.replaceChildren(...visible.map(card));
     status.textContent = `${visible.length} of ${records.length} ${label.toLowerCase()} shown · ${text(data.publication_status) || 'compact Miner contract'}.`;
   }
 
-  [search, primary, rarity].forEach((control) => control.addEventListener(control === search ? 'input' : 'change', render));
-  document.getElementById('dbClear').addEventListener('click', () => { search.value = ''; primary.value = ''; rarity.value = ''; render(); search.focus(); });
+  search.addEventListener('input', render);
+  primary.addEventListener('change', render);
+  rarity.addEventListener('change', render);
+  clear.addEventListener('click', () => {
+    search.value = '';
+    primary.value = '';
+    rarity.value = '';
+    render();
+    search.focus();
+  });
   render();
 })();
