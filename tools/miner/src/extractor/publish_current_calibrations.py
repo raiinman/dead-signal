@@ -2,8 +2,11 @@
 
 The normalized extended dataset preserves current and legacy Calibration Blueprint
 rows. The player-facing default must not mix those systems. Current post-2.3.1
-blueprints are identified fail-closed by the invariant already proven from mined
-snapshots: a valid record carries the rarity-specific Weapon DMG RNG roll range.
+blueprints are identified fail-closed by two installed-game invariants:
+
+1. current and legacy partners share the same mined buff_id identity; and
+2. exactly one valid record in that identity carries the rarity-specific Weapon
+   DMG RNG roll range proven for the current system.
 
 No legacy row is discarded from diagnostics; non-current variants remain in the
 contract review section so a future explicit legacy UI can consume them safely.
@@ -11,6 +14,7 @@ contract review section so a future explicit legacy UI can consume them safely.
 
 from __future__ import annotations
 
+from collections import defaultdict
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -31,6 +35,15 @@ def utc_now() -> str:
 
 def _numeric(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _buff_key(row: dict[str, Any]) -> str | None:
+    value = row.get("buff_id")
+    if isinstance(value, (list, tuple)) and len(value) == 2:
+        first, second = value
+        if first not in (None, "") and second not in (None, ""):
+            return f"{first}:{second}"
+    return None
 
 
 def is_current_variant(row: dict[str, Any]) -> bool:
@@ -56,30 +69,42 @@ def project(payload: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(source_families, list):
         raise ValueError("Calibration compact contract must contain families")
 
-    current_families: list[dict[str, Any]] = []
-    review_variants: list[dict[str, Any]] = []
-    ambiguous_families: list[str] = []
-
+    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    unkeyed_variants: list[dict[str, Any]] = []
     for family in source_families:
         if not isinstance(family, dict):
             continue
-        variants = [row for row in family.get("variants", []) if isinstance(row, dict)]
+        for row in family.get("variants", []):
+            if not isinstance(row, dict):
+                continue
+            key = _buff_key(row)
+            if key is None:
+                unkeyed_variants.append(row)
+                continue
+            grouped[key].append(row)
+
+    current_families: list[dict[str, Any]] = []
+    review_variants: list[dict[str, Any]] = list(unkeyed_variants)
+    ambiguous_families: list[str] = [f"missing-buff-id:{row.get('item_id')}" for row in unkeyed_variants]
+
+    for family_key, variants in sorted(grouped.items()):
         current = [row for row in variants if is_current_variant(row)]
         non_current = [row for row in variants if row not in current]
 
         if len(current) != 1:
-            ambiguous_families.append(str(family.get("canonical_id") or family.get("family_key") or "unknown"))
+            ambiguous_families.append(f"buff:{family_key}")
             review_variants.extend(variants)
             continue
 
         selected = dict(current[0])
+        item_id = selected.get("item_id") or selected.get("id")
         current_families.append(
             {
-                "canonical_id": family.get("canonical_id"),
-                "family_key": family.get("family_key"),
-                "name": selected.get("name") or family.get("name") or "Unnamed",
+                "canonical_id": f"ds-cal-{item_id}" if item_id not in (None, "") else f"ds-cal-buff-{family_key.replace(':', '-')}",
+                "family_key": f"buff:{family_key}",
+                "name": selected.get("name") or "Unnamed",
                 "variant_count": 1,
-                "variant_status": "current-system-selected-from-proven-rarity-roll-range",
+                "variant_status": "current-system-selected-from-shared-buff-identity-and-proven-rarity-roll-range",
                 "variants": [selected],
             }
         )
@@ -105,7 +130,7 @@ def project(payload: dict[str, Any]) -> dict[str, Any]:
             "ambiguous_families": len(ambiguous_families),
         },
         "publication_status": "ready-current-system" if ready else "blocked-current-system-classification",
-        "current_system_rule": "valid Rare/Epic/Legendary variant with its proven Weapon DMG RNG range",
+        "current_system_rule": "shared mined buff_id identity plus exactly one valid Rare/Epic/Legendary variant with its proven Weapon DMG RNG range",
         "main_roll_semantics": {
             "label": "Weapon DMG",
             "stat_id": "D0102",
@@ -114,8 +139,8 @@ def project(payload: dict[str, Any]) -> dict[str, Any]:
         },
         "expected_current_families": EXPECTED_CURRENT_COUNT,
         "duplicate_canonical_ids": duplicate_ids,
-        "ambiguous_family_ids": ambiguous_families,
-        "families": current_families,
+        "ambiguous_family_ids": sorted(ambiguous_families),
+        "families": sorted(current_families, key=lambda row: (str(row.get("name") or "").casefold(), str(row.get("canonical_id") or ""))),
         "legacy_or_noncurrent_review": review_variants,
     }
 
