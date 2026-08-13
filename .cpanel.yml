@@ -55,7 +55,9 @@ deployment:
     - /bin/cp -f database/weapons/index.html $ROOTPATH/database/weapons/index.html
     - /bin/cp -f database/weapons/catalogue.css $ROOTPATH/database/weapons/catalogue.css
     - /bin/cp -f database/weapons/catalogue.js $ROOTPATH/database/weapons/catalogue.js
+    - /bin/cp -f database/weapons/weapons-data.js $ROOTPATH/database/weapons/weapons-data.js
     - /bin/cp -f database/weapons/weapon-math-data.js $ROOTPATH/database/weapons/weapon-math-data.js
+    - /bin/cp -f database/weapons/weapon-public-adapter.js $ROOTPATH/database/weapons/weapon-public-adapter.js
     - /bin/cp -f database/weapons/sks-pathfinder/index.html $ROOTPATH/database/weapons/sks-pathfinder/index.html
     - /bin/cp -f database/weapons/detail/index.html $ROOTPATH/database/weapons/detail/index.html
     - /bin/mkdir -p $DEPLOYPATH
@@ -90,7 +92,9 @@ deployment:
     - /bin/cp -f preview/build-lab/planner-header.css $DEPLOYPATH/planner-header.css
     - /bin/cp -f preview/build-lab/weapon-compare.js $DEPLOYPATH/weapon-compare.js
     - /bin/cp -f preview/build-lab/catalogue-handoff.js $DEPLOYPATH/catalogue-handoff.js
+    - /bin/cp -f database/weapons/weapons-data.js $DEPLOYPATH/weapons-data.js
     - /bin/cp -f database/weapons/weapon-math-data.js $DEPLOYPATH/weapon-math-data.js
+    - /bin/cp -f database/weapons/weapon-public-adapter.js $DEPLOYPATH/weapon-public-adapter.js
     - /bin/cp -f preview/build-lab/weapon-data-adapter.js $DEPLOYPATH/weapon-data-adapter.js
     - /bin/cp -f shared/readability.css $DEPLOYPATH/readability.css
     - /bin/cp -f shared/readability.js $DEPLOYPATH/readability.js
