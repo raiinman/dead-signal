@@ -7,6 +7,8 @@ from pathlib import Path
 
 from armor_tier_normalization import complete_piece_tiers
 
+INCOMPLETE_TIER_REASON = "Canonical Tier I-V series is incomplete in the current equipment table"
+
 
 def _table(path: Path):
     payload = json.loads(path.read_text(encoding="utf-8"))
@@ -56,6 +58,27 @@ def complete_file(base, current, output, log=print):
         unresolved.extend(missing)
         conflicts.extend(variant_conflicts)
 
+    recovered_blueprints = {
+        int(row["blueprint_id"])
+        for row in recovered
+        if row.get("blueprint_id") is not None
+    }
+    review_queue = []
+    for row in payload.get("review_queue") or []:
+        try:
+            blueprint_id = int(row.get("blueprint_id") or 0)
+        except (TypeError, ValueError):
+            blueprint_id = 0
+        if (
+            blueprint_id in recovered_blueprints
+            and row.get("reason") == INCOMPLETE_TIER_REASON
+        ):
+            continue
+        review_queue.append(row)
+    review_queue.extend(unresolved)
+    review_queue.extend(conflicts)
+    payload["review_queue"] = review_queue
+
     set_rows = sum(
         len(piece.get("tiers") or [])
         for armor_set in payload.get("armor_sets") or []
@@ -71,8 +94,6 @@ def complete_file(base, current, output, log=print):
     counts["recovered_tier_stat_rows"] = len(recovered)
     counts["crafting_variant_conflicts"] = len(conflicts)
 
-    payload.setdefault("review_queue", []).extend(unresolved)
-    payload.setdefault("review_queue", []).extend(conflicts)
     payload["armor_tier_recovery"] = {
         "status": "complete" if not unresolved else "partial",
         "recovered": recovered,
