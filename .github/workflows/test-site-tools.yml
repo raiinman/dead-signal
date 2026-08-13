@@ -7,6 +7,7 @@ on:
     paths:
       - 'tools/site/**'
       - 'database/**'
+      - 'shared/workstation-shell.js'
       - 'preview/build-lab/index.html'
       - 'preview/build-lab/weapon-data-adapter.js'
       - 'preview/build-lab/weapon-model-ui.js'
@@ -41,6 +42,7 @@ jobs:
 
       - name: Syntax-check database browser modules
         run: |
+          node --check shared/workstation-shell.js
           node --check database/weapons/catalogue.js
           node --check database/weapons/weapon-public-adapter.js
           node --check database/weapons/weapon-detail-extras.js
