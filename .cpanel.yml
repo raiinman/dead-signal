@@ -117,6 +117,11 @@ deployment:
     - /bin/cp -f database/weapons/weapon-math-data.js $DEPLOYPATH/weapon-math-data.js
     - /bin/cp -f database/weapons/weapon-public-adapter.js $DEPLOYPATH/weapon-public-adapter.js
     - /bin/cp -f preview/build-lab/weapon-data-adapter.js $DEPLOYPATH/weapon-data-adapter.js
+    - /bin/cp -f database/calibrations/calibrations-data.js $DEPLOYPATH/calibrations-data.js
+    - /bin/cp -f database/attachments/attachments-data.js $DEPLOYPATH/attachments-data.js
+    - /bin/cp -f database/deviations/deviations-data.js $DEPLOYPATH/deviations-data.js
+    - /bin/cp -f database/cradles/cradles-data.js $DEPLOYPATH/cradles-data.js
+    - /bin/cp -f preview/build-lab/canonical-category-bridge.js $DEPLOYPATH/canonical-category-bridge.js
     - /bin/cp -f shared/readability.css $DEPLOYPATH/readability.css
     - /bin/cp -f shared/readability.js $DEPLOYPATH/readability.js
     - /bin/cp -f preview/build-lab/armor-image-map.js $DEPLOYPATH/armor-image-map.js
