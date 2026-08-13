@@ -204,8 +204,15 @@ def build_attachments(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def named_variant(row: dict[str, Any], include: tuple[str, ...]) -> dict[str, Any]:
-    result = {"id": row.get("id"), "name": text(row.get("name")), "image_reference": text(row.get("image_asset") or row.get("image_reference"))}
+def named_variant(row: dict[str, Any], canonical_prefix: str, include: tuple[str, ...]) -> dict[str, Any]:
+    source_id = row.get("id")
+    canonical_id = f"{canonical_prefix}-{source_id}" if source_id not in (None, "") else ""
+    result = {
+        "id": source_id,
+        "canonical_id": canonical_id,
+        "name": text(row.get("name")),
+        "image_reference": text(row.get("image_asset") or row.get("image_reference")),
+    }
     for field in include:
         result[field] = row.get(field)
     return result
@@ -216,32 +223,64 @@ def display_name_key(row: dict[str, Any]) -> str:
     return name if name else f"id-{row.get('id')}"
 
 
-def build_deviations(payload: dict[str, Any]) -> dict[str, Any]:
-    variants = [named_variant(row, ("deviation_type_code", "unit_id", "unit_type", "collection_value", "containment", "mood", "skills", "skill_catalog")) for row in payload.get("deviations", []) if isinstance(row, dict)]
-    families = group_variants(variants, display_name_key, "ds-dev")
+def source_variant_contract(
+    payload: dict[str, Any],
+    source_key: str,
+    schema: str,
+    variant_prefix: str,
+    family_prefix: str,
+    include: tuple[str, ...],
+) -> dict[str, Any]:
+    variants = [
+        named_variant(row, variant_prefix, include)
+        for row in payload.get(source_key, [])
+        if isinstance(row, dict)
+    ]
+    families = group_variants(variants, display_name_key, family_prefix)
+    canonical_ids = [text(row.get("canonical_id")) for row in variants]
+    missing = [str(row.get("id")) for row in variants if not text(row.get("canonical_id"))]
+    duplicates = sorted({value for value in canonical_ids if value and canonical_ids.count(value) > 1})
+    multi = sum(family.get("variant_count", 0) > 1 for family in families)
+    ready = not missing and not duplicates
     return {
-        "schema": "dead-signal-deviations",
+        "schema": schema,
         "schema_version": 1,
         "generated_utc": utc_now(),
         "source_generated_utc": payload.get("generated_utc"),
-        "record_counts": {"display_name_families": len(families), "source_variants": len(variants)},
-        "publication_status": "display-name-families-with-source-variants-preserved",
+        "record_counts": {
+            "display_name_families": len(families),
+            "source_variants": len(variants),
+            "single_variant_families": len(families) - multi,
+            "multi_variant_families": multi,
+        },
+        "publication_status": "display-name-families-with-source-variants-preserved" if ready else "blocked-source-variant-identity",
+        "variant_identity_policy": "Display name is a browse grouping only. Each mined source ID is canonical variant identity; multi-variant families remain unresolved for player selection.",
+        "duplicate_variant_canonical_ids": duplicates,
+        "missing_variant_canonical_ids": missing,
         "families": families,
     }
+
+
+def build_deviations(payload: dict[str, Any]) -> dict[str, Any]:
+    return source_variant_contract(
+        payload,
+        "deviations",
+        "dead-signal-deviations",
+        "ds-dev",
+        "ds-dev-family",
+        ("deviation_type_code", "unit_id", "unit_type", "collection_value", "containment", "mood", "skills", "skill_catalog"),
+    )
 
 
 def build_cradles(payload: dict[str, Any]) -> dict[str, Any]:
-    variants = [named_variant(row, ("description", "buff_id", "keyword_id", "style_code", "attribute_codes", "attribute_values", "selected_image_reference", "equipped_image_reference")) for row in payload.get("cradles", []) if isinstance(row, dict)]
-    families = group_variants(variants, display_name_key, "ds-cradle")
-    return {
-        "schema": "dead-signal-cradles",
-        "schema_version": 1,
-        "generated_utc": utc_now(),
-        "source_generated_utc": payload.get("generated_utc"),
-        "record_counts": {"display_name_families": len(families), "source_variants": len(variants)},
-        "publication_status": "display-name-families-with-source-variants-preserved",
-        "families": families,
-    }
+    return source_variant_contract(
+        payload,
+        "cradles",
+        "dead-signal-cradles",
+        "ds-cradle",
+        "ds-cradle-family",
+        ("description", "buff_id", "keyword_id", "style_code", "attribute_codes", "attribute_values", "selected_image_reference", "equipped_image_reference"),
+    )
 
 
 BUILDERS: dict[str, tuple[str, Callable[[dict[str, Any]], dict[str, Any]]]] = {
