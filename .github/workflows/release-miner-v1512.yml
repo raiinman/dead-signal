@@ -35,6 +35,15 @@ jobs:
         shell: pwsh
         run: ./tools/miner/setup-build.ps1
 
+      - name: Create CI-only install marker for self-test
+        shell: pwsh
+        run: |
+          $install = 'C:\Program Files (x86)\Steam\steamapps\common\Once Human'
+          New-Item -ItemType Directory -Path (Join-Path $install 'Documents') -Force | Out-Null
+          New-Item -ItemType File -Path (Join-Path $install 'script.npk') -Force | Out-Null
+          New-Item -ItemType File -Path (Join-Path $install 'Documents\script.npk') -Force | Out-Null
+          New-Item -ItemType File -Path (Join-Path $install 'ONCE_HUMAN.exe') -Force | Out-Null
+
       - name: Compile and run source tests
         shell: pwsh
         run: |
@@ -115,7 +124,7 @@ jobs:
           $json = $manifest | ConvertTo-Json
           [System.IO.File]::WriteAllText((Resolve-Path 'tools/miner/release/latest.json'), $json + "`n", [System.Text.UTF8Encoding]::new($false))
           git config user.name 'github-actions[bot]'
-          git config user.email '41898255+github-actions[bot]@users.noreply.github.com'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add tools/miner/release/latest.json
           git commit -m "Publish Miner v$version updater release"
           git push origin HEAD:main
