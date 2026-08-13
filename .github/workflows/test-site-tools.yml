@@ -38,7 +38,10 @@ jobs:
           python-version: '3.11'
 
       - name: Test compact database materializers and audits
-        run: python -m unittest discover -s tools/site/tests -v
+        run: python -m unittest discover -s tools/site/tests -p 'test_*.py' -v
+
+      - name: Test browser Weapons contract guard
+        run: node tools/site/tests/test-weapon-public-adapter.js
 
       - name: Syntax-check database browser modules
         run: |
