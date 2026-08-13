@@ -2,9 +2,10 @@
   'use strict';
 
   const source = window.DS_WEAPON_MATH || {};
+  const finite = (value) => value !== null && value !== undefined && value !== '' && typeof value !== 'boolean' && Number.isFinite(Number(value));
   const attrValue = (cell, key) => {
     const value = cell?.base_attributes?.find((item) => item.key === key)?.value;
-    return Number.isFinite(Number(value)) ? Number(value) * 100 : undefined;
+    return finite(value) ? Number(value) * 100 : undefined;
   };
 
   const weapons = (source.weapons || []).map((record) => {
@@ -19,12 +20,12 @@
       name: record.name,
       type: record.category,
       rarity: record.rarity,
-      description: record.short_description || '',
+      description: '',
       acquisition: record.acquisition_hint || record.item_gain_path || '',
-      feature: record.static_inputs?.weapon_effect?.description || record.short_description || '',
+      feature: record.static_inputs?.weapon_effect?.description || '',
       imageAsset: record.image_asset || '',
       imageStatus: record.image_status || 'unresolved',
-      coverage: 'Installed-game Miner v1.5.9.0',
+      coverage: 'Installed-game Miner weapon projection',
       sources: [{ site: 'Installed game snapshot' }],
       stats: {
         damage: cell?.base_attack,
