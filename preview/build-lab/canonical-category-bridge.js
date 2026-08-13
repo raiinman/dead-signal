@@ -5,6 +5,11 @@
   const ids = (row) => [row?.id, row?.itemId, row?.item_id, row?.canonicalId, row?.canonical_id]
     .filter((value) => value !== null && value !== undefined && value !== '')
     .map(String);
+  const calibrationRanges = Object.freeze({
+    Rare: Object.freeze([18, 25]),
+    Epic: Object.freeze([26, 33]),
+    Legendary: Object.freeze([34, 50]),
+  });
 
   const configs = {
     calibrations: {
@@ -77,6 +82,33 @@
     };
   }
 
+  function currentCalibrationContractReady(data) {
+    if (
+      data.schema_version !== 2
+      || data.publication_status !== 'ready-current-system'
+      || data.expected_current_families !== 94
+      || !Array.isArray(data.families)
+      || data.families.length !== 94
+      || (data.duplicate_canonical_ids || []).length
+      || (data.ambiguous_family_ids || []).length
+      || data.main_roll_semantics?.stat_id !== 'D0102'
+    ) return false;
+
+    const canonicalIds = data.families.map((family) => String(family?.canonical_id || '').trim());
+    if (canonicalIds.some((value) => !value) || new Set(canonicalIds).size !== canonicalIds.length) return false;
+
+    return data.families.every((family) => {
+      if (family?.variant_count !== 1 || family?.variant_status !== 'current-system-selected-from-proven-rarity-roll-range') return false;
+      if (!Array.isArray(family?.variants) || family.variants.length !== 1) return false;
+      const variant = family.variants[0];
+      const expected = calibrationRanges[String(variant?.rarity || '').trim()];
+      if (!expected) return false;
+      const roll = variant?.roll_range;
+      return Number(roll?.minimum_percent) === expected[0]
+        && Number(roll?.maximum_percent) === expected[1];
+    });
+  }
+
   for (const [category, config] of Object.entries(configs)) {
     const data = config.source;
     if (!data) {
@@ -87,15 +119,7 @@
       report.categories[category] = { status: 'schema-mismatch', applied: false, schema: data.schema };
       continue;
     }
-    if (category === 'calibrations' && (
-      data.schema_version !== 2
-      || data.publication_status !== 'ready-current-system'
-      || data.expected_current_families !== 94
-      || !Array.isArray(data.families)
-      || data.families.length !== 94
-      || (data.ambiguous_family_ids || []).length
-      || data.families.some((family) => !Array.isArray(family.variants) || family.variants.length !== 1)
-    )) {
+    if (category === 'calibrations' && !currentCalibrationContractReady(data)) {
       report.categories[category] = { status: 'current-system-contract-not-ready', applied: false };
       continue;
     }
