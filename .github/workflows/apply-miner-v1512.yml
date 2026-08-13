@@ -21,7 +21,7 @@ jobs:
         shell: pwsh
         run: |
           $parts = Get-ChildItem 'tools/miner/patches/v1.5.12-source-patch.part-*' | Sort-Object Name
-          if ($parts.Count -ne 5) { throw "Expected 5 patch chunks, found $($parts.Count)." }
+          if ($parts.Count -ne 6) { throw "Expected 6 patch chunks, found $($parts.Count)." }
           $encoded = ($parts | ForEach-Object { Get-Content $_.FullName -Raw }) -join ''
           $archive = 'tools/miner/patches/v1.5.12-source-patch.tar.gz'
           [System.IO.File]::WriteAllBytes($archive, [Convert]::FromBase64String($encoded))
