@@ -44,8 +44,7 @@ deployment:
     - /bin/cp -f site.js $ROOTPATH/site.js
     - /bin/mkdir -p $ROOTPATH/api/twitter/cache
     - /bin/cp -f api/twitter/cache/index.php $ROOTPATH/api/twitter/cache/index.php
-    - /bin/mkdir -p $ROOTPATH/api/twitter/probe
-    - /bin/cp -f api/twitter/probe/index.php $ROOTPATH/api/twitter/probe/index.php
+    - /bin/rm -rf $ROOTPATH/api/twitter/probe
     - /bin/mkdir -p $ROOTPATH/shared
     - /bin/cp -f shared/readability.css $ROOTPATH/shared/readability.css
     - /bin/cp -f shared/readability.js $ROOTPATH/shared/readability.js
@@ -60,7 +59,7 @@ deployment:
     - /bin/cp -f database/weapons/sks-pathfinder/index.html $ROOTPATH/database/weapons/sks-pathfinder/index.html
     - /bin/cp -f database/weapons/detail/index.html $ROOTPATH/database/weapons/detail/index.html
     - /bin/mkdir -p $DEPLOYPATH
-    - /bin/echo 'Dead Signal static image deployment' > $DEPLOYPATH/deploy-status.txt
+    - /bin/echo 'Dead Signal deployment' > $DEPLOYPATH/deploy-status.txt
     - /bin/echo 'RUN copy Build Lab files' >> $DEPLOYPATH/deploy-status.txt
     - /bin/cp -f preview/build-lab/index.html $DEPLOYPATH/index.html
     - /bin/cp -f preview/build-lab/build-lab.css $DEPLOYPATH/build-lab.css
@@ -101,4 +100,4 @@ deployment:
     - /bin/rm -f $DEPLOYPATH/media-enhancements.js
     - /bin/rm -f $DEPLOYPATH/cpanel-deploy-test.txt
     - /bin/echo 'OK copy Build Lab files' >> $DEPLOYPATH/deploy-status.txt
-    - /bin/echo 'COMPLETE static image deployment' >> $DEPLOYPATH/deploy-status.txt
+    - /bin/echo 'COMPLETE Dead Signal deployment' >> $DEPLOYPATH/deploy-status.txt
