@@ -36,14 +36,22 @@ class ExtendedRouteWiringTests(unittest.TestCase):
         ):
             self.assertIn(schema, source)
 
-    def test_build_lab_loads_canonical_contracts_before_legacy_app(self):
+    def test_build_lab_loads_canonical_contracts_guard_and_bridge_before_legacy_app(self):
         route = (ROOT / "preview" / "build-lab" / "index.html").read_text(encoding="utf-8")
         app_index = route.index('src="app.js')
+        guard_index = route.index('src="canonical-category-variant-guard.js')
         bridge_index = route.index('src="canonical-category-bridge.js')
+        self.assertLess(guard_index, bridge_index)
         self.assertLess(bridge_index, app_index)
         for category in self.BUILD_LAB_CATEGORIES:
             contract_index = route.index(f'src="{category}-data.js')
-            self.assertLess(contract_index, bridge_index)
+            self.assertLess(contract_index, guard_index)
+
+    def test_variant_guard_covers_family_contracts_that_preserve_source_variants(self):
+        source = (ROOT / "preview" / "build-lab" / "canonical-category-variant-guard.js").read_text(encoding="utf-8")
+        self.assertIn("DS_DEVIATIONS_WEB", source)
+        self.assertIn("DS_CRADLES_WEB", source)
+        self.assertIn("family.variants.length !== 1", source)
 
     def test_copy_only_manifest_deploys_prepared_routes_and_build_lab_bridge(self):
         manifest = (ROOT / ".cpanel.yml").read_text(encoding="utf-8")
@@ -57,6 +65,10 @@ class ExtendedRouteWiringTests(unittest.TestCase):
                 f"database/{category}/{category}-data.js $DEPLOYPATH/{category}-data.js",
                 manifest,
             )
+        self.assertIn(
+            "preview/build-lab/canonical-category-variant-guard.js $DEPLOYPATH/canonical-category-variant-guard.js",
+            manifest,
+        )
         self.assertIn(
             "preview/build-lab/canonical-category-bridge.js $DEPLOYPATH/canonical-category-bridge.js",
             manifest,
