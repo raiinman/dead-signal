@@ -38,10 +38,14 @@ jobs:
       - name: Compile and run source tests
         shell: pwsh
         run: |
+          $python = 'tools/miner/.venv-build/Scripts/python.exe'
           $env:PYTHONPATH = 'tools/miner/src;tools/miner/src/extractor;tools/miner/src/neoxtractor'
-          python -m compileall -q tools/miner/src tools/miner/tests
-          python -m unittest discover -s tools/miner/tests -v
-          python tools/miner/src/dead_signal_miner.py --self-test
+          & $python -m compileall -q tools/miner/src tools/miner/tests
+          if ($LASTEXITCODE -ne 0) { throw 'Source compile check failed.' }
+          & $python -m unittest discover -s tools/miner/tests -v
+          if ($LASTEXITCODE -ne 0) { throw 'Miner unit tests failed.' }
+          & $python tools/miner/src/dead_signal_miner.py --self-test
+          if ($LASTEXITCODE -ne 0) { throw 'Source self-test failed.' }
 
       - name: Build packaged Miner and updater
         shell: pwsh
@@ -111,7 +115,7 @@ jobs:
           $json = $manifest | ConvertTo-Json
           [System.IO.File]::WriteAllText((Resolve-Path 'tools/miner/release/latest.json'), $json + "`n", [System.Text.UTF8Encoding]::new($false))
           git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git config user.email '41898255+github-actions[bot]@users.noreply.github.com'
           git add tools/miner/release/latest.json
           git commit -m "Publish Miner v$version updater release"
           git push origin HEAD:main
