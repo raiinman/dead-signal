@@ -20,6 +20,7 @@ def load_module(name: str, filename: str):
 
 module = load_module("publish_current_calibrations", "publish_current_calibrations.py")
 extended = load_module("publish_extended_web_data_for_calibration_test", "publish_extended_web_data.py")
+attachment_compatibility = load_module("attachment_compatibility_test", "attachment_compatibility.py")
 
 
 def make_affixes(rarity: str):
@@ -132,6 +133,33 @@ class CurrentCalibrationTests(unittest.TestCase):
         }
         compact = extended.calibration_variant(source)
         self.assertEqual([200, 200, 200, 200], compact["affix_ids_weight"])
+
+
+class AttachmentCompatibilityTests(unittest.TestCase):
+    def test_preserves_class_wording_verbatim(self):
+        result = attachment_compatibility.direct_compatibility_evidence(
+            "A muzzle that enhances Accuracy. Can be equipped on pistols and submachine guns."
+        )
+        self.assertEqual("direct-localized-installed-game-text", result["status"])
+        self.assertEqual("Can be equipped on pistols and submachine guns", result["text"])
+
+    def test_preserves_model_specific_wording_verbatim(self):
+        result = attachment_compatibility.direct_compatibility_evidence(
+            "A tactical accessory. Can be equipped on KAM (above Common Rarity) Series Weapons."
+        )
+        self.assertEqual("Can be equipped on KAM (above Common Rarity) Series Weapons", result["text"])
+
+    def test_supports_fits_all_wording(self):
+        result = attachment_compatibility.direct_compatibility_evidence(
+            "An open-structure mechanical sight that fits all sniper rifles."
+        )
+        self.assertEqual("direct-localized-installed-game-text", result["status"])
+        self.assertEqual("fits all sniper rifles", result["text"])
+
+    def test_noncompatibility_text_stays_unresolved(self):
+        result = attachment_compatibility.direct_compatibility_evidence("A muzzle that enhances Accuracy.")
+        self.assertEqual("unresolved", result["status"])
+        self.assertEqual("", result["text"])
 
 
 if __name__ == "__main__":
