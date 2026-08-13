@@ -9,6 +9,7 @@ on:
       - 'tools/miner/tests/**'
       - 'tools/miner/requirements*.txt'
       - 'tools/miner/setup-build.ps1'
+      - 'tools/miner/build.ps1'
       - '.github/workflows/test-miner.yml'
   workflow_dispatch:
 
@@ -55,5 +56,17 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Source compile check failed.' }
           & $python -m unittest discover -s tools/miner/tests -v
           if ($LASTEXITCODE -ne 0) { throw 'Miner unit tests failed.' }
-          & $python tools/miner/src/dead_signal_miner.py --self-test
-          if ($LASTEXITCODE -ne 0) { throw 'Source self-test failed.' }
+          & $python tools/miner/src/miner_entry.py --self-test
+          if ($LASTEXITCODE -ne 0) { throw 'Canonical source self-test failed.' }
+
+      - name: Build packaged Miner and updater
+        shell: pwsh
+        run: ./tools/miner/build.ps1
+
+      - name: Run packaged self-test
+        shell: pwsh
+        run: |
+          $miner = (Resolve-Path 'tools/miner/dist/Dead Signal Miner/Dead Signal Miner.exe').Path
+          $process = Start-Process -FilePath $miner -ArgumentList '--self-test' -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Packaged Miner self-test failed with exit code $($process.ExitCode)" }
+          if (-not (Test-Path 'tools/miner/dist/Dead Signal Miner/Dead Signal Miner Updater.exe')) { throw 'Packaged updater helper is missing.' }
