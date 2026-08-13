@@ -12,7 +12,7 @@
   <link rel="preload" as="image" href="assets/hero/dead-signal-environment-hero-v2.png" fetchpriority="high">
   <script src="shared/readability.js" defer></script>
   <script src="shared/workstation-shell.js" defer></script>
-  <script src="site.js?v=4.0.2" defer></script>
+  <script src="site.js?v=4.1.0" defer></script>
   <style>
     .official-feed{align-self:center;min-width:0;border:1px solid #3f4a51;border-top-color:#8d3038;border-radius:16px;background:linear-gradient(180deg,rgba(11,16,20,.96),rgba(6,9,11,.96));box-shadow:0 35px 90px rgba(0,0,0,.5);overflow:hidden}
     .official-feed-head{min-height:62px;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:11px 16px 11px 18px;border-bottom:1px solid #303b42;background:linear-gradient(90deg,rgba(230,50,62,.08),transparent 54%)}
@@ -28,7 +28,7 @@
     .official-feed-meta span:first-child{color:#9eabb2}
     .official-feed-meta b{color:#58c7cc;font-weight:900}
 
-    /* Landing command strip: compact workstation hierarchy without changing behavior. */
+    /* Landing command strip: one canonical search, shared across desktop and mobile. */
     .landing-commandbar{isolation:isolate}
     .landing-commandbar p span{display:inline-grid;place-items:center;min-width:30px;height:28px;padding:0 7px;border:1px solid #652329;border-radius:3px;background:linear-gradient(180deg,#190d10,#0c0a0c);color:#f24a55;font-size:.64rem;letter-spacing:.12em;box-shadow:inset 0 0 0 1px rgba(255,255,255,.02)}
     .landing-command-search{position:relative;display:block}
@@ -40,13 +40,15 @@
     .verified-state{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:34px;padding:0 10px;border:1px solid #24494e;border-radius:999px;background:linear-gradient(180deg,rgba(20,63,68,.24),rgba(8,22,25,.4));white-space:nowrap}
     .verified-state::before{width:16px;height:16px;margin-right:0!important;font-size:.68rem;background:#0a1719}
     .landing-commandbar>a{min-height:44px;gap:16px;padding-inline:18px;box-shadow:inset 0 1px rgba(255,255,255,.08)}
+    .database-landing{margin-top:38px}
+    .search-status[hidden]{display:none}
 
     @keyframes signal-pulse{0%{box-shadow:0 0 0 0 rgba(89,224,175,.45)}70%,100%{box-shadow:0 0 0 9px rgba(89,224,175,0)}}
     @media(min-width:1101px){.landing-commandbar{position:sticky;top:0;z-index:60;min-height:66px;grid-template-columns:auto minmax(320px,620px) 1fr auto;gap:clamp(16px,2vw,32px);padding-top:9px;padding-bottom:9px;background:linear-gradient(180deg,rgba(7,9,11,.98),rgba(7,9,11,.93));box-shadow:0 12px 32px rgba(0,0,0,.2);backdrop-filter:blur(18px) saturate(115%)}}
     @media(min-width:1101px) and (max-width:1450px){.landing-commandbar{grid-template-columns:minmax(280px,1fr) auto auto;gap:16px}.landing-commandbar p{display:none}.verified-state{display:inline-flex}}
     @media(max-width:1100px){.landing-commandbar{min-height:64px;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:10px 16px 10px 76px}.landing-commandbar p,.verified-state{display:none}.landing-command-search input{min-height:42px}}
     @media(max-width:900px){.landing-hero{row-gap:46px;padding-bottom:68px}.landing-hero-copy{max-width:720px}.official-feed{width:min(780px,100%);justify-self:start;margin-top:4px}.official-feed-head{padding:13px 16px 13px 18px}}
-    @media(max-width:620px){.landing-commandbar{grid-template-columns:1fr;min-height:62px;padding:10px 12px 10px 76px}.landing-command-search{display:none}.landing-commandbar>a{grid-column:1;justify-self:end;min-height:42px;padding-inline:16px}.landing-hero{row-gap:32px;padding-bottom:54px}.official-feed{margin-top:0;border-radius:10px}.official-feed-head{align-items:flex-start;gap:12px;padding:12px 13px 12px 14px}.official-feed-head>a{margin-top:1px}.official-feed-body{height:340px;min-height:340px}.official-feed-meta{align-items:flex-start;flex-direction:column;justify-content:center;gap:3px;padding:9px 14px}}
+    @media(max-width:620px){.landing-commandbar{grid-template-columns:minmax(0,1fr);min-height:62px;padding:10px 12px 10px 76px}.landing-command-search{display:block}.landing-command-search::after{display:none}.landing-command-search input{padding-right:14px!important}.landing-commandbar>a{display:none}.landing-hero{row-gap:32px;padding-bottom:54px}.official-feed{margin-top:0;border-radius:10px}.official-feed-head{align-items:flex-start;gap:12px;padding:12px 13px 12px 14px}.official-feed-head>a{margin-top:1px}.official-feed-body{height:340px;min-height:340px}.official-feed-meta{align-items:flex-start;flex-direction:column;justify-content:center;gap:3px;padding:9px 14px}.database-landing{margin-top:28px}}
     @media(prefers-reduced-motion:reduce){.official-feed-title>i{animation:none}}
   </style>
 </head>
@@ -55,7 +57,7 @@
   <main id="main">
     <header class="landing-commandbar">
       <p><span aria-hidden="true">DS</span> Once Human intelligence</p>
-      <label class="landing-command-search"><span class="sr-only">Search Dead Signal</span><input type="search" data-search-mirror placeholder="Search Dead Signal..." autocomplete="off"></label>
+      <label class="landing-command-search"><span class="sr-only">Search Dead Signal database systems</span><input id="databaseQuery" type="search" placeholder="Search Dead Signal..." autocomplete="off"></label>
       <span class="verified-state">Verified player-facing data</span>
       <a href="/build-planner/">Open Build Lab <span aria-hidden="true">→</span></a>
     </header>
@@ -82,14 +84,8 @@
       </aside>
     </section>
 
-    <section class="signal-search" aria-labelledby="search-title">
-      <div><span aria-hidden="true">⌕</span><strong id="search-title">Search the signal</strong></div>
-      <label><span class="sr-only">Search database categories</span><input id="databaseQuery" type="search" placeholder="Search weapons, armor, mods, and build systems..." autocomplete="off"></label>
-      <kbd>/</kbd>
-    </section>
-    <p id="searchStatus" class="search-status" aria-live="polite">Search across the current player-facing database.</p>
-
     <section class="database-landing" id="database" aria-labelledby="database-title">
+      <p id="searchStatus" class="search-status" aria-live="polite" hidden></p>
       <div class="database-title-row"><div><p>Database</p><h2 id="database-title">Choose a system.</h2></div><span>Current mined snapshot</span></div>
       <div class="landing-category-grid" id="categoryGrid">
         <a class="landing-category weapons" href="database/weapons/" data-search="weapons guns melee attack firearm"><picture><source type="image/avif" srcset="assets/database-icons/weapons-v2-256.avif 256w, assets/database-icons/weapons-v2-512.avif 512w"><img src="assets/database-icons/weapons-v2-256.webp" srcset="assets/database-icons/weapons-v2-256.webp 256w, assets/database-icons/weapons-v2-512.webp 512w" alt="" width="256" height="256"></picture><div><span>DB // 01</span><h3>Weapons</h3><p>Progression, stats, effects, ammo, and configuration evidence.</p><strong>120 records <i>→</i></strong></div></a>
