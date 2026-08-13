@@ -1,0 +1,43 @@
+name: Research archived Mod frame arithmetic
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/research-mod-frame-arithmetic.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract archived corpus
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq p7zip-full
+          mkdir -p /tmp/dead-signal-fresh
+          7z x -y data.7z -o/tmp/dead-signal-fresh >/dev/null
+      - name: Run Mod arithmetic audit
+        run: python tools/site/audit-mod-frame-arithmetic.py /tmp/dead-signal-fresh
+      - name: Locate frame-level evidence
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path('/tmp/dead-signal-fresh')
+          for field in ('frame_lv_1','frame_lv_2','frame_lv_3','frame_lv_4'):
+              matches=[]
+              for path in root.rglob('*'):
+                  if not path.is_file() or path.stat().st_size > 50_000_000:
+                      continue
+                  try:
+                      text=path.read_text(encoding='utf-8')
+                  except Exception:
+                      continue
+                  count=text.count(field)
+                  if count:
+                      matches.append((str(path.relative_to(root)),count))
+              print(field, matches)
+          PY
