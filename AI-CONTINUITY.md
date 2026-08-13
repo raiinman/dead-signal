@@ -16,9 +16,9 @@
 
 ## Current checkpoint
 
-Latest functional HEAD before this handoff refresh:
+Latest functional code HEAD before the handoff-only commits:
 
-`2b42a302cb5277a2ad0287a02b8af9b485242401` — **Guard Build Lab canonical contract readiness**
+`16e08dc087ee3f5585b0bd5fb8f95596e1cac16d` — **Syntax-check global workstation shell**
 
 Recent milestones:
 
@@ -29,6 +29,8 @@ Recent milestones:
 - Build Lab has canonical-category readiness, mapping, and variant guards so ambiguous data cannot silently replace the compatibility corpus.
 - `eb1af76a791094ac91b6a3d1b81cb950ca3bb2fa` fails closed on invalid Weapons public data.
 - `2b42a302cb5277a2ad0287a02b8af9b485242401` adds Build Lab contract-readiness gating.
+- `fd7a7fe692f01617cc357caa03464a1e5bb81981` shows the current Miner version in the workstation shell.
+- `16e08dc087ee3f5585b0bd5fb8f95596e1cac16d` adds shell syntax coverage.
 
 ## Live development preview
 
