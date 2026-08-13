@@ -1,9 +1,14 @@
-name: Publish Miner v1.5.12 Windows update
+name: Publish Miner Windows update
 
 on:
   push:
+    branches:
+      - main
     paths:
+      - 'tools/miner/**'
       - '.github/workflows/release-miner-v1512.yml'
+      - '!tools/miner/release/latest.json'
+      - '!tools/miner/release/artifacts/**'
   workflow_dispatch:
 
 permissions:
@@ -29,7 +34,8 @@ jobs:
         shell: pwsh
         run: |
           $version = (Get-Content 'tools/miner/VERSION' -Raw).Trim()
-          if ($version -ne '1.5.12.0') { throw "Expected Miner 1.5.12.0, found $version" }
+          if ($version -notmatch '^\d+\.\d+\.\d+\.\d+$') { throw "Invalid Miner release version: $version" }
+          "MINER_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Prepare Windows build environment
         shell: pwsh
@@ -77,7 +83,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $version = (Get-Content 'tools/miner/VERSION' -Raw).Trim()
+          $version = $env:MINER_VERSION
           $tag = "miner-v$version"
           $archive = "tools/miner/release/artifacts/Dead-Signal-Miner-v$version-Windows.zip"
           $checksum = "$archive.sha256"
@@ -86,13 +92,13 @@ jobs:
             gh release delete $tag --repo '${{ github.repository }}' --yes --cleanup-tag
             if ($LASTEXITCODE -ne 0) { throw 'Could not remove incomplete prior Miner release.' }
           }
-          gh release create $tag $archive $checksum --repo '${{ github.repository }}' --target '${{ github.sha }}' --title "Dead Signal Miner v$version" --notes "Dead Signal Miner v$version — Publishing & Integrity. Adds website-ready publishing contracts, internal data-quality reporting, snapshot change reports, a hashed snapshot manifest, and the conservative relationship/evidence graph scaffold. This package was built and self-tested on GitHub Windows runners before publication."
+          gh release create $tag $archive $checksum --repo '${{ github.repository }}' --target '${{ github.sha }}' --title "Dead Signal Miner v$version" --notes "Dead Signal Miner v$version. Built, unit-tested, packaged, self-tested, and publicly re-verified on a GitHub Windows runner before the updater manifest was published."
           if ($LASTEXITCODE -ne 0) { throw 'GitHub release creation failed.' }
 
       - name: Verify public release asset
         shell: pwsh
         run: |
-          $version = (Get-Content 'tools/miner/VERSION' -Raw).Trim()
+          $version = $env:MINER_VERSION
           $archive = "tools/miner/release/artifacts/Dead-Signal-Miner-v$version-Windows.zip"
           $expectedHash = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
           $expectedSize = (Get-Item $archive).Length
@@ -112,7 +118,7 @@ jobs:
         run: |
           git pull --rebase origin main
           $version = (Get-Content 'tools/miner/VERSION' -Raw).Trim()
-          if ($version -ne '1.5.12.0') { throw "Version changed during release: $version" }
+          if ($version -ne $env:MINER_VERSION) { throw "Version changed during release: expected $env:MINER_VERSION, found $version" }
           $manifest = [ordered]@{
             schema_version = 1
             version = $version
@@ -127,5 +133,9 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add tools/miner/release/latest.json
-          git commit -m "Publish Miner v$version updater release"
-          git push origin HEAD:main
+          if (git diff --cached --quiet) {
+            Write-Host 'Updater manifest already matches this verified release.'
+          } else {
+            git commit -m "Publish Miner v$version updater release"
+            git push origin HEAD:main
+          }
