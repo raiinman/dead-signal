@@ -91,21 +91,28 @@
       || data.families.length !== 94
       || (data.duplicate_canonical_ids || []).length
       || (data.ambiguous_family_ids || []).length
+      || (data.secondary_pool_failure_ids || []).length
       || data.main_roll_semantics?.stat_id !== 'D0102'
+      || data.secondary_roll_semantics?.selection_count !== 1
+      || JSON.stringify(data.secondary_roll_semantics?.observed_candidate_weights) !== JSON.stringify([200, 200, 200, 200])
     ) return false;
 
     const canonicalIds = data.families.map((family) => String(family?.canonical_id || '').trim());
     if (canonicalIds.some((value) => !value) || new Set(canonicalIds).size !== canonicalIds.length) return false;
 
     return data.families.every((family) => {
-      if (family?.variant_count !== 1 || family?.variant_status !== 'current-system-selected-from-proven-rarity-roll-range') return false;
+      if (family?.variant_count !== 1 || family?.variant_status !== 'current-system-selected-from-proven-main-roll-and-secondary-pool') return false;
       if (!Array.isArray(family?.variants) || family.variants.length !== 1) return false;
       const variant = family.variants[0];
       const expected = calibrationRanges[String(variant?.rarity || '').trim()];
       if (!expected) return false;
       const roll = variant?.roll_range;
+      const candidates = variant?.secondary_roll_candidates;
       return Number(roll?.minimum_percent) === expected[0]
-        && Number(roll?.maximum_percent) === expected[1];
+        && Number(roll?.maximum_percent) === expected[1]
+        && Array.isArray(candidates)
+        && candidates.length === 4
+        && candidates.every((candidate) => Number(candidate?.weight) === 200);
     });
   }
 
