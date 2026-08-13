@@ -13,28 +13,45 @@ class ExtendedRouteWiringTests(unittest.TestCase):
         "deviations": "DS_DEVIATIONS_WEB",
         "cradles": "DS_CRADLES_WEB",
     }
+    DEDICATED_CATEGORIES = ("calibrations", "mods")
+    SHARED_CATEGORIES = ("attachments", "deviations", "cradles")
     BUILD_LAB_CATEGORIES = ("calibrations", "attachments", "deviations", "cradles")
 
-    def test_routes_reference_shared_renderer_and_own_contract(self):
+    def test_routes_load_own_contract_and_expected_renderer(self):
         for category, variable in self.CATEGORIES.items():
             with self.subTest(category=category):
                 route = (ROOT / "database" / category / "index.html").read_text(encoding="utf-8")
                 self.assertIn("../extended-catalogue.css", route)
-                self.assertIn("../extended-catalogue.js", route)
                 self.assertIn(f"{category}-data.js", route)
+                if category in self.SHARED_CATEGORIES:
+                    self.assertIn('src="../extended-catalogue.js', route)
+                else:
+                    self.assertNotIn('src="../extended-catalogue.js', route)
+                    self.assertIn(variable, route)
                 placeholder = (ROOT / "database" / category / f"{category}-data.js").read_text(encoding="utf-8")
                 self.assertIn(variable, placeholder)
 
-    def test_shared_renderer_has_all_expected_contract_schemas(self):
+    def test_shared_renderer_only_contains_shared_category_contracts(self):
         source = (ROOT / "database" / "extended-catalogue.js").read_text(encoding="utf-8")
         for schema in (
-            "dead-signal-calibrations-current",
-            "dead-signal-mods",
             "dead-signal-attachments",
             "dead-signal-deviations",
             "dead-signal-cradles",
         ):
             self.assertIn(schema, source)
+        self.assertNotIn("dead-signal-calibrations-current", source)
+        self.assertNotIn("dead-signal-mods", source)
+
+    def test_dedicated_current_category_routes_enforce_supported_contracts(self):
+        calibrations = (ROOT / "database" / "calibrations" / "index.html").read_text(encoding="utf-8")
+        self.assertIn("dead-signal-calibrations", calibrations)
+        self.assertIn("ready-current-system", calibrations)
+        self.assertIn("expected_current_families === 94", calibrations)
+
+        mods = (ROOT / "database" / "mods" / "index.html").read_text(encoding="utf-8")
+        self.assertIn("dead-signal-mods", mods)
+        self.assertIn("mod-code-family-projection-variants-preserved", mods)
+        self.assertIn("main_entry_effects", mods)
 
     def test_build_lab_loads_canonical_contracts_guard_and_bridge_before_legacy_app(self):
         route = (ROOT / "preview" / "build-lab" / "index.html").read_text(encoding="utf-8")
