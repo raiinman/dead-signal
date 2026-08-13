@@ -51,11 +51,27 @@ function initOfficialXFrame() {
   const frame = document.createElement('iframe');
   frame.className = 'official-x-frame';
   frame.title = 'Official Once Human posts on X';
-  frame.src = '/social/once-human-x.html?v=1';
   frame.loading = 'eager';
   frame.referrerPolicy = 'strict-origin-when-cross-origin';
   frame.setAttribute('scrolling', 'yes');
   frame.style.cssText = 'display:block;width:100%;height:100%;border:0;background:#07090b';
+  frame.srcdoc = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<style>
+html,body{margin:0;min-height:100%;background:#07090b;color:#d9e1e5;font-family:Inter,"Segoe UI",system-ui,sans-serif}body{overflow-x:hidden}.twitter-timeline{display:grid;place-items:center;min-height:340px;padding:24px;color:#58c7cc;text-align:center;text-decoration:none;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;box-sizing:border-box}iframe{display:block!important;width:100%!important;max-width:100%!important;margin:0!important;border:0!important}.feed-status{display:none;min-height:340px;place-content:center;padding:28px;box-sizing:border-box;text-align:center;color:#7f8b92;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.feed-status strong{display:block;margin-bottom:8px;color:#ef5b64}.feed-status a{color:#58c7cc}
+</style>
+</head>
+<body>
+<a class="twitter-timeline" href="https://twitter.com/OnceHuman_?ref_src=twsrc%5Etfw">Tweets by OnceHuman_</a>
+<div class="feed-status" id="feedStatus"><div><strong>X timeline did not initialize</strong><span>The browser or X blocked the embed. </span><a href="https://x.com/OnceHuman_" target="_blank" rel="noopener noreferrer">Open @OnceHuman_ on X</a></div></div>
+<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"><\/script>
+<script>window.setTimeout(function(){if(document.querySelector('iframe'))return;var a=document.querySelector('.twitter-timeline'),s=document.getElementById('feedStatus');if(a)a.style.display='none';if(s)s.style.display='grid'},6000)<\/script>
+</body>
+</html>`;
 
   body.replaceChildren(frame);
 }
