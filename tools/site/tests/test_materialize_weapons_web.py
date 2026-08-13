@@ -18,8 +18,13 @@ class MaterializeWeaponsWebTests(unittest.TestCase):
         return [
             {
                 "gear_tier": tier,
+                "tier_base_attack_at_1_star": 100 * tier,
                 "blueprint_star_values": [
-                    {"blueprint_stars": stars, "base_attack": 100 * tier + stars}
+                    {
+                        "blueprint_stars": stars,
+                        "preset_attack_ratio": 1 + ((stars - 1) * 0.05),
+                        "base_attack": int((100 * tier) * (1 + ((stars - 1) * 0.05))),
+                    }
                     for stars in range(1, star_cap + 1)
                 ],
             }
@@ -117,15 +122,41 @@ class MaterializeWeaponsWebTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "five Tier × Blueprint Star matrix rows"):
                 MODULE.load_and_validate(source)
 
-    def test_blueprint_stars_cannot_exceed_rarity_cap(self) -> None:
+    def test_blueprint_stars_must_match_exact_rarity_set(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
             source = Path(folder) / "weapons.json"
             payload = self.payload()
-            payload["weapons"][1]["progression"]["tier_star_matrix"][0]["blueprint_star_values"].append(
-                {"blueprint_stars": 6, "base_attack": 999}
-            )
+            stars = payload["weapons"][1]["progression"]["tier_star_matrix"][0]["blueprint_star_values"]
+            stars.pop(1)
             source.write_text(json.dumps(payload), encoding="utf-8")
-            with self.assertRaisesRegex(ValueError, "Epic Blueprint Star cap"):
+            with self.assertRaisesRegex(ValueError, "must be exactly 1-5"):
+                MODULE.load_and_validate(source)
+
+    def test_unknown_rarity_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder) / "weapons.json"
+            payload = self.payload()
+            payload["weapons"][0]["rarity"] = "Mythic"
+            source.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "unsupported rarity"):
+                MODULE.load_and_validate(source)
+
+    def test_matrix_rows_require_numeric_tier_base_attack(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder) / "weapons.json"
+            payload = self.payload()
+            payload["weapons"][0]["progression"]["tier_star_matrix"][0]["tier_base_attack_at_1_star"] = None
+            source.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "numeric 1★ Base Attack evidence"):
+                MODULE.load_and_validate(source)
+
+    def test_matrix_rows_require_numeric_preset_attack_ratio(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder) / "weapons.json"
+            payload = self.payload()
+            payload["weapons"][0]["progression"]["tier_star_matrix"][0]["blueprint_star_values"][0]["preset_attack_ratio"] = None
+            source.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "missing numeric preset_attack_ratio"):
                 MODULE.load_and_validate(source)
 
     def test_matrix_rows_require_numeric_base_attack(self) -> None:
@@ -135,6 +166,24 @@ class MaterializeWeaponsWebTests(unittest.TestCase):
             payload["weapons"][0]["progression"]["tier_star_matrix"][0]["blueprint_star_values"][0]["base_attack"] = None
             source.write_text(json.dumps(payload), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "numeric Base Attack"):
+                MODULE.load_and_validate(source)
+
+    def test_base_attack_must_recompute_from_tier_base_and_ratio(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder) / "weapons.json"
+            payload = self.payload()
+            payload["weapons"][0]["progression"]["tier_star_matrix"][4]["blueprint_star_values"][5]["base_attack"] += 1
+            source.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "Base Attack mismatch"):
+                MODULE.load_and_validate(source)
+
+    def test_fractional_published_base_attack_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder) / "weapons.json"
+            payload = self.payload()
+            payload["weapons"][0]["progression"]["tier_star_matrix"][0]["blueprint_star_values"][0]["base_attack"] = 100.5
+            source.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "Base Attack mismatch"):
                 MODULE.load_and_validate(source)
 
     def test_unresolved_progression_validation_issues_fail_closed(self) -> None:
