@@ -2,45 +2,64 @@
 
 > Canonical current-state handoff. Read this file and `PROJECT-RULES.md` before changing anything.
 >
-> Updated **2026-08-13 — Day Shift catch-up**.
+> Updated **2026-08-13 — Day Shift + live preview**.
 
-## Project rules that must not drift
+## Rules that must not drift
 
-- Repository: `raiinman/dead-signal`; canonical branch: **`main` only**.
-- Dead Signal is a prepared static database + Build Lab workstation. **No WordPress runtime.**
-- cPanel deployment is **copy-only**; do not add Python, mining, builds, downloads, scans, unzip chains, or runtime transforms to `.cpanel.yml`.
-- Installed-game/Miner evidence is canonical. External databases are UX/terminology references only.
-- Do not invent mechanics, compatibility, recipes, proc behavior, DPS, rankings, or multiplier semantics.
-- Preserve the accepted landing page, Official Once Human X feed, one global workstation shell, readability system, and `SOON` state for unfinished routes.
-- Another user-controlled window has been handling domain/SSL. This workstream must not change DNS, SSL, redirects, or cPanel hosting/domain configuration unless the user explicitly combines those tasks.
+- Repo: `raiinman/dead-signal`; canonical branch: **`main` only**.
+- Static database + Build Lab. **No WordPress runtime.**
+- cPanel stays **copy-only**.
+- Installed-game/Miner evidence is canonical; external databases are reference material only.
+- Never invent mechanics, compatibility, recipes, proc behavior, DPS, rankings, or multiplier semantics.
+- Landing page and Official Once Human X feed remain frozen unless there is a concrete bug.
+- Unfinished categories remain `SOON` until their verified compact data is ready.
 
-## Current `main` checkpoint
+## Current checkpoint
 
-Latest verified functional HEAD before this handoff update:
+Latest functional HEAD before this handoff refresh:
 
-`cd27ed2d30a83847b05616d9214683e539429b24` — **Fix current Calibration schema bridge**
+`2b42a302cb5277a2ad0287a02b8af9b485242401` — **Guard Build Lab canonical contract readiness**
 
-Day Shift commits:
+Recent milestones:
 
-- `edc9a7113a3fd22d2930fc09dc9eef22359c3e2c` — harden compact Weapons contract integrity validation.
-- `f032be41ccbb17f2af90bf54612c47619eb824c3` — regression-test Weapons progression integrity guards.
-- `eca041ced63fde80d9041fd672bf65bbbd9b3bff` — enforce variant-aware Armor contract identity.
-- `63185f80241f3195c76593d29857ce982254473d` — regression-test Armor identity guards.
-- `cd27ed2d30a83847b05616d9214683e539429b24` — align Build Lab Calibration bridge with the real current contract schema and fail-closed readiness rules.
+- Weapons compact integrity and progression guards landed and are tested.
+- Armor IDs are variant-aware: `ds-a-{suit_id}-{blueprint_id}`; materializer/audit/tests exist.
+- Calibrations now use the real v2 current-system contract and a dedicated standalone renderer.
+- Mods, Attachments, Deviations, and Cradle Overrides have prepared fail-closed database routes.
+- Build Lab has canonical-category readiness, mapping, and variant guards so ambiguous data cannot silently replace the compatibility corpus.
+- `eb1af76a791094ac91b6a3d1b81cb950ca3bb2fa` fails closed on invalid Weapons public data.
+- `2b42a302cb5277a2ad0287a02b8af9b485242401` adds Build Lab contract-readiness gating.
 
-GitHub Actions is green for `f032be41...`, `63185f80...`, and `cd27ed2d...`.
+## Live development preview
 
-## Fresh Miner boundary
+Review current `main` here:
 
-Released Miner: **v1.5.12.2**.
+`https://raw.githack.com/raiinman/dead-signal/main/preview/live/index.html`
 
-Package SHA-256: `26a4d3013cd1eb991366da58f2d7714e1c4fc1a8f5edb46eb1549ed9cefa728d`.
+Source hub: `preview/live/index.html` (`8f7650b01c949e4e122c21b19d11fe99b89804cb`).
 
-A fresh v1.5.12.2 `published/` snapshot still requires access to the user's PC and is not available to this repository-only session. **Do not relabel old data or fabricate compact payloads.**
+The hub links to Landing, Weapons, Armor, Calibrations, Mods, Attachments, Deviations, Cradles, and the Build Lab shell. It is a low-traffic development preview, not production hosting.
 
-When fresh output is accessible, inspect `published/reports/data-quality.json`, `change-report.json`, and the compact `published/web/` contracts before materializing anything.
+**Build Lab preview boundary:** two old compatibility files remain hosting-installed only and are not in Git:
 
-## Weapons — gold-standard vertical
+- `preview/build-lab/data/community-data.js`
+- `preview/build-lab/app.js`
+
+Therefore the Git preview proves the current shell/overlays, but not full picker/application behavior.
+
+## Miner release boundary
+
+Currently released Miner: **v1.5.12.2**.
+
+SHA-256: `26a4d3013cd1eb991366da58f2d7714e1c4fc1a8f5edb46eb1549ed9cefa728d`.
+
+The extended compact publisher and current Calibration projector were added after v1.5.12.2 shipped. **The next useful full-data release must therefore be v1.5.12.3 or later.** A new v1.5.12.2 mine is not sufficient for the full Day Shift migration.
+
+`tools/miner/src/miner_entry.py` is the intended entrypoint for the next package and includes the extended compact publication step plus current Calibration projection. Do not bump VERSION until the Windows package path is proven to use it and the new publisher modules are included/tested.
+
+After v1.5.12.3 is released, run it against the user's real Once Human install and inspect the fresh reports/contracts before materializing website data.
+
+## Weapons
 
 Last complete accessible snapshot proved:
 
@@ -48,73 +67,56 @@ Last complete accessible snapshot proved:
 - 600 Gear Tier rows;
 - 545 Blueprint-Star rows;
 - 2,725 legal Tier × Star combinations;
-- 120/120 art;
-- 120/120 five Tier rows;
+- 120/120 artwork;
 - 95/95 firearm profiles resolved.
 
-Current UI already has catalogue, detail, compare, legal Tier × Stars, Base Attack matrix/trace, proven static stats, unresolved-effect handling, acquisition/crafting evidence, Build Lab handoff, provenance, and compact Miner adapter path.
-
-Day Shift strengthened `tools/site/materialize-weapons-web.py` so compact data now fails closed unless it has schema v1, unique IDs, player names, exactly Gear Tier I–V, exactly five Tier×Star matrix rows, legal rarity Star caps, numeric Base Attack rows, no progression validation issues, and matching total/ranged/melee counts.
+The player-facing Weapons vertical now has catalogue, details, Compare, legal Tier × Stars, Base Attack trace, proven static stats, acquisition/crafting evidence, provenance, and Build Lab handoff.
 
 Remaining evidence queue from the last snapshot:
 
-- 76/120 resolved weapon effects; 44 unresolved/absent, including 29 Common.
-- unresolved Legendary examples include G17 – Cash Only, DBSG – Format, HAMR – Hannya, MPS7 – Chaos Domain.
-- 14 weapons have missing Tier recipes, all melee. Missing recipe evidence is **not** proof of non-craftable.
-- normalized `short_description` remains untrusted because a Kukri/fish-text cross-wire was observed; public description stays withheld until the resolver is proven.
+- 76/120 weapon effects resolved; 44 unresolved/absent, including 29 Common;
+- unresolved Legendary examples include G17 — Cash Only, DBSG — Format, HAMR — Hannya, MPS7 — Chaos Domain;
+- 14 missing Tier recipes, all melee; missing recipe evidence is **not** proof of non-craftable;
+- `short_description` remains untrusted because of the observed Kukri/fish-text cross-wire.
 
 ## Armor & Sets
 
-Armor remains **SOON** until a real v1.5.12.2 snapshot clears the old duplicate-ID blocker.
-
-Variant-aware identity is now enforced by both publisher and website materializer:
-
-`ds-a-{suit_id}-{blueprint_id}`
-
-The materializer verifies parent `suit_id`, Set IDs, Key Armor IDs, unique piece identity, names, and declared counts. CI is green. A set-centric Armor route/audit/materializer already exists. Do not mark READY before real `data-quality.json` proves the blocker cleared.
+Armor stays `SOON` until a fresh v1.5.12.3+ snapshot proves collision-free real output. Set-centric route, audit, materializer, and identity tests are ready.
 
 ## Current Calibrations
 
-The proven current projector emits:
+Canonical current contract:
 
-- schema **`dead-signal-calibrations`**;
-- schema_version **2**;
-- publication_status **`ready-current-system`** only when exactly 94 current families are unambiguous;
-- one current variant per family; legacy/non-current variants retained separately for audit.
+- schema `dead-signal-calibrations`;
+- schema_version `2`;
+- publication_status `ready-current-system` only at exactly 94 unambiguous current families;
+- exactly one current variant per family; legacy rows remain audit-only.
 
-Weapon DMG ranges: Rare 18–25%, Epic 26–33%, Legendary 34–50%. Current system also has exactly one random secondary. My Gear uses exact numeric inputs; no sliders.
+Proven Weapon DMG ranges: Rare 18–25%, Epic 26–33%, Legendary 34–50%. My Gear uses exact numeric inputs; no sliders.
 
-Day Shift fixed Build Lab, which had incorrectly expected nonexistent schema `dead-signal-calibrations-current`. It now requires the real v2 schema, `ready-current-system`, 94 families, zero ambiguous families, and one variant per family.
-
-**Known UI blocker:** `database/extended-catalogue.js` still contains the stale `dead-signal-calibrations-current` literal. The GitHub connector refused that large-file replacement in this session. Do **not** mutate the Miner schema to accommodate it; patch that renderer literal through a normal local file path when available. Until then the standalone Calibration route remains fail-closed rather than displaying wrong data.
+Do not reintroduce the obsolete `dead-signal-calibrations-current` schema.
 
 ## Mods / Attachments / Deviations / Cradles
 
-Routes and null compact-contract placeholders already exist for all four.
-
-- Mods: compact publisher groups by mined `mod_code` and preserves variants. Do not silently select the first variant; current Mod 2.0 player-selectable identity still needs fresh evidence before Build Lab migration.
-- Attachments: publisher filters to player weapon slots only: Sight, Muzzle, Tactical, Magazine. Last verified player-slot count was 119 = 30/36/36/17. Raw 202 is not a picker target. Build Lab bridge is prepared but fresh IDs/compatibility must be verified before removing stale 108-record data.
-- Deviations / Cradles: compact families preserve source variants. `canonical-category-variant-guard.js` blocks Build Lab promotion whenever a family has anything other than exactly one variant. Keep that guard until explicit variant semantics are proven.
-
-## Build Lab migration state
-
-Prepared canonical inputs exist for Weapons, current Calibrations, Attachments, Deviations, and Cradle Overrides. `canonical-category-bridge.js` only replaces a legacy pool when all canonical records map unambiguously. Variant guard runs before the bridge. Mods are not yet safely promoted.
-
-No cPanel deploy, DNS/SSL change, landing-page change, X-feed change, or hosting architecture change was made by this Day Shift.
+- Mods: preserve mined variants; current Mod 2.0 player-selectable identity still needs fresh proof.
+- Attachments: player weapon slots only — Sight, Muzzle, Tactical, Magazine. Last verified player-facing count was 119 = 30 / 36 / 36 / 17; raw 202 is not the picker target.
+- Deviations / Cradles: preserve source variants. Variant guard blocks planner promotion when identity is ambiguous.
 
 ## Next exact sequence
 
-1. Obtain fresh Miner v1.5.12.2 `published/` output from the user's PC.
-2. Audit/materialize Weapons; verify catalogue/detail/compare/acquisition/crafting/Build Lab in browser.
-3. Investigate unresolved non-Common weapon effects, short-description resolver evidence, and missing melee recipes from fresh raw/direct relationships.
-4. Verify Armor quality report clears duplicate IDs; materialize and test set-centric database + Build Lab identity.
-5. Fix the one stale standalone Calibration renderer schema literal, then materialize the 94-family v2 current contract and test exact current behavior.
-6. Prove current Mod 2.0 family/variant identity before Build Lab migration.
-7. Reconcile/materialize 119-style player weapon-slot Attachments and compatibility.
-8. Resolve Deviation/Cradle variant semantics or build explicit variant selection; never discard variants silently.
-9. Remove stale Build Lab compatibility pools only after end-to-end canonical verification.
-10. Once core functionality is broadly complete, audit current Wikily and OnceHumanDB for UX/features only and implement evidence-backed differentiators.
+1. Finish and prove the v1.5.12.3 Windows Miner package path.
+2. Release v1.5.12.3 through the existing version-driven workflow.
+3. Run v1.5.12.3 against the real Once Human install.
+4. Audit/materialize Weapons and browser-verify the full vertical.
+5. Use fresh evidence to investigate unresolved non-Common weapon effects, unsafe descriptions, and missing melee recipes.
+6. Verify/materialize Armor.
+7. Materialize/test the 94-family current Calibration contract.
+8. Prove current Mod 2.0 variant identity.
+9. Reconcile/materialize player-selectable Attachments and compatibility.
+10. Resolve Deviation/Cradle variant semantics or provide explicit variant choice.
+11. Remove old Build Lab compatibility pools only after canonical end-to-end verification.
+12. After the core is broadly complete, audit current competitor UX/features and implement evidence-backed differentiators.
 
 ## Read first next session
 
-`PROJECT-RULES.md`, `tools/miner/release/latest.json`, `tools/miner/src/extractor/publish_web_data.py`, `publish_extended_web_data.py`, `publish_current_calibrations.py`, `normalize_weapons.py`, `normalize_armor.py`, `tools/site/materialize-weapons-web.py`, `materialize-armor-web.py`, `materialize-extended-contract.py`, `database/extended-catalogue.js`, `preview/build-lab/canonical-category-bridge.js`, `canonical-category-variant-guard.js`, `.github/workflows/test-site-tools.yml`, `.cpanel.yml`.
+`PROJECT-RULES.md`, `preview/live/index.html`, `tools/miner/release/latest.json`, `tools/miner/src/miner_entry.py`, `publish_extended_web_data.py`, `publish_current_calibrations.py`, `normalize_weapons.py`, `normalize_armor.py`, `tools/site/materialize-weapons-web.py`, `materialize-armor-web.py`, `materialize-extended-contract.py`, `database/calibrations/index.html`, `preview/build-lab/canonical-category-bridge.js`, `canonical-category-variant-guard.js`, `.github/workflows/test-site-tools.yml`, `.cpanel.yml`.
