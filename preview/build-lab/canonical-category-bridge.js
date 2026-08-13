@@ -9,7 +9,7 @@
   const configs = {
     calibrations: {
       source: window.DS_CALIBRATIONS_WEB,
-      schema: 'dead-signal-calibrations-current',
+      schema: 'dead-signal-calibrations',
       records: (data) => (data.families || []).map((family) => ({
         canonical_id: family.canonical_id,
         name: family.name,
@@ -85,6 +85,18 @@
     }
     if (data.schema !== config.schema) {
       report.categories[category] = { status: 'schema-mismatch', applied: false, schema: data.schema };
+      continue;
+    }
+    if (category === 'calibrations' && (
+      data.schema_version !== 2
+      || data.publication_status !== 'ready-current-system'
+      || data.expected_current_families !== 94
+      || !Array.isArray(data.families)
+      || data.families.length !== 94
+      || (data.ambiguous_family_ids || []).length
+      || data.families.some((family) => !Array.isArray(family.variants) || family.variants.length !== 1)
+    )) {
+      report.categories[category] = { status: 'current-system-contract-not-ready', applied: false };
       continue;
     }
     const pool = legacyPool(config.legacyKeys);
