@@ -27,9 +27,26 @@
     .official-feed-meta{display:flex;align-items:center;justify-content:space-between;gap:14px;min-height:42px;padding:0 17px;border-top:1px solid #293238;color:#748189;font-size:.57rem;font-weight:750;letter-spacing:.09em;text-transform:uppercase}
     .official-feed-meta span:first-child{color:#9eabb2}
     .official-feed-meta b{color:#58c7cc;font-weight:900}
+
+    /* Landing command strip: compact workstation hierarchy without changing behavior. */
+    .landing-commandbar{isolation:isolate}
+    .landing-commandbar p span{display:inline-grid;place-items:center;min-width:30px;height:28px;padding:0 7px;border:1px solid #652329;border-radius:3px;background:linear-gradient(180deg,#190d10,#0c0a0c);color:#f24a55;font-size:.64rem;letter-spacing:.12em;box-shadow:inset 0 0 0 1px rgba(255,255,255,.02)}
+    .landing-command-search{position:relative;display:block}
+    .landing-command-search::before{content:"⌕";position:absolute;left:15px;top:50%;z-index:1;transform:translateY(-52%);color:#78858d;font-size:1.15rem;line-height:1;pointer-events:none;transition:color 140ms ease,transform 140ms cubic-bezier(.16,1,.3,1)}
+    .landing-command-search::after{content:"/";position:absolute;right:11px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:22px;height:22px;border:1px solid #39434a;border-radius:3px;background:#11171b;color:#738089;font:700 .66rem/1 "Segoe UI",sans-serif;pointer-events:none}
+    .landing-command-search input{padding-left:42px!important;padding-right:42px!important;background:linear-gradient(180deg,#0d1317,#0b1014)!important;box-shadow:inset 0 1px rgba(255,255,255,.025)}
+    .landing-command-search:focus-within::before{color:#58c7cc;transform:translateY(-52%) scale(1.06)}
+    .landing-command-search:focus-within::after{border-color:#3f656b;color:#9ee9ec}
+    .verified-state{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:34px;padding:0 10px;border:1px solid #24494e;border-radius:999px;background:linear-gradient(180deg,rgba(20,63,68,.24),rgba(8,22,25,.4));white-space:nowrap}
+    .verified-state::before{width:16px;height:16px;margin-right:0!important;font-size:.68rem;background:#0a1719}
+    .landing-commandbar>a{min-height:44px;gap:16px;padding-inline:18px;box-shadow:inset 0 1px rgba(255,255,255,.08)}
+
     @keyframes signal-pulse{0%{box-shadow:0 0 0 0 rgba(89,224,175,.45)}70%,100%{box-shadow:0 0 0 9px rgba(89,224,175,0)}}
+    @media(min-width:1101px){.landing-commandbar{position:sticky;top:0;z-index:60;min-height:66px;grid-template-columns:auto minmax(320px,620px) 1fr auto;gap:clamp(16px,2vw,32px);padding-top:9px;padding-bottom:9px;background:linear-gradient(180deg,rgba(7,9,11,.98),rgba(7,9,11,.93));box-shadow:0 12px 32px rgba(0,0,0,.2);backdrop-filter:blur(18px) saturate(115%)}}
+    @media(min-width:1101px) and (max-width:1450px){.landing-commandbar{grid-template-columns:minmax(280px,1fr) auto auto;gap:16px}.landing-commandbar p{display:none}.verified-state{display:inline-flex}}
+    @media(max-width:1100px){.landing-commandbar{min-height:64px;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:10px 16px 10px 76px}.landing-commandbar p,.verified-state{display:none}.landing-command-search input{min-height:42px}}
     @media(max-width:900px){.landing-hero{row-gap:46px;padding-bottom:68px}.landing-hero-copy{max-width:720px}.official-feed{width:min(780px,100%);justify-self:start;margin-top:4px}.official-feed-head{padding:13px 16px 13px 18px}}
-    @media(max-width:620px){.landing-hero{row-gap:32px;padding-bottom:54px}.official-feed{margin-top:0;border-radius:10px}.official-feed-head{align-items:flex-start;gap:12px;padding:12px 13px 12px 14px}.official-feed-head>a{margin-top:1px}.official-feed-body{height:340px;min-height:340px}.official-feed-meta{align-items:flex-start;flex-direction:column;justify-content:center;gap:3px;padding:9px 14px}}
+    @media(max-width:620px){.landing-commandbar{grid-template-columns:1fr;min-height:62px;padding:10px 12px 10px 76px}.landing-command-search{display:none}.landing-commandbar>a{grid-column:1;justify-self:end;min-height:42px;padding-inline:16px}.landing-hero{row-gap:32px;padding-bottom:54px}.official-feed{margin-top:0;border-radius:10px}.official-feed-head{align-items:flex-start;gap:12px;padding:12px 13px 12px 14px}.official-feed-head>a{margin-top:1px}.official-feed-body{height:340px;min-height:340px}.official-feed-meta{align-items:flex-start;flex-direction:column;justify-content:center;gap:3px;padding:9px 14px}}
     @media(prefers-reduced-motion:reduce){.official-feed-title>i{animation:none}}
   </style>
 </head>
@@ -38,7 +55,7 @@
   <main id="main">
     <header class="landing-commandbar">
       <p><span aria-hidden="true">DS</span> Once Human intelligence</p>
-      <label><span class="sr-only">Search Dead Signal</span><input type="search" data-search-mirror placeholder="Search weapons, armor, mods, and build systems..." autocomplete="off"></label>
+      <label class="landing-command-search"><span class="sr-only">Search Dead Signal</span><input type="search" data-search-mirror placeholder="Search Dead Signal..." autocomplete="off"></label>
       <span class="verified-state">Verified player-facing data</span>
       <a href="/build-planner/">Open Build Lab <span aria-hidden="true">→</span></a>
     </header>
