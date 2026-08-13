@@ -6,6 +6,8 @@ These are the working constraints for the Ultimate Planner.
 - Finish the player-facing database, imagery, and planner workflow before advanced damage math.
 - The installed-game Miner snapshot is the canonical source for migrated player-facing categories. Weapons are fully migrated; the v1.3 compatibility corpus remains only for categories not yet migrated.
 - Mined game data should be preferred for extractable factual data. Community and official references may validate unresolved behavior, but must not silently override canonical mined records or serve as a runtime fallback for migrated categories.
+- **External database doctrine:** Wikily, OnceHumanDB, and similar community sites are references for UX, information architecture, feature discovery, terminology checks, and ideas that can make Dead Signal more useful to players. Their item totals, coverage counts, and record inventories are **not** completeness benchmarks for Dead Signal and must not be used to add/remove records or judge Miner coverage. Canonical current-item counts come from Dead Signal's installed-game Miner and player-facing filtering rules.
+- When comparing Dead Signal with community databases, compare what information they expose and how clearly/usefully they expose it; do not attempt to make Dead Signal's corpus match their counts.
 - Do not invent mechanics or numeric relationships that are not verified.
 
 ## Deployment architecture
