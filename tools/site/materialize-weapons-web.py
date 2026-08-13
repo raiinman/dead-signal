@@ -19,6 +19,7 @@ from typing import Any
 EXPECTED_SCHEMA = "dead-signal-weapons"
 EXPECTED_SCHEMA_VERSION = 1
 LEGAL_GEAR_TIERS = {1, 2, 3, 4, 5}
+PROVEN_FORMULA_STATUS = "proven-static-base-attack"
 RARITY_STAR_CAPS = {
     "common": 3,
     "rare": 4,
@@ -48,13 +49,14 @@ def _positive_int(value: Any) -> int | None:
     return number if number > 0 else None
 
 
-def _finite_number(value: Any) -> bool:
+def _finite_number(value: Any) -> float | None:
     if isinstance(value, bool):
-        return False
+        return None
     try:
-        return math.isfinite(float(value))
+        number = float(value)
     except (TypeError, ValueError):
-        return False
+        return None
+    return number if math.isfinite(number) else None
 
 
 def _validate_progression(record: dict[str, Any]) -> None:
@@ -62,6 +64,8 @@ def _validate_progression(record: dict[str, Any]) -> None:
     progression = record.get("progression")
     if not isinstance(progression, dict):
         raise ValueError(f"Weapon {canonical_id} is missing progression data")
+    if progression.get("formula_status") != PROVEN_FORMULA_STATUS:
+        raise ValueError(f"Weapon {canonical_id} progression is not marked {PROVEN_FORMULA_STATUS}")
 
     gear_tiers = progression.get("gear_tiers")
     if not isinstance(gear_tiers, list) or len(gear_tiers) != 5:
@@ -70,6 +74,12 @@ def _validate_progression(record: dict[str, Any]) -> None:
     if set(tier_numbers) != LEGAL_GEAR_TIERS or len(set(tier_numbers)) != 5:
         raise ValueError(f"Weapon {canonical_id} Gear Tier rows must be unique Tier I-V")
 
+    rarity = str(record.get("rarity") or "").strip().lower()
+    star_cap = RARITY_STAR_CAPS.get(rarity)
+    if star_cap is None:
+        raise ValueError(f"Weapon {canonical_id} has unsupported rarity {record.get('rarity')!r}")
+    legal_stars = set(range(1, star_cap + 1))
+
     matrix = progression.get("tier_star_matrix")
     if not isinstance(matrix, list) or len(matrix) != 5:
         raise ValueError(f"Weapon {canonical_id} must contain five Tier × Blueprint Star matrix rows")
@@ -77,20 +87,34 @@ def _validate_progression(record: dict[str, Any]) -> None:
     if set(matrix_tiers) != LEGAL_GEAR_TIERS or len(set(matrix_tiers)) != 5:
         raise ValueError(f"Weapon {canonical_id} Tier × Star matrix must cover unique Gear Tier I-V")
 
-    rarity = str(record.get("rarity") or "").strip().lower()
-    star_cap = RARITY_STAR_CAPS.get(rarity)
     for row in matrix:
+        tier = _positive_int(row.get("gear_tier")) if isinstance(row, dict) else None
+        tier_base = _finite_number(row.get("tier_base_attack_at_1_star")) if isinstance(row, dict) else None
+        if tier_base is None:
+            raise ValueError(f"Weapon {canonical_id} Gear Tier {tier} is missing numeric 1-star Base Attack evidence")
         stars = row.get("blueprint_star_values") if isinstance(row, dict) else None
         if not isinstance(stars, list) or not stars:
             raise ValueError(f"Weapon {canonical_id} has an empty Blueprint Star matrix row")
         star_numbers = [_positive_int(star.get("blueprint_stars")) if isinstance(star, dict) else None for star in stars]
-        if any(value is None for value in star_numbers) or len(star_numbers) != len(set(star_numbers)):
-            raise ValueError(f"Weapon {canonical_id} has invalid or duplicate Blueprint Star rows")
-        if star_cap is not None and any(value > star_cap for value in star_numbers if value is not None):
-            raise ValueError(f"Weapon {canonical_id} exceeds the {record.get('rarity')} Blueprint Star cap")
+        current_stars = {value for value in star_numbers if value is not None}
+        if len(star_numbers) != len(current_stars) or current_stars != legal_stars:
+            raise ValueError(
+                f"Weapon {canonical_id} Gear Tier {tier} must contain exact legal Blueprint Stars 1-{star_cap}"
+            )
         for star in stars:
-            if not _finite_number(star.get("base_attack") if isinstance(star, dict) else None):
-                raise ValueError(f"Weapon {canonical_id} has a Tier × Star row without numeric Base Attack")
+            ratio = _finite_number(star.get("preset_attack_ratio") if isinstance(star, dict) else None)
+            shown = _finite_number(star.get("base_attack") if isinstance(star, dict) else None)
+            star_no = _positive_int(star.get("blueprint_stars")) if isinstance(star, dict) else None
+            if ratio is None or shown is None:
+                raise ValueError(
+                    f"Weapon {canonical_id} Gear Tier {tier}, Blueprint Stars {star_no} lacks numeric Base Attack evidence"
+                )
+            expected = int(tier_base * ratio)
+            if shown != float(expected):
+                raise ValueError(
+                    f"Weapon {canonical_id} Base Attack mismatch at Gear Tier {tier}, Blueprint Stars {star_no}: "
+                    f"expected {expected}, found {star.get('base_attack')}"
+                )
 
     if progression.get("validation_issues"):
         raise ValueError(f"Weapon {canonical_id} carries unresolved progression validation issues")
