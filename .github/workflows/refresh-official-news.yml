@@ -1,0 +1,142 @@
+name: Refresh official Once Human news
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/30 * * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install parser
+        run: python -m pip install --disable-pip-version-check beautifulsoup4
+
+      - name: Refresh cached news
+        run: |
+          python - <<'PY'
+          import json
+          import re
+          import urllib.request
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from urllib.parse import urljoin, urlparse
+          from bs4 import BeautifulSoup
+
+          SOURCE = 'https://www.oncehuman.game/news/'
+          TARGET = Path('data/official-news.json')
+
+          request = urllib.request.Request(
+              SOURCE,
+              headers={
+                  'User-Agent': 'DeadSignalNewsCache/1.0 (+https://deadsignaldb.com/)'
+              },
+          )
+          with urllib.request.urlopen(request, timeout=30) as response:
+              html = response.read().decode('utf-8', errors='replace')
+
+          soup = BeautifulSoup(html, 'html.parser')
+          articles = []
+          seen = set()
+          generic = {'news', 'latest', 'notice', 'dev blog', 'wiki', 'next', 'home', 'updates'}
+
+          for anchor in soup.find_all('a', href=True):
+              title = ' '.join(anchor.stripped_strings).strip()
+              if not title or title.lower() in generic:
+                  continue
+              title = re.sub(r'^\[latest\]\s*', '', title, flags=re.I).strip()
+              if len(title) < 12:
+                  continue
+
+              url = urljoin(SOURCE, anchor['href'])
+              parsed = urlparse(url)
+              if parsed.netloc not in {'oncehuman.game', 'www.oncehuman.game'}:
+                  continue
+              if '/news/' not in parsed.path or not parsed.path.endswith('.html'):
+                  continue
+              if url in seen:
+                  continue
+
+              date_match = re.search(r'/((?:20)\d{6})/', parsed.path)
+              date = ''
+              if date_match:
+                  raw = date_match.group(1)
+                  date = f'{raw[:4]}-{raw[4:6]}-{raw[6:8]}'
+              if not date:
+                  context = ' '.join(anchor.parent.stripped_strings) if anchor.parent else ''
+                  visible_date = re.search(r'(20\d{2}-\d{2}-\d{2}|\d{2}/\d{2}/20\d{2})', context)
+                  if visible_date:
+                      raw = visible_date.group(1)
+                      if '/' in raw:
+                          month, day, year = raw.split('/')
+                          date = f'{year}-{month}-{day}'
+                      else:
+                          date = raw
+
+              path_lower = parsed.path.lower()
+              if '/devblog/' in path_lower:
+                  category = 'Dev Blog'
+              elif '/notice/' in path_lower:
+                  category = 'Notice'
+              elif '/wiki/' in path_lower:
+                  category = 'Wiki'
+              else:
+                  category = 'Update'
+
+              seen.add(url)
+              articles.append({
+                  'title': title,
+                  'date': date,
+                  'category': category,
+                  'url': url,
+              })
+              if len(articles) >= 6:
+                  break
+
+          if not articles:
+              raise SystemExit('No Once Human news articles found; refusing to overwrite cache.')
+
+          old = {}
+          if TARGET.exists():
+              try:
+                  old = json.loads(TARGET.read_text(encoding='utf-8'))
+              except Exception:
+                  old = {}
+
+          if old.get('articles') == articles:
+              print('Official news cache is already current.')
+              raise SystemExit(0)
+
+          payload = {
+              'source': 'Once Human Official News',
+              'source_url': SOURCE,
+              'updated_at': datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z'),
+              'articles': articles,
+          }
+          TARGET.parent.mkdir(parents=True, exist_ok=True)
+          TARGET.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          print(f'Cached {len(articles)} official news records.')
+          PY
+
+      - name: Commit refreshed cache
+        run: |
+          if git diff --quiet -- data/official-news.json; then
+            echo "No official news changes."
+            exit 0
+          fi
+          git config user.name "dead-signal-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/official-news.json
+          git commit -m "Refresh official Once Human news"
+          git push
