@@ -43,3 +43,41 @@ document.addEventListener('keydown', (event) => {
     query.focus();
   }
 });
+
+function initOfficialFeed() {
+  const timeline = document.querySelector('.twitter-timeline');
+  if (!timeline) return;
+
+  const container = timeline.parentElement;
+  timeline.href = 'https://x.com/OnceHuman_';
+  timeline.dataset.dnt = 'true';
+
+  const renderTimeline = () => {
+    try {
+      window.twttr?.widgets?.load?.(container);
+    } catch (_) {}
+  };
+
+  if (window.twttr?.widgets?.load) {
+    renderTimeline();
+  } else {
+    let script = document.getElementById('ds-x-widgets');
+    if (!script) {
+      script = document.createElement('script');
+      script.id = 'ds-x-widgets';
+      script.src = 'https://platform.x.com/widgets.js';
+      script.async = true;
+      script.charset = 'utf-8';
+      document.body.append(script);
+    }
+    script.addEventListener('load', renderTimeline, { once: true });
+  }
+
+  setTimeout(() => {
+    if (container.querySelector('iframe')) return;
+    timeline.textContent = 'Official X feed could not load in this browser. Open @OnceHuman_ on X.';
+    timeline.setAttribute('aria-label', 'Open the official Once Human account on X');
+  }, 8000);
+}
+
+initOfficialFeed();
