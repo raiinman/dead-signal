@@ -48,17 +48,6 @@ def default_output() -> Path:
     return Path.home() / "Documents" / "Dead Signal Miner"
 
 
-def default_wordpress_target() -> Path | None:
-    target = (
-        Path.home()
-        / "Studio"
-        / "dead-signal"
-        / "wp-content"
-        / "plugins"
-        / "once-human-database"
-    )
-    return target if target.exists() else None
-
 
 def settings_path() -> Path:
     local = Path(os.environ.get("LOCALAPPDATA", Path.home()))
@@ -105,8 +94,6 @@ class DeadSignalMinerApp:
 
         self.install_var = tk.StringVar()
         self.output_var = tk.StringVar(value=str(default_output()))
-        self.wordpress_var = tk.StringVar()
-        self.sync_var = tk.BooleanVar(value=False)
         self.status_var = tk.StringVar(value="Ready for a local snapshot")
         self.progress_var = tk.IntVar(value=0)
 
@@ -136,10 +123,6 @@ class DeadSignalMinerApp:
             self.install_var.set(payload["install"])
         if payload.get("output"):
             self.output_var.set(payload["output"])
-        target = payload.get("wordpress_target") or default_wordpress_target()
-        if target:
-            self.wordpress_var.set(str(target))
-        self.sync_var.set(bool(payload.get("sync_wordpress", False)))
 
     def _save_settings(self) -> None:
         path = settings_path()
@@ -149,10 +132,8 @@ class DeadSignalMinerApp:
                 {
                     "install": self.install_var.get().strip(),
                     "output": self.output_var.get().strip(),
-                    "wordpress_target": self.wordpress_var.get().strip(),
                     "mode": "full",
                     "include_artwork": True,
-                    "sync_wordpress": self.sync_var.get(),
                 },
                 indent=2,
             ),
@@ -183,10 +164,8 @@ class DeadSignalMinerApp:
 
         self._path_row(settings, 0, "ONCE HUMAN FOLDER", self.install_var, self._browse_install)
         self._path_row(settings, 1, "MINER DATA FOLDER", self.output_var, self._browse_output)
-        self._path_row(settings, 2, "WORDPRESS PLUGIN FOLDER", self.wordpress_var, self._browse_wordpress)
-
         options = tk.Frame(settings, bg=PANEL)
-        options.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(14, 2))
+        options.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(14, 2))
         left = tk.Frame(options, bg=PANEL)
         left.pack(side="left", fill="x", expand=True)
         tk.Label(left, text="COMPLETE HARVEST", bg=PANEL, fg=MUTED, font=("Segoe UI", 9, "bold")).pack(anchor="w")
@@ -206,8 +185,16 @@ class DeadSignalMinerApp:
         ).pack(anchor="w", pady=(3, 0))
         right = tk.Frame(options, bg=PANEL)
         right.pack(side="right", fill="x", expand=True, padx=(30, 0))
-        tk.Label(right, text="OUTPUT OPTIONS", bg=PANEL, fg=MUTED, font=("Segoe UI", 9, "bold")).pack(anchor="w")
-        ttk.Checkbutton(right, text="Copy finished data and artwork into WordPress Studio", variable=self.sync_var, style="DS.TCheckbutton").pack(anchor="w", pady=(5, 0))
+        tk.Label(right, text="PUBLISHING & INTEGRITY", bg=PANEL, fg=MUTED, font=("Segoe UI", 9, "bold")).pack(anchor="w")
+        tk.Label(
+            right,
+            text="Automatically builds web datasets, readiness checks, change reports, and snapshot hashes.",
+            bg=PANEL,
+            fg=TEXT,
+            font=("Segoe UI", 10),
+            justify="left",
+            wraplength=430,
+        ).pack(anchor="w", pady=(5, 0))
 
         actions = tk.Frame(content, bg=BG, pady=15)
         actions.pack(fill="x")
@@ -280,10 +267,6 @@ class DeadSignalMinerApp:
         if value:
             self.output_var.set(value)
 
-    def _browse_wordpress(self) -> None:
-        value = filedialog.askdirectory(title="Select wp-content/plugins/once-human-database", initialdir=self.wordpress_var.get() or None)
-        if value:
-            self.wordpress_var.set(value)
 
     def _append_log(self, message: str) -> None:
         self.log_text.configure(state="normal")
@@ -296,14 +279,11 @@ class DeadSignalMinerApp:
         output_text = self.output_var.get().strip()
         if not install_text or not output_text:
             raise ValueError("Select both the Once Human folder and the miner data folder.")
-        wordpress_text = self.wordpress_var.get().strip()
         return MinerConfig(
             install=Path(install_text),
             output=Path(output_text),
             mode="full",
             include_artwork=True,
-            wordpress_target=Path(wordpress_text) if wordpress_text else None,
-            sync_wordpress=self.sync_var.get(),
         )
 
     def _start(self) -> None:
@@ -520,8 +500,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--install", type=Path)
     parser.add_argument("--output", type=Path, default=default_output())
     parser.add_argument("--mode", choices=("full",), default="full")
-    parser.add_argument("--wordpress-target", type=Path)
-    parser.add_argument("--sync-wordpress", action="store_true")
     return parser.parse_args()
 
 
@@ -555,8 +533,6 @@ def main() -> int:
                     output=args.output,
                     mode=args.mode,
                     include_artwork=True,
-                    wordpress_target=args.wordpress_target,
-                    sync_wordpress=args.sync_wordpress,
                 ),
                 # Extractor stdout is redirected through the log callback. Write
                 # to the original stream to avoid feeding it back into itself.

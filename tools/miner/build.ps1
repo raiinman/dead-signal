@@ -30,7 +30,7 @@ $HiddenImports = @(
     'npk_extract', 'export_bindict', 'export_marshaled_bindict',
     'normalize_armor', 'normalize_weapons', 'normalize_extended',
     'link_published_images', 'combat_resolver', 'weapon_progression',
-    'reference_images', 'update_manager'
+    'publish_web_data', 'reference_images', 'update_manager'
 )
 $MainArguments = @(
     '--noconfirm', '--clean', '--onedir', '--windowed',

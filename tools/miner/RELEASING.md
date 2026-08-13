@@ -24,4 +24,9 @@ The packaging script prints the ZIP's exact byte size and SHA-256 checksum.
 4. Update `release/latest.json` last with the new version, HTTPS GitHub asset URL, SHA-256, and byte size.
 
 Publishing the manifest last prevents installed Miners from seeing an update before its verified package exists. The application downloads only GitHub-hosted HTTPS packages and checks both size and SHA-256 before asking the separate updater helper to install anything.
+## v1.5.12.0 publishing contract
+
+The source patch may land on `main` before the packaged Windows update. That is intentional. The installed Miner discovers updates only through `release/latest.json`, so keep that manifest on the last verified release until the new ZIP is built, uploaded, and checksum-verified.
+
+For v1.5.12.0 specifically, verify that a completed mine creates `published/web/`, `published/reports/data-quality.json`, `published/reports/change-report.json`, and `published/snapshot-manifest.json` before publishing the updater manifest.
 

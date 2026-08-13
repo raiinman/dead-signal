@@ -230,24 +230,16 @@ class MinerConfig:
     output: Path
     mode: str = "full"
     include_artwork: bool = True
-    wordpress_target: Path | None = None
-    sync_wordpress: bool = False
 
     def normalized(self) -> "MinerConfig":
         return MinerConfig(
             install=self.install.expanduser().resolve(),
             output=self.output.expanduser().resolve(),
-            # A packaged Dead Signal harvest is intentionally complete.  The
-            # former armor/weapons-only troubleshooting mode created the false
+            # A packaged Dead Signal harvest is intentionally complete. The
+            # former category-limited troubleshooting mode created the false
             # impression that those were the application's real boundaries.
             mode="full",
             include_artwork=True,
-            wordpress_target=(
-                self.wordpress_target.expanduser().resolve()
-                if self.wordpress_target
-                else None
-            ),
-            sync_wordpress=bool(self.sync_wordpress),
         )
 
 
@@ -1141,26 +1133,6 @@ def extract_reference_assets(
     return load_json(manifest_path, {})
 
 
-def sync_to_wordpress(published: Path, target: Path, log: LogCallback) -> None:
-    if not target.exists():
-        raise FileNotFoundError(f"WordPress plugin folder does not exist: {target}")
-    if not (target / "once-human-database.php").exists():
-        raise RuntimeError(
-            "The selected WordPress folder is not the Once Human Database plugin: "
-            f"{target}"
-        )
-    log(f"Copying the new snapshot into WordPress: {target}")
-    (target / "data").mkdir(parents=True, exist_ok=True)
-    for source in (published / "data").glob("*.json"):
-        shutil.copy2(source, target / "data" / source.name)
-    source_artwork = published / "assets" / "reference-images"
-    if source_artwork.exists():
-        shutil.copytree(
-            source_artwork,
-            target / "assets" / "reference-images",
-            dirs_exist_ok=True,
-        )
-
 
 def check_cancel(cancel: threading.Event | None) -> None:
     if cancel and cancel.is_set():
@@ -1189,8 +1161,10 @@ def run_pipeline(
     log(f"Output:  {config.output}")
     base_sha = sha256_file(base_archive)
     current_sha = sha256_file(current_archive)
+    executable_sha = sha256_file(executable)
     log(f"Base script SHA-256:    {base_sha}")
     log(f"Current script SHA-256: {current_sha}")
+    log(f"Game executable SHA-256: {executable_sha}")
     check_cancel(cancel)
 
     progress(7, "Validating compression dictionary")
@@ -1263,11 +1237,33 @@ def run_pipeline(
     image_coverage = link_published_images(published, log)
     check_cancel(cancel)
 
-    if config.sync_wordpress:
-        if not config.wordpress_target:
-            raise RuntimeError("WordPress sync is enabled, but no plugin folder was selected.")
-        progress(96, "Updating the local WordPress site")
-        sync_to_wordpress(published, config.wordpress_target, log)
+    progress(95, "Publishing website datasets and integrity reports")
+    web_publish_output = published / "snapshot-manifest.json"
+    run_module_main(
+        "publish_web_data",
+        [
+            "--data-dir", published / "data",
+            "--published", published,
+            "--miner-version", APP_VERSION,
+            "--base-sha256", base_sha,
+            "--current-sha256", current_sha,
+            "--executable-sha256", executable_sha,
+            "--resource-fingerprint", str(asset_catalog.get("fingerprint", "")),
+        ],
+        log,
+    )
+    publishing = {
+        "snapshot_manifest": load_json(web_publish_output, {}),
+        "data_quality": load_json(published / "reports" / "data-quality.json", {}),
+        "change_report": load_json(published / "reports" / "change-report.json", {}),
+        "web": {
+            "weapons": str((published / "web" / "weapons.json").resolve()),
+            "armor": str((published / "web" / "armor.json").resolve()),
+            "relationship_graph": str((published / "web" / "relationship-graph.json").resolve()),
+            "catalog_index": str((published / "web" / "catalog-index.json").resolve()),
+        },
+    }
+    check_cancel(cancel)
 
     manifest = {
         "app": "Dead Signal Miner",
@@ -1282,11 +1278,11 @@ def run_pipeline(
             **asdict(config),
             "install": str(config.install),
             "output": str(config.output),
-            "wordpress_target": str(config.wordpress_target) if config.wordpress_target else None,
         },
         "archives": {
             "base": {"path": str(base_archive), "sha256": base_sha},
             "current": {"path": str(current_archive), "sha256": current_sha},
+            "executable": {"path": str(executable), "sha256": executable_sha},
         },
         "active_snapshots": {
             "base": str(base_mined),
@@ -1304,6 +1300,7 @@ def run_pipeline(
             "published_record_coverage": image_coverage.get("totals", {}),
             "coverage_report": str((published / "data" / "image-coverage.json").resolve()),
         },
+        "publishing": publishing,
         "published": str(published),
     }
     write_json(config.output / "last-run.json", manifest)
@@ -1340,6 +1337,7 @@ def self_test() -> dict:
         EXTRACTOR_ROOT / "export_weapon_math.py",
         EXTRACTOR_ROOT / "export_weapon_configuration.py",
         EXTRACTOR_ROOT / "export_gun_profiles.py",
+        EXTRACTOR_ROOT / "publish_web_data.py",
         EXTRACTOR_ROOT / "reference_images.py",
         NEOXTRACTOR_ROOT / "core" / "bindict" / "parser.py",
     )
@@ -1358,6 +1356,7 @@ def self_test() -> dict:
         "export_weapon_math",
         "export_weapon_configuration",
         "export_gun_profiles",
+        "publish_web_data",
         "reference_images",
     ):
         try:

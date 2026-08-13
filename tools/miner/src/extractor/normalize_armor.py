@@ -510,6 +510,9 @@ def main() -> int:
                     "slot_id": slot_id,
                     "slot": SLOT_NAMES[slot_id],
                     "name": piece_name,
+                    "blueprint_id": blueprint_id,
+                    "icon": tier_one_item.get("icon", ""),
+                    "forge_icon": tier_one_item.get("forge_icon", ""),
                     "quality_code": next(
                         (
                             record.get("equip_quality")
@@ -696,6 +699,8 @@ def main() -> int:
                 "quality_code": quality_code,
                 "quality": QUALITY_NAMES.get(quality_code, "Unknown"),
                 "blueprint_id": int(blueprint_id),
+                "icon": first_item.get("icon", ""),
+                "forge_icon": first_item.get("forge_icon", ""),
                 "passive_skill_code": skill_code,
                 "passive_skill_name": translate(skill.get("name")),
                 "buff_id": buff_id,

@@ -34,21 +34,34 @@ $env:PYTHONPATH = 'tools/miner/src;tools/miner/src/extractor;tools/miner/src/neo
 python tools/miner/src/dead_signal_miner.py
 ```
 
-The existing interface remains centered on one action: **Mine Complete Database**. It includes all database categories and referenced display artwork. The optional WordPress copy is local-only and does not deploy the production website.
+The interface remains centered on one action: **Mine Complete Database**. It mines every supported database category and referenced display artwork, then automatically builds website publishing artifacts and integrity reports. The retired WordPress Studio copy workflow has been removed.
 
-Version 1.5.11.0 writes `published/data/weapon-math.json`. This is a validated, player-facing static-math export for every normalized weapon and every legal Gear Tier × Blueprint Star combination. It implements only formulas proven from installed-game tables and client metadata:
+### v1.5.12.0 — Publishing & Integrity
 
-- `BaseAttack = int(TierBaseAttack × BlueprintStarMultiplier)`;
-- D0101 Weapon DMG and D0102 Calibration Weapon DMG share one additive ratio bucket;
-- D0100 flat Attack is added after the ratio bucket;
-- the final D0100 card value is displayed with zero-decimal fixed-point formatting.
+Version 1.5.12.0 turns the Miner into the authoritative content pipeline for Dead Signal, not just the extraction engine. After normalization and artwork linking it now publishes:
 
-The export explicitly lists excluded runtime layers and fails the mining run if a weapon has incomplete Tier or Blueprint Star data. It does not claim configured DPS, proc frequency, enemy mitigation, or conditional-buff math without complete evidence.
+- `published/web/weapons.json` — compact player-facing weapon records combining normalized identity, acquisition, combat/handling/falloff fields, Tier I–V recipes, Blueprint Stars, proven Tier × Star math, firearm profile identifiers, and configuration catalogs;
+- `published/web/weapon-configuration.json` — fail-closed weapon configuration inputs separated from the main weapon catalogue payload;
+- `published/web/armor.json` — compact Armor Sets, pieces, Key Armor, Tier I–V stats, set bonuses, Key Armor effects, recipes, and crafting material groups;
+- `published/web/relationship-graph.json` — direct mined identity links such as weapon → gun → ammo/skill and equipment → passive skill → buff, explicitly without inventing trigger/chance/stack/duration semantics;
+- `published/web/catalog-index.json` — record-count index across normalized audit datasets;
+- `published/reports/data-quality.json` — internal readiness checks based only on Dead Signal's mined player-facing corpus and required relationships, never community-site item counts;
+- `published/reports/change-report.json` and `CHANGE-REPORT.txt` — added/removed/changed canonical records compared with the previous successful published web snapshot;
+- `published/snapshot-manifest.json` — Miner version, base/current script fingerprints, game executable hash, resource-index fingerprint, pipeline-source hashes, output sizes, and SHA-256 hashes for published JSON artifacts.
 
-Version 1.5.11.0 also writes `published/data/weapon-configuration.json`. It traces configured-weapon inputs across ammunition, attachments, weapon Mods, and current Calibration Blueprints. Ammunition is resolved through weapon accessory slot 8, its ordered ammo-pack item mapping, and the matching accessory affix. Only direct, fully resolved static modifiers are eligible for automatic calculation; passive buffs, conditions, runtime logic, missing ammo bindings, and unspecified Calibration rolls remain explicitly excluded.
+The first v1.5.12.0 run establishes the local comparison baseline. Later runs report actual changes in the installed game snapshot without comparing Dead Signal's corpus to Wikily, OnceHumanDB, or another community database.
 
-It additionally writes `published/data/gun-profiles.json`. This promotes the canonical item-to-gun mapping into a reusable weapon spine and preserves each weapon's directly linked base firing, stability, scatter, accessory-slot, range-template, reload-template, and downstream identifier data. Raw fields remain evidence, not automatically assumed formulas.
+The relationship graph is deliberately an evidence scaffold. A direct ID link can be `proven-direct-link` while runtime semantics remain unresolved. Future mechanic work can add trigger, chance, stack, duration, cooldown, and stat-operation resolvers only when the full path is proven.
 
+### Weapon evidence exports retained
+
+The existing weapon evidence pipeline remains intact:
+
+- `published/data/weapon-math.json` validates every legal Gear Tier × Blueprint Star combination and implements only proven static Attack math;
+- `published/data/weapon-configuration.json` traces ammo, attachment, weapon Mod, and current Calibration inputs with fail-closed static-modifier eligibility;
+- `published/data/gun-profiles.json` preserves the canonical item-to-gun spine and directly linked firing, stability, scatter, accessory-slot, range-template, reload-template, and downstream IDs.
+
+Runtime procs, enemy mitigation, conditional buffs, and configured DPS remain excluded until independently proven.
 ## Verify
 
 ```powershell
