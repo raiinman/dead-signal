@@ -2,36 +2,90 @@
 
 > Canonical current-state handoff. Read this file and `PROJECT-RULES.md` before changing anything.
 >
-> Updated **2026-08-13 — Day Shift after Miner v1.5.12.3 release, transactional snapshot ingestion, and dedicated Mod 2.0 route**.
+> Updated **2026-08-13 immediately before the 2:00 PM America/Phoenix Day Shift run**.
+
+## 2:00 PM transition — READ THIS FIRST
+
+The user has **Miner v1.5.12.3 running right now against the real Once Human install**. Do not ask them to rerun it unless the current run actually fails. The next high-value action is to consume the fresh `published/` artifact as soon as it becomes available.
+
+Do not individually copy category JSON into website files. The repository now has a controlled inspection + transactional ingestion workflow.
+
+### First command when the fresh `published/` folder is available
+
+Run the read-only inspection first:
+
+```text
+python tools/site/inspect-published-snapshot.py <fresh-published-dir> --output <inspection-receipt.json>
+```
+
+This combines:
+
+- strict all-seven materialization validation;
+- Weapons contract audit;
+- Armor contract audit;
+- Mod / Attachment / Deviation / Cradle research queues.
+
+If strict validation says `may_materialize=true`, run a transactional dry-run receipt:
+
+```text
+python tools/site/materialize-published-snapshot.py <fresh-published-dir> --dry-run --report <materialize-receipt.json>
+```
+
+Only after the receipts are reviewed should the same materializer be run without `--dry-run`.
+
+### Important: Mod 2.0 progression research
+
+A new observational audit landed at code commit `95feef4de36ef75dd2d82042808a91a2561be7db`:
+
+```text
+python tools/site/audit-mod-level-progression.py <fresh-published-dir> --output <mod-level-audit.json>
+```
+
+Why it exists: v1.5.12.3 already emits normalized `data/progression.json`, including the `mod_level` track sourced from `new_mod_level_data.json`. The audit compares numeric tokens in those rows with compact Mod `mod_code` / `main_entry_code` values **only as correlation evidence**. A numeric overlap is a research lead, never proof of a relationship.
+
+The audit source is landed, but its dedicated unit-test file was not yet committed before this handoff. **Test it before relying on its results.** Do not change the public Mod contract based only on untested numeric overlap.
 
 ## Rules that must not drift
 
 - Repo: `raiinman/dead-signal`; canonical branch: **`main` only**.
-- Dead Signal is a prepared static database + Build Lab workstation. **No WordPress runtime.**
-- Production deploys use existing cPanel Git Version Control; `.cpanel.yml` stays **copy-only**.
-- Installed-game/Miner evidence is canonical. External databases are UX/terminology references only.
+- Static database + Build Lab workstation. **No WordPress runtime.**
+- Production deploy path: cPanel Git Version Control using copy-only `.cpanel.yml`.
+- Installed-game / Miner evidence is canonical. External databases are UX/terminology references only.
 - Never invent mechanics, compatibility, recipes, proc behavior, DPS, rankings, or multiplier semantics.
-- Preserve the accepted landing page, Official Once Human X feed, one global workstation shell, and readability system unless there is a concrete bug.
-- Unfinished database categories remain visibly `SOON` until verified compact contracts are actually materialized and browser-verified.
-- Do not touch domain/DNS/SSL/cPanel hosting configuration unless explicitly asked in that context.
+- Preserve accepted landing page and Official Once Human X feed unless there is a concrete bug.
+- Preserve one global workstation shell/readability system.
+- Unfinished categories stay visibly `SOON` until verified compact contracts are materialized and browser-verified.
+- Do not touch DNS/SSL/cPanel hosting configuration unless explicitly asked in that context.
+- Missing recipe evidence is never automatically classified as non-craftable.
 
-## Current checkpoint
+## Current code checkpoint before this handoff commit
 
-Latest verified functional code HEAD before this handoff update:
+Latest code HEAD immediately before this continuity update:
 
-`c59218c855d77239b02f424661aaf9a90d26675b` — **Keep renderer wiring tests behavior-focused**.
+`95feef4de36ef75dd2d82042808a91a2561be7db` — **Add Mod level progression correlation audit**.
 
-Site CI run `31740889848` completed **SUCCESS**. Its Python materializer/audit suite, browser Weapons guard, and Node syntax checks all passed.
+Recent important commits:
 
-Important continuation commits after the prior handoff:
+- `4fef86f7cc8be52e16bcaaa0865248f2dff97f38` — transactional all-seven Miner snapshot materializer.
+- `bce21b4cc11e195ee65e9bd23a7018e50d2c22e0` — dry-run, validation-isolation, all-seven replacement, and rollback tests.
+- `1d049b35867cc294ce83817d998d4924df2c63ac` — dedicated Mod 2.0 evidence renderer.
+- `fc611f8cd326a24e676515d271566c747ef56d44` — dedicated Mod route tests, including inline JS syntax check.
+- `c59218c855d77239b02f424661aaf9a90d26675b` — behavior-focused route wiring tests for dedicated vs shared renderers.
+- `56440076eb0e90c9895ef1c8dd08339b85402ad9` — extended Mod / Attachment / Deviation / Cradle research audit.
+- `ad57fb660987c0899cb7235fcafdc734e2ba83b5` — extended audit regression tests.
+- `8c782b132b2bf2a65a4335b8c797441ddadd3b1d` — combined fresh-snapshot inspection receipt.
+- `f06fa9b18135874d3637568e2f8d7d2915dd3ae1` — combined inspection tests.
+- `95feef4de36ef75dd2d82042808a91a2561be7db` — Mod-level progression correlation audit.
 
-- `4fef86f7cc8be52e16bcaaa0865248f2dff97f38` — add transactional all-category Miner snapshot materializer.
-- `bce21b4cc11e195ee65e9bd23a7018e50d2c22e0` — regression-test dry-run, all-seven commit, validation fail-closed behavior, and rollback after a mid-commit filesystem failure.
-- `1d049b35867cc294ce83817d998d4924df2c63ac` — dedicated Mod 2.0 renderer exposing mined family/variant evidence and main-entry level rows.
-- `fc611f8cd326a24e676515d271566c747ef56d44` — route tests for the dedicated Mod renderer, including inline JavaScript syntax checking.
-- `c59218c855d77239b02f424661aaf9a90d26675b` — correct route wiring tests so dedicated Calibrations/Mods are not required to load the generic renderer.
+Verified CI:
 
-## Miner v1.5.12.3 — RELEASED
+- Site CI `31741728411` for `f06fa9b...` completed **SUCCESS**.
+- Extended audit test run `31741510725` completed **SUCCESS**.
+- Site CI `31740889848` after route-wiring correction completed **SUCCESS**.
+
+The `95feef4...` Mod-level audit still needs its own targeted test before being treated as proven tooling.
+
+## Miner v1.5.12.3 — RELEASED AND NOW RUNNING LOCALLY
 
 Canonical updater manifest:
 
@@ -41,47 +95,54 @@ Canonical updater manifest:
 - Size: `30,703,410` bytes
 - Asset: `Dead-Signal-Miner-v1.5.12.3-Windows.zip`
 
-Release pipeline `31733912979` completed **SUCCESS**: source tests, Windows packaging, packaged self-test, release packaging, GitHub release, public re-download, SHA/size verification, then updater-manifest publication.
+Release pipeline `31733912979` completed **SUCCESS** with source tests, Windows packaging, packaged self-test, public release verification, SHA/size verification, and updater-manifest publication last.
 
-Packaging path is proven: `miner_entry.py` → `build.ps1` → hidden imports for `publish_extended_web_data` / `publish_current_calibrations` → packaged self-test. Do not weaken it.
+The user has started this released Miner on the actual game install. The fresh artifact is now the critical evidence source.
 
-## Fresh-artifact boundary — next human evidence step
+## Fresh snapshot tooling
 
-The repository session cannot mine the user's installed Once Human files.
+### 1. Read-only inspection
 
-The next evidence-producing step is still:
+`tools/site/inspect-published-snapshot.py`
 
-1. run **Miner v1.5.12.3** against the real Once Human install;
-2. make the resulting fresh `published/` directory available to this workflow/session.
+Produces one receipt containing strict validation plus Weapons, Armor, and extended-category audit sections. Crucially, observational audits still run if strict materialization validation fails, so a bad snapshot yields actionable queues instead of only an exception.
 
-Do not pretend fresh v1.5.12.3 Armor/Mod/Attachment/Deviation/Cradle evidence exists before that run.
+Tests: `tools/site/tests/test_inspect_published_snapshot.py` at `f06fa9b...`.
 
-## Canonical fresh-snapshot ingestion — NEW
+### 2. Transactional materialization
 
-Do **not** materialize the seven website contracts manually one-by-one anymore.
+`tools/site/materialize-published-snapshot.py`
 
-Use:
+Requires and validates all seven compact contracts before replacing any browser payload:
 
-```text
-python tools/site/materialize-published-snapshot.py <fresh-published-dir> --dry-run --report <receipt.json>
-```
+- Weapons
+- Armor
+- Calibrations
+- Mods
+- Attachments
+- Deviations
+- Cradles
 
-If the dry-run passes and the report is reviewed, run the same command without `--dry-run`.
+It stages all seven outputs first and rolls back already-replaced files if final replacement fails. It can emit hashes, schemas, statuses, timestamps, record counts, and report-presence hashes.
 
-`tools/site/materialize-published-snapshot.py` is fail-closed and transactional:
+Tests: `tools/site/tests/test_materialize_published_snapshot.py`.
 
-- requires and validates Weapons, Armor, Calibrations, Mods, Attachments, Deviations, and Cradles before any website payload is replaced;
-- delegates category semantics to the existing strict materializers instead of creating another normalization truth;
-- stages all seven browser payloads first;
-- replaces repository data files only after the whole snapshot passes;
-- restores already-replaced files if the final commit phase fails;
-- can emit a receipt containing source paths, SHA-256 hashes, schemas, statuses, generated timestamps, record counts, and presence/hashes for `data-quality.json` / `change-report.json`.
+### 3. Extended research queues
 
-Tests in `tools/site/tests/test_materialize_published_snapshot.py` prove dry-run isolation, validation isolation, all-seven replacement, and rollback behavior.
+`tools/site/audit-extended-contracts.py`
+
+Observational queues include:
+
+- Mods: multi-variant families, variant-count mismatches, missing names/descriptions/main-entry rows, Shiny variants.
+- Attachments: non-player slot records, missing names, missing static effect evidence, missing compatibility, missing images.
+- Deviations: multi-variant families, variant-count mismatches, missing skill text/images.
+- Cradles: multi-variant families, variant-count mismatches, missing descriptions/images/effect references.
+
+Do not interpret an audit queue as proof that a record is invalid. It is a research queue.
 
 ## Weapons — gold-standard vertical
 
-Last complete accessible snapshot proved:
+Last fully accessible pre-v1.5.12.3 snapshot proved:
 
 - 120 weapons = 95 ranged + 25 melee;
 - 600 Gear Tier rows;
@@ -90,97 +151,138 @@ Last complete accessible snapshot proved:
 - 120/120 artwork;
 - 95/95 firearm profiles resolved.
 
-Player-facing Weapons currently provide catalogue, detail, Compare, legal Gear Tier × Blueprint Stars, Base Attack trace, proven static stats, acquisition/crafting evidence, provenance, unresolved-effect messaging, and Build Lab handoff.
+Current player-facing Weapons have catalogue, detail, Compare, legal Gear Tier × Blueprint Stars, Base Attack trace, proven static stats, acquisition/crafting evidence, provenance, unresolved-effect messaging, and Build Lab handoff.
 
-Both the strict materializer and browser adapter independently require exact Tier I–V coverage, exact rarity-capped Star coverage, numeric Tier base / ratio evidence, integral Base Attack, exact `int(tier_base * ratio)` recomputation, unique IDs, and zero upstream progression validation issues.
+Strict materializer + browser adapter independently enforce Tier I–V, legal rarity-capped stars, numeric Tier-base/ratio evidence, exact `int(tier_base * ratio)` Base Attack, unique IDs, and no upstream progression validation issues.
 
-Remaining evidence queue from the last accessible snapshot:
+Old unresolved queue to re-check against the fresh snapshot:
 
-- 76/120 effects resolved; 44 unresolved/absent, including 29 Common;
-- unresolved Legendary examples include G17 — Cash Only, DBSG — Format, HAMR — Hannya, MPS7 — Chaos Domain;
-- 14 missing Tier recipes, all melee; missing recipe evidence is **not** proof of non-craftable;
-- `short_description` remains intentionally withheld because of the observed Kukri/fish-text cross-wire.
+- 76/120 effects resolved; 44 unresolved/absent, 29 Common;
+- unresolved Legendary examples: G17 — Cash Only, DBSG — Format, HAMR — Hannya, MPS7 — Chaos Domain;
+- 14 missing Tier recipes, all melee;
+- `short_description` still intentionally withheld because of observed Kukri/fish-text cross-wire.
 
-Fresh v1.5.12.3 evidence is required before changing those conclusions.
+Do not carry those counts forward if fresh v1.5.12.3 proves they changed.
 
 ## Armor & Sets
 
-Armor remains `SOON` until a fresh v1.5.12.3 real snapshot proves collision-free variant identity and current recipe/effect invariants.
+Armor stays `SOON` until the fresh v1.5.12.3 snapshot passes identity and integrity gates.
 
-Variant-aware identity is `ds-a-{suit_id}-{blueprint_id}`. The set-centric route, audit, and materializer exist. Materialization requires parent/piece `suit_id` agreement, player-facing slot identity, exact Tier I–V coverage, unique canonical IDs, valid Key Armor IDs, and consistent declared counts.
+Canonical set-piece identity is variant-aware:
 
-Build Lab Armor handoff remains a separate boundary because the legacy `community-data.js` / `app.js` mutation contract is hosting-installed and absent from Git. Do not guess it.
+`ds-a-{suit_id}-{blueprint_id}`
+
+The set-centric route, audit, and strict materializer already exist. Required invariants include parent/piece `suit_id` agreement, player-facing slot, exact Tier I–V coverage, unique canonical identity, valid Key Armor IDs, and consistent declared counts.
+
+Build Lab Armor remains a separate boundary because the deployed planner's legacy `community-data.js` / `app.js` mutation contract is hosting-installed and not in Git. Do not guess it.
 
 ## Current Calibrations
 
-Canonical current contract:
+Required current contract:
 
 - schema `dead-signal-calibrations`;
 - schema_version `2`;
-- publication_status `ready-current-system` only at exactly 94 unambiguous current families;
-- exactly one selected current variant per family; legacy variants remain audit-only;
-- main roll stat identity D0102;
-- Weapon DMG ranges Rare 18–25%, Epic 26–33%, Legendary 34–50%.
+- publication_status `ready-current-system`;
+- exactly 94 unambiguous current families;
+- one current variant per family;
+- D0102 main Weapon DMG roll identity;
+- Rare 18–25%, Epic 26–33%, Legendary 34–50% Weapon DMG ranges.
 
-Standalone `database/calibrations/index.html` is the dedicated current-system renderer. Build Lab independently revalidates the same current-system invariants before applying canonical Calibration data.
+`database/calibrations/index.html` is the dedicated current-system renderer. Build Lab revalidates the same invariants before applying canonical Calibration data.
 
-Do not reintroduce obsolete schema `dead-signal-calibrations-current` as a real contract.
+## Mods 2.0
 
-## Mods 2.0 — dedicated evidence route now landed
+`database/mods/index.html` is a dedicated evidence renderer and does not load the generic extended renderer.
 
-`database/mods/index.html` no longer loads the generic category renderer. It requires:
+It accepts only:
 
-- schema `dead-signal-mods`;
-- schema_version `1`;
-- publication_status `mod-code-family-projection-variants-preserved`;
-- non-empty families with canonical IDs;
-- preserved source variants whose declared variant count matches the actual array.
+- `dead-signal-mods` schema v1;
+- publication status `mod-code-family-projection-variants-preserved`;
+- non-empty canonical families with declared variant count equal to actual variants.
 
-The route exposes only mined evidence already present in the compact contract:
+It exposes mined Mod evidence already in the compact contract: Mod code, all variants, rarity, Shiny identity, main-entry/apply-range/genre-library/frame codes, item ID, Shiny references, and `main_entry_effects` rows.
 
-- Mod family / mod code;
-- every preserved source variant;
-- rarity and Shiny identity;
-- `main_entry_code`, `apply_range_code`, `genre_library_code`, `frame_code`;
-- item ID, Shiny buff/replacement codes when present;
-- all mined `main_entry_effects` level rows with names/descriptions/attribute codes/values/buff IDs.
+Multi-variant families remain visibly ambiguous and are not silently promoted to Build Lab.
 
-Multi-variant families are visibly marked ambiguous. Dead Signal does **not** silently choose variant #1 or promote ambiguous families into Build Lab.
+Next Mod research once fresh output is available:
 
-This is presentation of mined Mod evidence, not proof yet of complete current Mod 2.0 player-selectable identity. Fresh v1.5.12.3 output remains required.
+1. run the extended audit;
+2. run the new Mod-level progression correlation audit;
+3. inspect `data/progression.json` `mod_level` rows from `new_mod_level_data.json`;
+4. prove key relationships before changing the compact contract to represent Lv1–17/fixed-subattribute semantics.
 
-## Attachments / Deviations / Cradles
+## Attachments
 
-- Attachments: compact publisher accepts player weapon slots only — Sight, Muzzle, Tactical, Magazine. Last verified player-facing count was 119 = 30 / 36 / 36 / 17; raw 202 is not a picker target. Materialization rejects unsupported status, duplicate IDs, missing/extra slot classes, and non-player slot records. Next repo UI target is a dedicated attachment renderer for static effects + compatibility.
-- Deviations / Cradles: source variants stay preserved. Materialization requires the variant-preserving publisher status; Build Lab separately blocks promotion whenever a family remains ambiguous.
+Compact publisher target is only player weapon slots:
 
-## Production website / Build Lab state
+- Sight
+- Muzzle
+- Tactical
+- Magazine
 
-`.cpanel.yml` remains copy-only and already copies the prepared category routes/contracts and Build Lab canonical guard/bridge assets.
+Previous verified target was 119 player-facing records = 30 / 36 / 36 / 17; raw 202 was not the picker target. Re-check against fresh v1.5.12.3 instead of freezing the old count.
 
-Landing page still correctly keeps Armor, Mods, Calibrations, Deviations, and Cradles `SOON` until real compact contracts are materialized and verified. Do not flip labels just because route source exists.
+Materialization already rejects unsupported publisher status, duplicate IDs, missing/extra slot classes, and non-player slot records.
 
-Two old Build Lab compatibility files remain hosting-installed only:
+A richer dedicated Attachment renderer for static effect + compatibility is still a repo-side UI target. Several large browser-renderer writes were tool-safety false-positive blocked before this handoff; do not treat that as a product-data blocker. Continue via smaller safe changes if necessary.
+
+## Deviations / Cradles
+
+Source variants stay preserved. Materialization requires the variant-preserving publisher status. Build Lab separately blocks promotion when families remain ambiguous.
+
+Fresh extended audit output should drive the next work; do not arbitrarily select source variant #1.
+
+## Production website / Build Lab
+
+`.cpanel.yml` remains copy-only and already deploys prepared category routes/contracts and Build Lab canonical guard/bridge assets.
+
+Landing page stays truthful: unfinished categories remain `SOON` until their fresh contracts are materialized and browser-verified.
+
+Hosting-only legacy Build Lab files:
 
 - `preview/build-lab/data/community-data.js`
 - `preview/build-lab/app.js`
 
-Do not remove those compatibility pools until canonical end-to-end browser behavior is verified.
+Do not delete compatibility pools until canonical end-to-end behavior is proven.
 
-## Next exact sequence
+## Exact next sequence for the 2:00 PM Day Shift
 
-1. User runs Miner **v1.5.12.3** against the real Once Human install and supplies the fresh `published/` artifact.
-2. Run `materialize-published-snapshot.py` in `--dry-run` mode and inspect the receipt / Miner reports.
-3. If all seven contracts pass, transactionally materialize the snapshot.
-4. Audit Weapons; investigate unresolved non-Common effects, unsafe descriptions, and missing melee recipes from fresh evidence.
-5. Verify/materialize Armor and integrate only after both public contract and planner target identity are proven.
-6. Verify the 94-family current Calibration contract end-to-end.
-7. Use fresh Mod output to resolve current player-selectable family/variant identity; keep the dedicated evidence route fail-closed otherwise.
-8. Build the dedicated Attachment route and reconcile current compatibility from the fresh 119-style player-slot corpus.
-9. Resolve Deviation/Cradle variant semantics or provide explicit variant selection before planner promotion.
-10. Finish Build Lab canonical migration; remove old compatibility pools only after end-to-end verification.
-11. When core functionality is broadly complete, audit current Wikily / OnceHumanDB UX/features and implement evidence-backed differentiators without using their corpus counts as completeness targets.
+1. Read `PROJECT-RULES.md` and this file, then inspect latest `main` so concurrent work is not overwritten.
+2. **First check whether the user's currently running Miner v1.5.12.3 has completed and whether the fresh `published/` artifact is accessible.**
+3. If accessible, run `inspect-published-snapshot.py` first and preserve the receipt.
+4. Test `audit-mod-level-progression.py` before relying on it; then run it on the fresh artifact.
+5. Review strict validation + all research queues. Do not promote failing/ambiguous categories.
+6. If strict all-seven validation passes, run transactional materializer dry-run, review receipt, then materialize all seven together.
+7. Re-audit Weapons using fresh counts/evidence; attack non-Common unresolved effects, description resolver, and melee recipe gaps only from the fresh corpus.
+8. Verify Armor identity/integrity; materialize it only if the fresh contract passes.
+9. Verify current 94-family Calibrations end-to-end.
+10. Use fresh Mod + progression evidence to determine current Mod 2.0 identity and Lv1–17/fixed-subattribute structure without guessing.
+11. Reconcile Attachments from fresh player-slot corpus; then improve player-facing effect/compatibility UI.
+12. Resolve Deviation/Cradle variant semantics before planner promotion.
+13. Continue Build Lab canonical migration category by category; keep the legacy hosting pools until replacement is proven.
+14. Only after core data/database functionality is broadly complete: live competitor UX audit against current Wikily / OnceHumanDB and implement evidence-backed differentiators.
 
-## Read first next session
+## Read first / high-value files
 
-`PROJECT-RULES.md`, `tools/miner/release/latest.json`, `tools/miner/VERSION`, `tools/miner/src/miner_entry.py`, `tools/miner/build.ps1`, `.github/workflows/test-miner.yml`, `.github/workflows/release-miner-v1512.yml`, `publish_extended_web_data.py`, `publish_current_calibrations.py`, `normalize_weapons.py`, `normalize_armor.py`, `tools/site/materialize-published-snapshot.py`, `tools/site/tests/test_materialize_published_snapshot.py`, `materialize-weapons-web.py`, `materialize-armor-web.py`, `materialize-extended-contract.py`, `audit-weapons-contract.py`, `database/calibrations/index.html`, `database/mods/index.html`, `preview/build-lab/canonical-category-bridge.js`, `canonical-category-variant-guard.js`, `.github/workflows/test-site-tools.yml`, `.cpanel.yml`.
+- `PROJECT-RULES.md`
+- `tools/miner/release/latest.json`
+- `tools/miner/VERSION`
+- `tools/miner/src/miner_entry.py`
+- `tools/miner/src/extractor/publish_extended_web_data.py`
+- `tools/miner/src/extractor/publish_current_calibrations.py`
+- `tools/miner/src/extractor/normalize_extended.py`
+- `tools/site/inspect-published-snapshot.py`
+- `tools/site/tests/test_inspect_published_snapshot.py`
+- `tools/site/materialize-published-snapshot.py`
+- `tools/site/tests/test_materialize_published_snapshot.py`
+- `tools/site/audit-weapons-contract.py`
+- `tools/site/audit-armor-contract.py`
+- `tools/site/audit-extended-contracts.py`
+- `tools/site/tests/test_audit_extended_contracts.py`
+- `tools/site/audit-mod-level-progression.py`
+- `database/calibrations/index.html`
+- `database/mods/index.html`
+- `preview/build-lab/canonical-category-bridge.js`
+- `preview/build-lab/canonical-category-variant-guard.js`
+- `.github/workflows/test-site-tools.yml`
+- `.cpanel.yml`
