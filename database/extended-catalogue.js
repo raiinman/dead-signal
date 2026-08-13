@@ -28,6 +28,16 @@
 
   function verifiedContract() {
     if (!data || data.schema !== schema || !Array.isArray(data[collection])) return false;
+    if (category === 'attachments') {
+      return data.schema_version === 2
+        && data.publication_status === 'ready'
+        && data[collection].every((row) => {
+          const evidence = row?.compatibility_evidence;
+          return evidence
+            && ['direct-localized-installed-game-text', 'unresolved'].includes(text(evidence.status))
+            && (text(evidence.status) !== 'direct-localized-installed-game-text' || !!text(evidence.text));
+        });
+    }
     if (category !== 'calibrations') return true;
     return data.schema_version === 2
       && data.publication_status === 'ready-current-system'
@@ -63,7 +73,15 @@
   function summary(row) {
     const list = variants(row);
     if (category === 'attachments') {
-      return [text(row.attachment_type) || 'Weapon attachment', text(row.effects || row.description), `Accessory ${row.accessory_code ?? '—'} · Affix ${row.affix_code ?? '—'}`];
+      const evidence = row.compatibility_evidence || {};
+      const compatibility = evidence.status === 'direct-localized-installed-game-text'
+        ? text(evidence.text)
+        : 'Compatibility unresolved in the installed-game snapshot';
+      return [
+        text(row.attachment_type) || 'Weapon attachment',
+        text(row.effects || row.description),
+        compatibility,
+      ];
     }
     if (category === 'calibrations') return calibrationSummary(row, list[0]);
     if (category === 'mods') {
@@ -109,11 +127,17 @@
     const meta = document.createElement('div');
     meta.className = 'meta';
     const evidence = document.createElement('div');
-    appendText(evidence, 'span', 'Evidence');
+    appendText(evidence, 'span', category === 'attachments' ? 'Compatibility' : 'Evidence');
     appendText(evidence, 'b', details);
     const variantCount = document.createElement('div');
-    appendText(variantCount, 'span', 'Variants');
-    appendText(variantCount, 'b', String(list.length));
+    appendText(variantCount, 'span', category === 'attachments' ? 'Source' : 'Variants');
+    appendText(
+      variantCount,
+      'b',
+      category === 'attachments'
+        ? (row.compatibility_evidence?.status === 'direct-localized-installed-game-text' ? 'Installed-game text' : 'Unresolved')
+        : String(list.length),
+    );
     meta.append(evidence, variantCount);
     article.append(meta);
 
@@ -144,7 +168,13 @@
         && (!rarity.value || rarities(row).includes(rarity.value));
     });
     grid.replaceChildren(...visible.map(card));
-    status.textContent = `${visible.length} of ${records.length} ${label.toLowerCase()} shown · ${text(data.publication_status) || 'compact Miner contract'}.`;
+    if (category === 'attachments') {
+      const direct = Number(data.record_counts?.direct_compatibility_text) || 0;
+      const unresolved = Number(data.record_counts?.unresolved_compatibility) || 0;
+      status.textContent = `${visible.length} of ${records.length} weapon attachments shown · ${direct} direct compatibility texts · ${unresolved} unresolved.`;
+    } else {
+      status.textContent = `${visible.length} of ${records.length} ${label.toLowerCase()} shown · ${text(data.publication_status) || 'compact Miner contract'}.`;
+    }
   }
 
   search.addEventListener('input', render);
