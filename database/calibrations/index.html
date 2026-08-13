@@ -11,8 +11,7 @@
   <link rel="stylesheet" href="../extended-catalogue.css">
   <script src="../../shared/readability.js" defer></script>
   <script src="../../shared/workstation-shell.js" defer></script>
-  <script src="calibrations-data.js?v=20260813a"></script>
-  <script src="../extended-catalogue.js?v=20260813a" defer></script>
+  <script src="calibrations-data.js?v=20260813b"></script>
 </head>
 <body data-category="calibrations">
   <a class="skip-link" href="#databaseMain">Skip to Calibration database</a>
@@ -23,5 +22,108 @@
     <section id="dbGrid" class="db-grid" aria-label="Calibration results"></section>
     <section id="dbUnavailable" class="db-unavailable" hidden><strong>CALIBRATION DATA AWAITING VERIFIED SNAPSHOT</strong><p>The route is ready, but it stays fail-closed until a compact Miner contract proves exactly 94 current families with no current/legacy ambiguity.</p></section>
   </main>
+  <script>
+  (() => {
+    'use strict';
+    const data = window.DS_CALIBRATIONS_WEB;
+    const grid = document.getElementById('dbGrid');
+    const unavailable = document.getElementById('dbUnavailable');
+    const status = document.getElementById('dbStatus');
+    const search = document.getElementById('dbSearch');
+    const style = document.getElementById('dbPrimary');
+    const rarity = document.getElementById('dbRarity');
+    const count = document.getElementById('dbCount');
+    const clear = document.getElementById('dbClear');
+    const text = (value) => String(value ?? '').trim();
+    const valid = !!data
+      && data.schema === 'dead-signal-calibrations'
+      && data.schema_version === 2
+      && data.publication_status === 'ready-current-system'
+      && data.expected_current_families === 94
+      && Array.isArray(data.families)
+      && data.families.length === 94
+      && !(data.ambiguous_family_ids || []).length
+      && data.families.every((family) => Array.isArray(family.variants) && family.variants.length === 1);
+
+    if (!valid) {
+      grid.hidden = true;
+      unavailable.hidden = false;
+      status.textContent = 'Current Calibration route prepared · verified 94-family compact contract not materialized.';
+      return;
+    }
+
+    const records = data.families.map((family) => ({ family, item: family.variants[0] }));
+    count.textContent = records.length.toLocaleString();
+    const styleName = ({ family, item }) => text(item.style_code) ? `Style ${item.style_code}` : text(family.name) || 'Style unresolved';
+    const rarityName = ({ item }) => text(item.rarity) || 'Unknown';
+    const styles = [...new Set(records.map(styleName))].sort();
+    const rarities = [...new Set(records.map(rarityName))].sort();
+    styles.forEach((value) => style.add(new Option(value, value)));
+    rarities.forEach((value) => rarity.add(new Option(value, value)));
+
+    const add = (parent, tag, value, className = '') => {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      node.textContent = value;
+      parent.append(node);
+      return node;
+    };
+
+    function card(record) {
+      const { family, item } = record;
+      const article = document.createElement('article');
+      article.className = `db-card rarity-${rarityName(record)}`;
+      add(article, 'small', `${styleName(record)} · ${rarityName(record)}`);
+      add(article, 'h2', text(item.name) || text(family.name) || 'Unnamed Calibration');
+      add(article, 'p', text(item.description) || 'No player-facing fixed Style description is resolved in this compact record.');
+
+      const roll = item.roll_range || {};
+      const minimum = Number(roll.minimum_percent);
+      const maximum = Number(roll.maximum_percent);
+      const rollText = Number.isFinite(minimum) && Number.isFinite(maximum)
+        ? `${minimum}–${maximum}% Weapon DMG`
+        : 'Weapon DMG range unresolved';
+      const weaponTypes = Array.isArray(item.weapon_type_codes) && item.weapon_type_codes.length
+        ? item.weapon_type_codes.join(', ')
+        : 'Compatibility unresolved';
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      const mainRoll = document.createElement('div');
+      add(mainRoll, 'span', 'Guaranteed main roll');
+      add(mainRoll, 'b', rollText);
+      const compatibility = document.createElement('div');
+      add(compatibility, 'span', 'Weapon types');
+      add(compatibility, 'b', weaponTypes);
+      meta.append(mainRoll, compatibility);
+      article.append(meta);
+      return article;
+    }
+
+    function render() {
+      const query = search.value.trim().toLowerCase();
+      const visible = records.filter((record) => {
+        const { family, item } = record;
+        const haystack = `${family.name || ''} ${item.name || ''} ${item.description || ''} ${styleName(record)} ${rarityName(record)} ${(item.weapon_type_codes || []).join(' ')}`.toLowerCase();
+        return (!query || haystack.includes(query))
+          && (!style.value || styleName(record) === style.value)
+          && (!rarity.value || rarityName(record) === rarity.value);
+      });
+      grid.replaceChildren(...visible.map(card));
+      status.textContent = `${visible.length} of ${records.length} current Calibration families shown · ${data.publication_status}.`;
+    }
+
+    search.addEventListener('input', render);
+    style.addEventListener('change', render);
+    rarity.addEventListener('change', render);
+    clear.addEventListener('click', () => {
+      search.value = '';
+      style.value = '';
+      rarity.value = '';
+      render();
+      search.focus();
+    });
+    render();
+  })();
+  </script>
 </body>
 </html>
