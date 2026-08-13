@@ -2,12 +2,15 @@
 declare(strict_types=1);
 
 const DS_X_HANDLE = 'OnceHuman_';
+const DS_X_NAME = 'Once Human';
 const DS_X_CACHE_TTL = 300;
 const DS_X_MAX_ITEMS = 8;
-const DS_X_CACHE_VERSION = 3;
+const DS_X_CACHE_VERSION = 4;
 
 $cacheFile = __DIR__ . '/timeline-cache.json';
 $lockFile = __DIR__ . '/timeline-cache.lock';
+$profileUrl = 'https://x.com/' . DS_X_HANDLE;
+$jinaUrl = 'https://r.jina.ai/' . $profileUrl;
 
 header('Content-Type: text/html; charset=utf-8');
 header('Cache-Control: public, max-age=60, stale-while-revalidate=600');
@@ -30,38 +33,17 @@ function ds_write_cache(string $file, array $data): void {
     }
 }
 
-function ds_load_bearer_token(): string {
-    $env = trim((string)getenv('DEAD_SIGNAL_X_BEARER_TOKEN'));
-    if ($env !== '') return $env;
-
-    $docRoot = (string)($_SERVER['DOCUMENT_ROOT'] ?? '');
-    if ($docRoot !== '') {
-        $secretFile = dirname($docRoot) . '/dead-signal-secrets/x-api.php';
-        if (is_file($secretFile)) {
-            $secret = include $secretFile;
-            if (is_array($secret) && isset($secret['bearer_token'])) {
-                return trim((string)$secret['bearer_token']);
-            }
-        }
-    }
-
-    return '';
-}
-
-function ds_api_get(string $url, string $token): ?array {
-    if ($token === '' || !function_exists('curl_init')) return null;
+function ds_http_get(string $url, array $headers = [], int $timeout = 30): ?array {
+    if (!function_exists('curl_init')) return null;
 
     $ch = curl_init($url);
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_CONNECTTIMEOUT => 8,
-        CURLOPT_TIMEOUT => 15,
+        CURLOPT_CONNECTTIMEOUT => 10,
+        CURLOPT_TIMEOUT => $timeout,
         CURLOPT_ENCODING => '',
-        CURLOPT_HTTPHEADER => [
-            'Accept: application/json',
-            'Authorization: Bearer ' . $token,
-        ],
+        CURLOPT_HTTPHEADER => $headers,
         CURLOPT_USERAGENT => 'DeadSignal/1.0 (+https://deadsignaldb.com/)',
     ]);
 
@@ -69,58 +51,146 @@ function ds_api_get(string $url, string $token): ?array {
     $status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
     curl_close($ch);
 
-    if (!is_string($body) || $status < 200 || $status >= 300) return null;
-    $data = json_decode($body, true);
+    if (!is_string($body) || $body === '' || $status < 200 || $status >= 300) return null;
+    return ['status' => $status, 'body' => $body];
+}
+
+function ds_fetch_jina_profile(string $url): ?array {
+    $response = ds_http_get($url, [
+        'Accept: application/json',
+        'X-Respond-With: markdown',
+        'X-Engine: browser',
+        'X-No-Cache: true',
+        'X-Timeout: 30',
+    ], 40);
+    if (!$response) return null;
+
+    $decoded = json_decode((string)$response['body'], true);
+    if (is_array($decoded)) {
+        $content = '';
+        if (isset($decoded['data']['content']) && is_string($decoded['data']['content'])) {
+            $content = $decoded['data']['content'];
+        } elseif (isset($decoded['content']) && is_string($decoded['content'])) {
+            $content = $decoded['content'];
+        }
+        if ($content !== '') return ['content' => $content, 'raw' => $decoded];
+    }
+
+    return ['content' => (string)$response['body'], 'raw' => null];
+}
+
+function ds_extract_profile_avatar(string $content): string {
+    if (preg_match('~https://pbs\.twimg\.com/profile_images/[^\s)\]"\']+~i', $content, $m)) {
+        return html_entity_decode($m[0], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    }
+    return '';
+}
+
+function ds_extract_statuses(string $content): array {
+    $quotedHandle = preg_quote(DS_X_HANDLE, '~');
+    $patterns = [
+        '~https?://(?:www\.)?x\.com/' . $quotedHandle . '/status/(\d+)~i',
+        '~https?://(?:www\.)?twitter\.com/' . $quotedHandle . '/status/(\d+)~i',
+    ];
+
+    $found = [];
+    foreach ($patterns as $pattern) {
+        if (!preg_match_all($pattern, $content, $matches, PREG_SET_ORDER)) continue;
+        foreach ($matches as $match) {
+            $id = (string)$match[1];
+            if ($id === '') continue;
+            $found[$id] = 'https://x.com/' . DS_X_HANDLE . '/status/' . $id;
+        }
+    }
+
+    uksort($found, static function (string $a, string $b): int {
+        if (strlen($a) !== strlen($b)) return strlen($b) <=> strlen($a);
+        return strcmp($b, $a);
+    });
+
+    return array_slice($found, 0, DS_X_MAX_ITEMS, true);
+}
+
+function ds_snowflake_time(string $id): string {
+    if (!ctype_digit($id) || PHP_INT_SIZE < 8) return '';
+    $value = (int)$id;
+    $milliseconds = ($value >> 22) + 1288834974657;
+    if ($milliseconds <= 0) return '';
+    return gmdate('c', intdiv($milliseconds, 1000));
+}
+
+function ds_safe_post_html(string $html): string {
+    if (!class_exists('DOMDocument')) return h(strip_tags($html));
+
+    $dom = new DOMDocument();
+    $previous = libxml_use_internal_errors(true);
+    $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+    libxml_clear_errors();
+    libxml_use_internal_errors($previous);
+
+    $paragraph = $dom->getElementsByTagName('p')->item(0);
+    if (!$paragraph) return '';
+
+    $renderNode = function (DOMNode $node) use (&$renderNode): string {
+        if ($node instanceof DOMText) return h($node->nodeValue ?? '');
+        if (!($node instanceof DOMElement)) return '';
+
+        $tag = strtolower($node->tagName);
+        $inner = '';
+        foreach ($node->childNodes as $child) $inner .= $renderNode($child);
+
+        if ($tag === 'br') return '<br>';
+        if ($tag !== 'a') return $inner;
+
+        $href = trim($node->getAttribute('href'));
+        if (!preg_match('~^https?://~i', $href)) return $inner;
+        return '<a href="' . h($href) . '" target="_blank" rel="noopener noreferrer">' . $inner . '</a>';
+    };
+
+    $out = '';
+    foreach ($paragraph->childNodes as $child) $out .= $renderNode($child);
+    return trim($out);
+}
+
+function ds_fetch_oembed(string $url): ?array {
+    $query = http_build_query([
+        'url' => $url,
+        'omit_script' => 1,
+        'dnt' => 'true',
+        'theme' => 'dark',
+    ], '', '&', PHP_QUERY_RFC3986);
+
+    $response = ds_http_get('https://publish.x.com/oembed?' . $query, [
+        'Accept: application/json',
+    ], 20);
+    if (!$response) return null;
+
+    $data = json_decode((string)$response['body'], true);
     return is_array($data) ? $data : null;
 }
 
-function ds_media_map(array $payload): array {
-    $map = [];
-    foreach (($payload['includes']['media'] ?? []) as $media) {
-        if (!is_array($media) || empty($media['media_key'])) continue;
-        $url = '';
-        if (($media['type'] ?? '') === 'photo') {
-            $url = (string)($media['url'] ?? '');
-        } else {
-            $url = (string)($media['preview_image_url'] ?? '');
-        }
-        if ($url !== '') $map[(string)$media['media_key']] = $url;
-    }
-    return $map;
-}
+function ds_build_posts(array $statuses, string $avatar): array {
+    $posts = [];
 
-function ds_normalize_api_tweets(array $payload, array $profile): array {
-    $out = [];
-    $mediaMap = ds_media_map($payload);
+    foreach ($statuses as $id => $url) {
+        $embed = ds_fetch_oembed($url);
+        if (!is_array($embed) || empty($embed['html'])) continue;
 
-    foreach (($payload['data'] ?? []) as $tweet) {
-        if (!is_array($tweet) || empty($tweet['id']) || empty($tweet['text'])) continue;
+        $postHtml = ds_safe_post_html((string)$embed['html']);
+        if ($postHtml === '') continue;
 
-        $media = [];
-        foreach (($tweet['attachments']['media_keys'] ?? []) as $key) {
-            if (isset($mediaMap[$key])) $media[] = $mediaMap[$key];
-        }
-
-        $metrics = is_array($tweet['public_metrics'] ?? null) ? $tweet['public_metrics'] : [];
-        $id = (string)$tweet['id'];
-        $out[] = [
-            'id' => $id,
-            'text' => (string)$tweet['text'],
-            'created_at' => (string)($tweet['created_at'] ?? ''),
-            'name' => (string)($profile['name'] ?? 'Once Human'),
-            'screen_name' => (string)($profile['username'] ?? DS_X_HANDLE),
-            'avatar' => (string)($profile['profile_image_url'] ?? ''),
-            'url' => 'https://x.com/' . rawurlencode((string)($profile['username'] ?? DS_X_HANDLE)) . '/status/' . $id,
-            'media' => array_slice(array_values(array_unique($media)), 0, 4),
-            'reply_count' => (int)($metrics['reply_count'] ?? 0),
-            'retweet_count' => (int)($metrics['retweet_count'] ?? 0),
-            'favorite_count' => (int)($metrics['like_count'] ?? 0),
+        $posts[] = [
+            'id' => (string)$id,
+            'url' => $url,
+            'created_at' => ds_snowflake_time((string)$id),
+            'name' => DS_X_NAME,
+            'screen_name' => DS_X_HANDLE,
+            'avatar' => $avatar,
+            'html' => $postHtml,
         ];
-
-        if (count($out) >= DS_X_MAX_ITEMS) break;
     }
 
-    return $out;
+    return array_slice($posts, 0, DS_X_MAX_ITEMS);
 }
 
 function ds_cache_is_fresh(?array $cache): bool {
@@ -128,13 +198,12 @@ function ds_cache_is_fresh(?array $cache): bool {
         && (int)($cache['version'] ?? 0) === DS_X_CACHE_VERSION
         && isset($cache['fetched_at'])
         && (time() - (int)$cache['fetched_at'] < DS_X_CACHE_TTL)
-        && !empty($cache['tweets']);
+        && !empty($cache['posts']);
 }
 
-function ds_refresh_cache(string $cacheFile, string $lockFile, string $token): ?array {
+function ds_refresh_cache(string $cacheFile, string $lockFile, string $jinaUrl): ?array {
     $cache = ds_read_cache($cacheFile);
     if (ds_cache_is_fresh($cache)) return $cache;
-    if ($token === '') return null;
 
     $lock = @fopen($lockFile, 'c');
     if (!$lock) return $cache;
@@ -145,43 +214,23 @@ function ds_refresh_cache(string $cacheFile, string $lockFile, string $token): ?
 
     $cache = ds_read_cache($cacheFile);
     if (!ds_cache_is_fresh($cache)) {
-        $profile = [];
-        $userId = '';
-
-        if (is_array($cache) && !empty($cache['user_id']) && is_array($cache['profile'] ?? null)) {
-            $userId = (string)$cache['user_id'];
-            $profile = $cache['profile'];
-        }
-
-        if ($userId === '') {
-            $userUrl = 'https://api.x.com/2/users/by/username/' . rawurlencode(DS_X_HANDLE)
-                . '?user.fields=name,username,profile_image_url';
-            $userPayload = ds_api_get($userUrl, $token);
-            if (is_array($userPayload['data'] ?? null)) {
-                $profile = $userPayload['data'];
-                $userId = (string)($profile['id'] ?? '');
+        $profile = ds_fetch_jina_profile($jinaUrl);
+        if ($profile && !empty($profile['content'])) {
+            $content = (string)$profile['content'];
+            $statuses = ds_extract_statuses($content);
+            $avatar = ds_extract_profile_avatar($content);
+            if ($avatar === '' && is_array($cache) && !empty($cache['avatar'])) {
+                $avatar = (string)$cache['avatar'];
             }
-        }
 
-        if ($userId !== '') {
-            $query = http_build_query([
-                'max_results' => 10,
-                'exclude' => 'replies,retweets',
-                'tweet.fields' => 'created_at,public_metrics,attachments',
-                'expansions' => 'attachments.media_keys',
-                'media.fields' => 'media_key,type,url,preview_image_url,width,height',
-            ], '', '&', PHP_QUERY_RFC3986);
-            $tweetsPayload = ds_api_get('https://api.x.com/2/users/' . rawurlencode($userId) . '/tweets?' . $query, $token);
-            $tweets = is_array($tweetsPayload) ? ds_normalize_api_tweets($tweetsPayload, $profile) : [];
-
-            if ($tweets) {
+            $posts = ds_build_posts($statuses, $avatar);
+            if ($posts) {
                 $cache = [
                     'version' => DS_X_CACHE_VERSION,
                     'fetched_at' => time(),
                     'handle' => DS_X_HANDLE,
-                    'user_id' => $userId,
-                    'profile' => $profile,
-                    'tweets' => $tweets,
+                    'avatar' => $avatar,
+                    'posts' => $posts,
                 ];
                 ds_write_cache($cacheFile, $cache);
             }
@@ -190,7 +239,7 @@ function ds_refresh_cache(string $cacheFile, string $lockFile, string $token): ?
 
     @flock($lock, LOCK_UN);
     fclose($lock);
-    return ds_cache_is_fresh($cache) ? $cache : null;
+    return ds_cache_is_fresh($cache) ? $cache : $cache;
 }
 
 function h(string $value): string {
@@ -209,9 +258,8 @@ function ds_time_label(string $raw): string {
     return gmdate('M j', $ts);
 }
 
-$token = ds_load_bearer_token();
-$cache = ds_refresh_cache($cacheFile, $lockFile, $token);
-$tweets = is_array($cache['tweets'] ?? null) ? $cache['tweets'] : [];
+$cache = ds_refresh_cache($cacheFile, $lockFile, $jinaUrl);
+$posts = is_array($cache['posts'] ?? null) ? $cache['posts'] : [];
 $stale = $cache && isset($cache['fetched_at']) ? max(0, time() - (int)$cache['fetched_at']) : null;
 ?>
 <!doctype html>
@@ -223,39 +271,30 @@ $stale = $cache && isset($cache['fetched_at']) ? max(0, time() - (int)$cache['fe
 <title>Once Human X Feed</title>
 <style>
 :root{color-scheme:dark;--bg:#07090b;--line:#202a30;--text:#eef2f4;--muted:#85939b;--cyan:#58c7cc;--red:#e6323e}
-*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,"Segoe UI",system-ui,sans-serif}body{overflow-x:hidden}.feed{display:grid}.tweet{display:grid;grid-template-columns:42px 1fr;gap:11px;padding:15px 16px;border-bottom:1px solid var(--line);background:linear-gradient(90deg,rgba(255,255,255,.018),transparent);text-decoration:none;color:inherit;transition:background .15s ease}.tweet:hover{background:linear-gradient(90deg,rgba(230,50,62,.055),rgba(88,199,204,.025))}.avatar{width:42px;height:42px;border-radius:50%;object-fit:cover;background:#151b1f;border:1px solid #2a343a}.avatar-fallback{display:grid;place-items:center;font-weight:900;color:var(--cyan)}.top{display:flex;align-items:center;min-width:0;gap:6px;font-size:13px;line-height:1.2}.name{font-weight:850;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.handle,.dot,.time{color:var(--muted);white-space:nowrap}.body{margin-top:5px;font-size:14px;line-height:1.45;white-space:pre-wrap;word-break:break-word}.media{margin-top:10px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px;border:1px solid #263138;border-radius:10px;overflow:hidden;background:#0d1215}.media.one{grid-template-columns:1fr}.media img{display:block;width:100%;height:150px;object-fit:cover;background:#11171a}.media.one img{height:220px}.stats{display:flex;gap:18px;margin-top:9px;color:#6f7d84;font-size:11px}.stats b{color:#91a0a7;font-weight:700}.empty{min-height:340px;display:grid;place-content:center;gap:8px;padding:30px;text-align:center;color:var(--muted);font-size:12px;letter-spacing:.06em;text-transform:uppercase}.empty strong{color:var(--red)}.empty a{color:var(--cyan)}.cache-note{padding:7px 12px;border-top:1px solid var(--line);color:#607078;font-size:9px;text-align:right;letter-spacing:.08em;text-transform:uppercase}@media(max-width:520px){.tweet{grid-template-columns:36px 1fr;padding:13px}.avatar{width:36px;height:36px}.body{font-size:13px}.media img,.media.one img{height:150px}}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,"Segoe UI",system-ui,sans-serif}body{overflow-x:hidden}.feed{display:grid}.tweet{position:relative;display:grid;grid-template-columns:42px 1fr;gap:11px;padding:15px 16px;border-bottom:1px solid var(--line);background:linear-gradient(90deg,rgba(255,255,255,.018),transparent);color:inherit;transition:background .15s ease}.tweet:hover{background:linear-gradient(90deg,rgba(230,50,62,.055),rgba(88,199,204,.025))}.avatar-link{display:block;width:42px;height:42px}.avatar{width:42px;height:42px;border-radius:50%;object-fit:cover;background:#151b1f;border:1px solid #2a343a}.avatar-fallback{display:grid;place-items:center;font-weight:900;color:var(--cyan)}.top{display:flex;align-items:center;min-width:0;gap:6px;font-size:13px;line-height:1.2}.author{min-width:0;text-decoration:none}.name{font-weight:850;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.handle,.dot,.time{color:var(--muted);white-space:nowrap}.time{text-decoration:none}.body{margin-top:5px;font-size:14px;line-height:1.45;word-break:break-word}.body a{color:#72d6da;text-decoration:none}.body a:hover{text-decoration:underline}.actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;color:#68767d;font-size:10px;letter-spacing:.08em;text-transform:uppercase}.view-x{color:#8ea0a8;text-decoration:none}.view-x:hover{color:#fff}.x-mark{position:absolute;right:14px;top:14px;color:#c7d0d4;font-size:15px;font-weight:900;text-decoration:none}.empty{min-height:340px;display:grid;place-content:center;gap:8px;padding:30px;text-align:center;color:var(--muted);font-size:12px;letter-spacing:.06em;text-transform:uppercase}.empty strong{color:var(--red)}.empty a{color:var(--cyan)}.cache-note{padding:7px 12px;border-top:1px solid var(--line);color:#607078;font-size:9px;text-align:right;letter-spacing:.08em;text-transform:uppercase}@media(max-width:520px){.tweet{grid-template-columns:36px 1fr;padding:13px}.avatar-link,.avatar{width:36px;height:36px}.body{font-size:13px}}
 </style>
 </head>
 <body>
 <div class="feed">
-<?php if (!$tweets): ?>
-  <div class="empty">
-    <?php if ($token === ''): ?>
-      <strong>X API connection required</strong><span>The cached feed is ready; Dead Signal needs its private X bearer token configured on the server.</span>
-    <?php else: ?>
-      <strong>Official X feed is warming up</strong><span>Dead Signal could not retrieve the live timeline yet.</span>
-    <?php endif; ?>
-    <a href="https://x.com/<?=h(DS_X_HANDLE)?>" target="_blank" rel="noopener noreferrer">Open @<?=h(DS_X_HANDLE)?> on X</a>
-  </div>
+<?php if (!$posts): ?>
+  <div class="empty"><strong>Official X feed is warming up</strong><span>Dead Signal is acquiring the latest public @<?=h(DS_X_HANDLE)?> posts through its free cached bridge.</span><a href="https://x.com/<?=h(DS_X_HANDLE)?>" target="_blank" rel="noopener noreferrer">Open @<?=h(DS_X_HANDLE)?> on X</a></div>
 <?php else: ?>
-<?php foreach ($tweets as $tweet): ?>
-  <a class="tweet" href="<?=h((string)$tweet['url'])?>" target="_blank" rel="noopener noreferrer">
-    <?php if (!empty($tweet['avatar'])): ?>
-      <img class="avatar" src="<?=h((string)$tweet['avatar'])?>" alt="" loading="lazy" referrerpolicy="no-referrer">
-    <?php else: ?>
-      <span class="avatar avatar-fallback">OH</span>
-    <?php endif; ?>
-    <div>
-      <div class="top"><span class="name"><?=h((string)$tweet['name'])?></span><span class="handle">@<?=h((string)$tweet['screen_name'])?></span><span class="dot">·</span><span class="time"><?=h(ds_time_label((string)$tweet['created_at']))?></span></div>
-      <div class="body"><?=h((string)$tweet['text'])?></div>
-      <?php if (!empty($tweet['media'])): ?>
-      <div class="media <?=count($tweet['media']) === 1 ? 'one' : ''?>">
-        <?php foreach ($tweet['media'] as $media): ?><img src="<?=h((string)$media)?>" alt="" loading="lazy" referrerpolicy="no-referrer"><?php endforeach; ?>
-      </div>
+<?php foreach ($posts as $post): ?>
+  <article class="tweet">
+    <a class="avatar-link" href="https://x.com/<?=h(DS_X_HANDLE)?>" target="_blank" rel="noopener noreferrer">
+      <?php if (!empty($post['avatar'])): ?>
+        <img class="avatar" src="<?=h((string)$post['avatar'])?>" alt="<?=h(DS_X_NAME)?>" loading="lazy" referrerpolicy="no-referrer">
+      <?php else: ?>
+        <span class="avatar avatar-fallback">OH</span>
       <?php endif; ?>
-      <div class="stats"><span>↩ <b><?=number_format((int)$tweet['reply_count'])?></b></span><span>↻ <b><?=number_format((int)$tweet['retweet_count'])?></b></span><span>♥ <b><?=number_format((int)$tweet['favorite_count'])?></b></span></div>
+    </a>
+    <div>
+      <div class="top"><a class="author" href="https://x.com/<?=h(DS_X_HANDLE)?>" target="_blank" rel="noopener noreferrer"><span class="name"><?=h(DS_X_NAME)?></span> <span class="handle">@<?=h(DS_X_HANDLE)?></span></a><span class="dot">·</span><a class="time" href="<?=h((string)$post['url'])?>" target="_blank" rel="noopener noreferrer"><?=h(ds_time_label((string)$post['created_at']))?></a></div>
+      <div class="body"><?=$post['html']?></div>
+      <div class="actions"><span>Official Once Human</span><a class="view-x" href="<?=h((string)$post['url'])?>" target="_blank" rel="noopener noreferrer">View on X ↗</a></div>
     </div>
-  </a>
+    <a class="x-mark" href="<?=h((string)$post['url'])?>" target="_blank" rel="noopener noreferrer" aria-label="View post on X">X</a>
+  </article>
 <?php endforeach; ?>
 <?php endif; ?>
 </div>
