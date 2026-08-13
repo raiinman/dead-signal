@@ -89,6 +89,7 @@ def calibration_variant(row: dict[str, Any]) -> dict[str, Any]:
             "season_state": row.get("season_state"),
             "buff_id": row.get("buff_id"),
             "roll_range": row.get("calibration_roll_range") or {},
+            "affix_ids_weight": row.get("affix_ids_weight") or [],
             "affixes": row.get("affixes") or [],
         }
     )
