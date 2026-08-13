@@ -1,0 +1,59 @@
+name: Test Miner source
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'tools/miner/**/*.py'
+      - 'tools/miner/tests/**'
+      - 'tools/miner/requirements*.txt'
+      - 'tools/miner/setup-build.ps1'
+      - '.github/workflows/test-miner.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: dead-signal-miner-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: tools/miner/requirements-build.txt
+
+      - name: Prepare Windows test environment
+        shell: pwsh
+        run: ./tools/miner/setup-build.ps1
+
+      - name: Create CI-only install marker for self-test
+        shell: pwsh
+        run: |
+          $install = 'C:\Program Files (x86)\Steam\steamapps\common\Once Human'
+          New-Item -ItemType Directory -Path (Join-Path $install 'Documents') -Force | Out-Null
+          New-Item -ItemType File -Path (Join-Path $install 'script.npk') -Force | Out-Null
+          New-Item -ItemType File -Path (Join-Path $install 'Documents\script.npk') -Force | Out-Null
+          New-Item -ItemType File -Path (Join-Path $install 'ONCE_HUMAN.exe') -Force | Out-Null
+
+      - name: Compile and run source tests
+        shell: pwsh
+        run: |
+          $python = 'tools/miner/.venv-build/Scripts/python.exe'
+          $env:PYTHONPATH = 'tools/miner/src;tools/miner/src/extractor;tools/miner/src/neoxtractor'
+          & $python -m compileall -q tools/miner/src tools/miner/tests
+          if ($LASTEXITCODE -ne 0) { throw 'Source compile check failed.' }
+          & $python -m unittest discover -s tools/miner/tests -v
+          if ($LASTEXITCODE -ne 0) { throw 'Miner unit tests failed.' }
+          & $python tools/miner/src/dead_signal_miner.py --self-test
+          if ($LASTEXITCODE -ne 0) { throw 'Source self-test failed.' }
