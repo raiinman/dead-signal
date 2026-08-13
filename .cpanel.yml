@@ -44,6 +44,8 @@ deployment:
     - /bin/cp -f site.js $ROOTPATH/site.js
     - /bin/mkdir -p $ROOTPATH/api/twitter/cache
     - /bin/cp -f api/twitter/cache/index.php $ROOTPATH/api/twitter/cache/index.php
+    - /bin/mkdir -p $ROOTPATH/api/twitter/probe
+    - /bin/cp -f api/twitter/probe/index.php $ROOTPATH/api/twitter/probe/index.php
     - /bin/mkdir -p $ROOTPATH/shared
     - /bin/cp -f shared/readability.css $ROOTPATH/shared/readability.css
     - /bin/cp -f shared/readability.js $ROOTPATH/shared/readability.js
