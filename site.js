@@ -43,3 +43,50 @@ document.addEventListener('keydown', (event) => {
     query.focus();
   }
 });
+
+function initTwitterDiagnostic() {
+  const params = new URLSearchParams(location.search);
+  if (params.get('twitter-debug') !== '1') return;
+
+  const body = document.querySelector('.official-feed-body');
+  const title = document.getElementById('official-feed-title');
+  const meta = document.querySelector('.official-feed-meta');
+  if (!body) return;
+
+  title.textContent = 'X Embed A/B Test';
+  body.style.height = '520px';
+  body.style.overflow = 'auto';
+  body.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(280px,1fr));gap:12px;padding:12px;min-width:600px">
+      <section style="min-width:0;border:1px solid #293238;background:#07090b">
+        <div style="padding:9px 10px;border-bottom:1px solid #293238;color:#58c7cc;font:800 11px/1.2 system-ui;text-transform:uppercase;letter-spacing:.08em">Control — @lightdotgg</div>
+        <a class="twitter-timeline" data-height="430" data-theme="dark" href="https://twitter.com/lightdotgg?ref_src=twsrc%5Etfw">Tweets by lightdotgg</a>
+      </section>
+      <section style="min-width:0;border:1px solid #293238;background:#07090b">
+        <div style="padding:9px 10px;border-bottom:1px solid #293238;color:#e6323e;font:800 11px/1.2 system-ui;text-transform:uppercase;letter-spacing:.08em">Target — @OnceHuman_</div>
+        <a class="twitter-timeline" data-height="430" data-theme="dark" href="https://twitter.com/OnceHuman_?ref_src=twsrc%5Etfw">Tweets by OnceHuman_</a>
+      </section>
+    </div>`;
+  if (meta) meta.innerHTML = '<span>Diagnostic mode</span><span>Same domain · same widget · different account</span>';
+
+  const render = () => {
+    try { window.twttr?.widgets?.load?.(body); } catch (_) {}
+  };
+
+  if (window.twttr?.widgets?.load) {
+    render();
+    return;
+  }
+
+  let script = document.querySelector('script[src*="platform.twitter.com/widgets.js"],script[src*="platform.x.com/widgets.js"]');
+  if (!script) {
+    script = document.createElement('script');
+    script.src = 'https://platform.twitter.com/widgets.js';
+    script.async = true;
+    script.charset = 'utf-8';
+    document.body.append(script);
+  }
+  script.addEventListener('load', render, { once: true });
+}
+
+initTwitterDiagnostic();
