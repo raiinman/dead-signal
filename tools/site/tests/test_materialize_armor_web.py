@@ -12,6 +12,9 @@ SPEC.loader.exec_module(MODULE)
 
 
 class ArmorMaterializerTests(unittest.TestCase):
+    def tier_rows(self):
+        return [{"tier": tier} for tier in range(1, 6)]
+
     def fixture(self):
         return {
             "schema": "dead-signal-armor",
@@ -23,21 +26,43 @@ class ArmorMaterializerTests(unittest.TestCase):
                     "canonical_id": "ds-as-10",
                     "suit_id": 10,
                     "name": "Base Set",
+                    "piece_count": 1,
                     "pieces": [
-                        {"canonical_id": "ds-a-10-100", "suit_id": 10, "blueprint_id": 100, "name": "Base Mask"}
+                        {
+                            "canonical_id": "ds-a-10-100",
+                            "suit_id": 10,
+                            "blueprint_id": 100,
+                            "name": "Base Mask",
+                            "slot": "Mask",
+                            "tiers": self.tier_rows(),
+                        }
                     ],
                 },
                 {
                     "canonical_id": "ds-as-20",
                     "suit_id": 20,
                     "name": "Heat Set",
+                    "piece_count": 1,
                     "pieces": [
-                        {"canonical_id": "ds-a-20-100", "suit_id": 20, "blueprint_id": 100, "name": "Heat Mask"}
+                        {
+                            "canonical_id": "ds-a-20-100",
+                            "suit_id": 20,
+                            "blueprint_id": 100,
+                            "name": "Heat Mask",
+                            "slot": "Mask",
+                            "tiers": self.tier_rows(),
+                        }
                     ],
                 },
             ],
             "key_armor": [
-                {"canonical_id": "ds-ka-300", "blueprint_id": 300, "name": "Key Top"}
+                {
+                    "canonical_id": "ds-ka-300",
+                    "blueprint_id": 300,
+                    "name": "Key Top",
+                    "slot": "Top",
+                    "tiers": self.tier_rows(),
+                }
             ],
             "crafting_material_groups": {},
         }
@@ -102,6 +127,38 @@ class ArmorMaterializerTests(unittest.TestCase):
         folder, path = self.write(payload)
         with folder:
             with self.assertRaisesRegex(ValueError, "record_counts.set_pieces"):
+                MODULE.load_and_validate(path)
+
+    def test_set_piece_count_must_match_payload(self):
+        payload = self.fixture()
+        payload["armor_sets"][0]["piece_count"] = 2
+        folder, path = self.write(payload)
+        with folder:
+            with self.assertRaisesRegex(ValueError, "piece_count"):
+                MODULE.load_and_validate(path)
+
+    def test_piece_requires_player_facing_slot(self):
+        payload = self.fixture()
+        payload["armor_sets"][0]["pieces"][0]["slot"] = ""
+        folder, path = self.write(payload)
+        with folder:
+            with self.assertRaisesRegex(ValueError, "armor slot"):
+                MODULE.load_and_validate(path)
+
+    def test_piece_requires_exact_tier_i_v_coverage(self):
+        payload = self.fixture()
+        payload["armor_sets"][0]["pieces"][0]["tiers"][-1]["tier"] = 4
+        folder, path = self.write(payload)
+        with folder:
+            with self.assertRaisesRegex(ValueError, "unique Tier I-V"):
+                MODULE.load_and_validate(path)
+
+    def test_key_armor_requires_five_tier_rows(self):
+        payload = self.fixture()
+        payload["key_armor"][0]["tiers"].pop()
+        folder, path = self.write(payload)
+        with folder:
+            with self.assertRaisesRegex(ValueError, "exactly five Gear Tier rows"):
                 MODULE.load_and_validate(path)
 
     def test_schema_version_must_match_supported_contract(self):
