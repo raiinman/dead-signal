@@ -15,6 +15,7 @@ deployment:
     - /bin/cp -f assets/hero/dead-signal-database-hero-1600.webp $ROOTPATH/assets/hero/dead-signal-database-hero-1600.webp
     - /bin/cp -f assets/hero/dead-signal-database-hero-2560.avif $ROOTPATH/assets/hero/dead-signal-database-hero-2560.avif
     - /bin/cp -f assets/hero/dead-signal-database-hero-2560.webp $ROOTPATH/assets/hero/dead-signal-database-hero-2560.webp
+    - /bin/cp -f assets/hero/dead-signal-environment-hero-v2.png $ROOTPATH/assets/hero/dead-signal-environment-hero-v2.png
     - /bin/mkdir -p $ROOTPATH/assets/database-icons
     - /bin/cp -f assets/database-icons/weapons-v2-256.avif $ROOTPATH/assets/database-icons/weapons-v2-256.avif
     - /bin/cp -f assets/database-icons/weapons-v2-512.avif $ROOTPATH/assets/database-icons/weapons-v2-512.avif

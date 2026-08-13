@@ -545,6 +545,8 @@ The production landing page was then rebuilt from the approved 4K direction stud
 
 The shared sidebar now has an explicit Collapse/Expand control whose desktop state persists under `dead-signal-nav-collapsed`. Do not return to hover-only expansion: the explicit control keeps workspace width predictable and remains keyboard accessible. Mobile continues to use the existing modal drawer behavior.
 
+The landing hero artwork is intentionally environment-only. `assets/hero/dead-signal-environment-hero-v2.png` replaces the earlier character-led composition with a neutral fractured landscape and signal rift. Future hero art must avoid people, player avatars, factions, classes, weapons, or other imagery that could imply Dead Signal represents an in-game identity it does not claim.
+
 ## 17. Immediate priorities
 
 1. Migrate Armor from the remaining compatibility corpus to the normalized Miner snapshot using the same canonical-data pattern established for Weapons.
