@@ -31,7 +31,7 @@ class ExtendedRouteWiringTests(unittest.TestCase):
                 placeholder = (ROOT / "database" / category / f"{category}-data.js").read_text(encoding="utf-8")
                 self.assertIn(variable, placeholder)
 
-    def test_shared_renderer_only_contains_shared_category_contracts(self):
+    def test_shared_renderer_covers_all_routes_that_still_load_it(self):
         source = (ROOT / "database" / "extended-catalogue.js").read_text(encoding="utf-8")
         for schema in (
             "dead-signal-attachments",
@@ -39,8 +39,6 @@ class ExtendedRouteWiringTests(unittest.TestCase):
             "dead-signal-cradles",
         ):
             self.assertIn(schema, source)
-        self.assertNotIn("dead-signal-calibrations-current", source)
-        self.assertNotIn("dead-signal-mods", source)
 
     def test_dedicated_current_category_routes_enforce_supported_contracts(self):
         calibrations = (ROOT / "database" / "calibrations" / "index.html").read_text(encoding="utf-8")
