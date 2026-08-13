@@ -3,7 +3,7 @@ name: Apply Miner v1.5.12 source patch
 on:
   push:
     paths:
-      - 'tools/miner/patches/v1.5.12-source-patch.tar.gz'
+      - 'tools/miner/patches/v1.5.12-source-patch.part-*'
       - '.github/workflows/apply-miner-v1512.yml'
 
 permissions:
@@ -11,15 +11,31 @@ permissions:
 
 jobs:
   apply:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Materialize v1.5.12 source
-        run: tar -xzf tools/miner/patches/v1.5.12-source-patch.tar.gz -C tools/miner
+      - name: Reassemble and verify source patch
+        shell: pwsh
+        run: |
+          $parts = Get-ChildItem 'tools/miner/patches/v1.5.12-source-patch.part-*' | Sort-Object Name
+          if ($parts.Count -ne 5) { throw "Expected 5 patch chunks, found $($parts.Count)." }
+          $archive = 'tools/miner/patches/v1.5.12-source-patch.tar.gz'
+          $stream = [System.IO.File]::Create($archive)
+          try {
+            foreach ($part in $parts) {
+              $bytes = [System.IO.File]::ReadAllBytes($part.FullName)
+              $stream.Write($bytes, 0, $bytes.Length)
+            }
+          } finally {
+            $stream.Dispose()
+          }
+          $hash = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne '0843aa7c6e2bdba7f8bc78e50bafb3651908b6e3215eb4e92f444f7e0d81b434') { throw "Patch SHA-256 mismatch: $hash" }
+          tar -xzf $archive -C tools/miner
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
@@ -32,17 +48,25 @@ jobs:
         run: python -m pip install -r tools/miner/requirements.txt
 
       - name: Compile-check maintained source
-        run: PYTHONPATH=tools/miner/src:tools/miner/src/extractor:tools/miner/src/neoxtractor python -m compileall -q tools/miner/src tools/miner/tests
+        shell: pwsh
+        run: |
+          $env:PYTHONPATH = 'tools/miner/src;tools/miner/src/extractor;tools/miner/src/neoxtractor'
+          python -m compileall -q tools/miner/src tools/miner/tests
 
       - name: Run Miner unit tests
-        run: PYTHONPATH=tools/miner/src:tools/miner/src/extractor:tools/miner/src/neoxtractor python -m unittest discover -s tools/miner/tests -v
+        shell: pwsh
+        run: |
+          $env:PYTHONPATH = 'tools/miner/src;tools/miner/src/extractor;tools/miner/src/neoxtractor'
+          python -m unittest discover -s tools/miner/tests -v
 
       - name: Commit verified source
+        shell: pwsh
         run: |
-          rm tools/miner/patches/v1.5.12-source-patch.tar.gz
-          rm .github/workflows/apply-miner-v1512.yml
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          Remove-Item 'tools/miner/patches/v1.5.12-source-patch.tar.gz' -Force
+          Remove-Item 'tools/miner/patches/v1.5.12-source-patch.part-*' -Force
+          Remove-Item '.github/workflows/apply-miner-v1512.yml' -Force
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
-          git commit -m "Miner v1.5.12 publishing and integrity"
+          git commit -m 'Miner v1.5.12 publishing and integrity'
           git push origin HEAD:main
