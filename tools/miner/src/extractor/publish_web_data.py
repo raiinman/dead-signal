@@ -112,7 +112,10 @@ def build_weapon_projection(data_dir: Path) -> dict:
                 "rarity": weapon.get("quality"),
                 "quality_code": weapon.get("quality_code"),
                 "image_asset": _image_asset(weapon),
-                "description": weapon.get("short_description") or "",
+                # Normalized short descriptions are currently known to contain
+                # cross-wired localization records for some weapons. Keep the
+                # public contract fail-closed until that resolver is verified.
+                "description": "",
                 "acquisition": {
                     "hint": weapon.get("acquisition_hint") or "",
                     "gain_path": weapon.get("item_gain_path") or "",
@@ -149,6 +152,7 @@ def build_weapon_projection(data_dir: Path) -> dict:
                 },
                 "verification": {
                     "source_status": "mined-from-installed-game",
+                    "description_status": "withheld-until-short-description-resolver-is-verified",
                     "notes": weapon.get("verification_notes") or [],
                 },
             }
@@ -192,13 +196,18 @@ def build_armor_projection(data_dir: Path) -> dict:
     source = load_json(data_dir / "armor-sets.json", {}) or {}
     sets = []
     for armor_set in source.get("armor_sets", []):
+        suit_id = armor_set.get("suit_id")
         pieces = []
         for piece in armor_set.get("pieces", []):
             tiers = piece.get("tiers") or []
             blueprint_id = piece.get("blueprint_id") or ((tiers[0] or {}).get("blueprint_id") if tiers else None)
             pieces.append(
                 {
-                    "canonical_id": f"ds-a-{blueprint_id}",
+                    # Blueprint IDs can legitimately repeat across named suit
+                    # variants (for example base/cold/heat families). The suit
+                    # identity is therefore part of the public piece identity.
+                    "canonical_id": f"ds-a-{suit_id}-{blueprint_id}",
+                    "suit_id": suit_id,
                     "blueprint_id": blueprint_id,
                     "name": piece.get("name"),
                     "slot_id": piece.get("slot_id"),
@@ -212,8 +221,8 @@ def build_armor_projection(data_dir: Path) -> dict:
             )
         sets.append(
             {
-                "canonical_id": f"ds-as-{armor_set.get('suit_id')}",
-                "suit_id": armor_set.get("suit_id"),
+                "canonical_id": f"ds-as-{suit_id}",
+                "suit_id": suit_id,
                 "name": armor_set.get("name"),
                 "image_asset": _image_asset(armor_set),
                 "piece_count": armor_set.get("piece_count"),
@@ -475,7 +484,7 @@ def build_relationship_graph(weapons_web: dict, armor_web: dict) -> dict:
         add_node(set_id, "armor_set", armor_set.get("name"), suit_id=armor_set.get("suit_id"))
         for piece in armor_set.get("pieces", []):
             piece_id = piece.get("canonical_id")
-            add_node(piece_id, "armor_piece", piece.get("name"), blueprint_id=piece.get("blueprint_id"), slot=piece.get("slot"))
+            add_node(piece_id, "armor_piece", piece.get("name"), suit_id=piece.get("suit_id"), blueprint_id=piece.get("blueprint_id"), slot=piece.get("slot"))
             add_edge(piece_id, "belongs_to_set", set_id, {"dataset": "armor-sets.json", "field": "armor_sets[].pieces"})
 
     for piece in armor_web.get("key_armor", []):
