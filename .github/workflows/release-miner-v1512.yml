@@ -5,11 +5,12 @@ on:
     branches:
       - main
     paths:
-      - 'tools/miner/**'
-      - '.github/workflows/release-miner-v1512.yml'
-      - '!tools/miner/release/latest.json'
-      - '!tools/miner/release/artifacts/**'
+      - 'tools/miner/VERSION'
   workflow_dispatch:
+
+concurrency:
+  group: dead-signal-miner-release
+  cancel-in-progress: false
 
 permissions:
   contents: write
