@@ -1,0 +1,47 @@
+name: Test Weapons website data path
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'tools/site/**'
+      - 'database/weapons/catalogue.js'
+      - 'database/weapons/weapon-public-adapter.js'
+      - 'database/weapons/weapons-data.js'
+      - 'preview/build-lab/weapon-data-adapter.js'
+      - 'preview/build-lab/weapon-model-ui.js'
+      - 'preview/build-lab/catalogue-handoff.js'
+      - '.github/workflows/test-site-tools.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: dead-signal-site-tools-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Test compact Weapons materializer
+        run: python -m unittest discover -s tools/site/tests -v
+
+      - name: Syntax-check Weapons browser modules
+        run: |
+          node --check database/weapons/catalogue.js
+          node --check database/weapons/weapon-public-adapter.js
+          node --check database/weapons/weapons-data.js
+          node --check preview/build-lab/weapon-data-adapter.js
+          node --check preview/build-lab/weapon-model-ui.js
+          node --check preview/build-lab/catalogue-handoff.js
