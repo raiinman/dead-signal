@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#08090b">
+  <meta name="description" content="Browse Once Human Armor Sets and Key Armor from Dead Signal's mined database.">
+  <title>Armor & Sets — Dead Signal</title>
+  <link rel="stylesheet" href="../../shared/readability.css">
+  <link rel="stylesheet" href="../../shared/workstation-shell.css">
+  <link rel="stylesheet" href="armor.css">
+  <script src="../../shared/readability.js" defer></script>
+  <script src="../../shared/workstation-shell.js" defer></script>
+  <script src="armor-data.js?v=20260813a"></script>
+  <script src="armor.js?v=20260813a" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#armorDatabase">Skip to Armor database</a>
+  <header class="armor-header"><a class="armor-wordmark" href="../../">DEAD <b>SIGNAL</b></a><nav><a href="../weapons/">Weapons</a><a class="armor-cta" href="/build-planner/">Open Build Planner</a></nav></header>
+  <main id="armorDatabase">
+    <section class="armor-hero"><div><p class="armor-code">DB // Armor & Sets</p><h1>Build around the <em>set.</em></h1><p>Armor is organized by set identity first, with individual pieces, Key Armor, Tier evidence, set bonuses, and crafting kept attached to their mined relationships.</p></div><div class="armor-counts"><div><strong id="setCount">—</strong><span>Armor Sets</span></div><div><strong id="pieceCount">—</strong><span>Pieces</span></div><div><strong id="keyCount">—</strong><span>Key Armor</span></div></div></section>
+    <section class="armor-controls" aria-label="Armor filters"><label><span>Search</span><input id="armorSearch" type="search" placeholder="Set, piece, effect…" autocomplete="off"></label><label><span>Slot</span><select id="armorSlot"><option value="">All slots</option></select></label><label><span>Rarity</span><select id="armorRarity"><option value="">All rarities</option></select></label><button id="armorClear" type="button">Clear filters</button></section>
+    <div class="armor-tabs" role="tablist" aria-label="Armor database view"><button type="button" class="active" data-armor-view="sets" aria-selected="true">Armor Sets</button><button type="button" data-armor-view="key" aria-selected="false">Key Armor</button></div>
+    <p id="armorStatus" class="armor-status" aria-live="polite">Loading verified Armor contract…</p>
+    <section id="armorResults" class="armor-results" aria-label="Armor results"></section>
+    <section id="armorUnavailable" class="armor-unavailable" hidden><strong>ARMOR DATA AWAITING VERIFIED SNAPSHOT</strong><p>The set-centric route is prepared, but Dead Signal will not publish Armor records until the fresh Miner contract passes collision and integrity checks. No compatibility corpus is substituted here.</p></section>
+  </main>
+  <footer><span>Dead Signal // Armor database</span><p>Set membership and mined Tier evidence are kept separate from unproven combat calculations.</p></footer>
+</body>
+</html>
