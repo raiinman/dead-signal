@@ -2,7 +2,7 @@
 
 > **Purpose:** Canonical current-state handoff for ChatGPT/Codex sessions working on Dead Signal. Read this file and `PROJECT-RULES.md` before changing anything.
 >
-> Last updated: **2026-08-12 (production landing, live official X feed, header-polish checkpoint)**
+> Last updated: **2026-08-13 (Miner v1.5.12.0 Publishing & Integrity landed; Weapons completion night next)**
 
 ## 1. Project identity
 
@@ -13,158 +13,200 @@
 - Root site: `https://deadsignaldb.com/`
 - Live planner: `https://deadsignaldb.com/build-planner/`
 - Hosting: **Namecheap shared hosting / cPanel Git Version Control**.
-- Current player release line: **PLAYER v1.5.2**.
 - Product architecture: one connected player-facing database + Build Planner workstation.
-- Historical deep handoff remains available in Git history and `archive/AI-CONTINUITY-2026-08-10-v1.5.0.md`.
+- Historical deep handoffs remain available in Git history and `archive/`.
 
-## 2. Current production architecture
+## 2. Production architecture
 
-Dead Signal is primarily a prepared static site deployed by copy-only cPanel tasks, with **one intentional server-side exception**:
+Dead Signal is primarily a prepared static site deployed by copy-only cPanel tasks, with one intentional server-side exception:
 
-- `index.html`, `landing-workstation.css`, `site.js` — root landing page.
+- `index.html`, `landing-workstation.css`, `site.js` — landing page.
 - `shared/workstation-shell.css` / `.js` — one global workstation shell.
 - `shared/readability.css` / `.js` — origin-wide text-size system.
 - `database/weapons/` — live Weapons catalogue/detail vertical.
-- `preview/build-lab/` — source for the live Build Planner deployment.
-- `api/twitter/cache/index.php` — small server-side cached official Once Human X feed used by the landing hero.
+- `preview/build-lab/` — source for live Build Planner deployment.
+- `api/twitter/cache/index.php` — small cached Official Once Human X feed endpoint.
 - `.cpanel.yml` — copy-only deployment manifest.
 
 There is **no WordPress runtime**. Do not reintroduce WordPress.
 
-### cPanel rule
+Deployment rule: cPanel may use lightweight `mkdir`, `cp`, explicitly targeted `rm`, and status `echo`. Do not build, normalize, extract, scan, download, run Python, or perform archive work inside `.cpanel.yml`.
 
-Deployment remains copy-only. Allowed operations are lightweight `mkdir`, `cp`, explicitly targeted `rm`, and status `echo` operations. Do not build, normalize, extract, scan, download, or run Python inside `.cpanel.yml`.
-
-The X feed PHP endpoint is runtime code, but it is already-prepared source copied into place by cPanel; deployment itself remains copy-only.
-
-## 3. Approved global workstation shell
+## 3. Global workstation / landing state
 
 Dead Signal is one workstation, not unrelated wiki pages.
 
-- Use exactly **one global sidebar**.
-- Sidebar desktop collapse is explicit and persists under `dead-signal-nav-collapsed`.
-- Do not return to hover-only expansion.
-- Mobile uses the existing menu button, scrim, Escape handling, and off-canvas drawer.
-- Global shell owns brand, primary route navigation, active route state, text-size controls, and Miner/status context.
-- Each route owns only local tools/content.
-- Do not add a second global sidebar, duplicate masthead, or decorative page hero above functional content.
+- Exactly one global sidebar.
+- Desktop collapse persists under `dead-signal-nav-collapsed`.
+- Mobile uses the existing off-canvas drawer/menu/scrim/Escape behavior.
+- Global shell owns brand, primary navigation, active route, readability, and Miner/system context.
+- Route pages own only local tools/content.
+- Gold/amber structural accents remain forbidden because they conflict with Legendary rarity semantics.
 
-The shared motion layer in `shared/workstation-shell.css` provides progressive-enhancement page transitions, coordinated sidebar motion, smoother controls/cards, reduced-motion handling, and same-origin navigation continuity. Keep motion restrained and functional.
+The landing page is accepted and should be treated as **frozen unless a concrete bug appears**.
 
-## 4. Landing page — approved current state
+Approved landing behavior:
 
-The landing page is now accepted live by the user.
+- Hero: **Know the data. Build beyond it.**
+- Environment/signal hero art only; avoid people, characters, weapons, creatures, factions, flags, classes, or emblems.
+- Official `@OnceHuman_` feed remains on the right.
+- One canonical database search lives in the top command strip.
+- Do **not** restore the removed lower `Search the Signal` field.
+- Top search filters database systems, Enter moves to the database section, `/` focuses it.
+- Weapons is live; Armor & Sets, Mods, Calibrations, Deviations, and Cradle Overrides stay `SOON` until their real player-facing routes are ready.
 
-Product flow:
+## 4. Official Once Human X feed — frozen working path
 
-1. Understand what Dead Signal is.
-2. Choose **Open Build Lab** or **Explore Database**.
-3. Search the signal.
-4. Choose one of six database systems.
-
-Hero:
-
-- Main copy: **Know the data. Build beyond it.**
-- Background art: `assets/hero/dead-signal-environment-hero-v2.png`.
-- Hero identity rule: environment/signal imagery only. Avoid people, player avatars, humanoid silhouettes, weapons, creatures, factions, classes, flags, and emblems.
-- Right side is the **Official Once Human Feed**, replacing the old fake loadout mockup.
-
-Database cards:
-
-- Weapons is the only currently live category route.
-- Armor & Sets, Mods, Calibrations, Deviations, and Cradle Overrides remain visibly `SOON` and non-clickable until their player-facing migrations/routes are ready.
-- Existing six category-art families are approved and should be reused.
-
-## 5. Official Once Human X feed — WORKING / FREE / SERVER-SIDE
-
-The feed architecture is settled and should not be replaced casually.
+Canonical implementation: `api/twitter/cache/index.php`.
 
 Working path:
 
-**Namecheap PHP → public `x.com/OnceHuman_` profile HTML → current status IDs → newest-first snowflake ordering → public/keyless X oEmbed for post text → public post HTML for media/thread hints → local 5-minute cache → same-origin homepage iframe**
+**Namecheap PHP → public `x.com/OnceHuman_` profile HTML → current status IDs → newest-first snowflake ordering → public/keyless X oEmbed text → public post HTML media/thread evidence → local 5-minute cache → same-origin homepage iframe**
 
-Important facts:
+No X developer account, API v2 credentials, Bearer Token, OAuth, paid widget, SociableKIT, Jina runtime, GitHub feed worker, or visitor-side X timeline widget is required.
 
-- **No X developer account is required.**
-- No Bearer Token, API key, OAuth, paid widget, SociableKIT, Jina runtime, GitHub Actions worker, or visitor-side X widget is required.
-- `api/twitter/cache/index.php` is the canonical implementation.
-- The temporary `/api/twitter/probe/` diagnostic was removed and cPanel explicitly removes the old deployed probe directory.
-- The homepage directly embeds `/api/twitter/cache/` in a same-origin iframe.
-- Old `platform.twitter.com/widgets.js`, `platform.x.com/widgets.js`, direct syndication iframes, debug query modes, and retry loaders were removed.
+Feed supports current posts, relative timestamps, photo previews, best-effort video/GIF posters with `OPEN ON X`, conservative same-author thread detection, and fail-soft caching. The user confirmed it looks good live. Do not reopen this pipeline without a real failure.
 
-Current feed behavior:
+## 5. External database doctrine
 
-- current posts from `@OnceHuman_`, newest first;
-- relative timestamps;
-- avatar/author/post links;
-- photo previews from public `pbs.twimg.com/media/...` sources;
-- best-effort video/GIF poster detection with **VIDEO · OPEN ON X** treatment rather than proxying/hosting video;
-- conservative same-author thread detection using public conversation/status evidence;
-- local cache fails soft: keep useful cached output rather than blanking the homepage when upstream X is temporarily unavailable.
+Wikily, OnceHumanDB, and similar community sites are **reference material only** for:
 
-Do not switch back to X's direct public timeline widget: it failed to initialize reliably on Dead Signal and the direct syndication route produced rate limiting.
+- UX and information architecture;
+- feature discovery;
+- terminology checks;
+- seeing what information players find useful;
+- ideas for making Dead Signal clearer and more useful.
 
-The user confirmed the current feed looks good live. Treat future feed changes as small polish unless a real failure is demonstrated.
+Their item totals, record inventories, and coverage counts are **not completeness benchmarks** for Dead Signal. Do not add/remove records or judge Miner coverage by matching another website.
 
-Recent feed commits:
+Canonical current-item counts come from Dead Signal's installed-game Miner plus Dead Signal's player-facing filtering rules. If an external database conflicts with proven current Miner evidence, the Miner wins.
 
-- `4f32748e` — use Namecheap server for live X feed;
-- `a288c6bd` / `f558098f` — remove temporary probe and deployment debris;
-- `0957e76d` — simplify homepage to direct same-origin feed iframe;
-- `a5ca0b12` — add public photo previews;
-- `50514256` — add video poster and conservative thread detection;
-- `ab31f62` — responsive breathing room around hero/feed.
-
-## 6. Landing command/header checkpoint
-
-The hero/feed is stable enough to freeze.
-
-First command/header polish is implemented on `main` at **`ce2836ae` (`Polish landing command header`)** and is awaiting the user's live cPanel deployment/review.
-
-That pass intentionally does not touch the feed pipeline. It adds:
-
-- desktop sticky command strip at widths above the mobile-shell breakpoint;
-- more compact 66 px desktop height;
-- clearer DS route-identity chip;
-- search icon + `/` keyboard hint inside the command search field;
-- stronger focus treatment;
-- verified-data state as a compact cyan pill instead of loose text;
-- tighter Build Lab CTA proportions;
-- medium-width priority change: hide redundant route identity before hiding verified state;
-- mobile/tablet spacing that avoids collision with the fixed workstation menu.
-
-If the user accepts this live, freeze the commandbar too and continue deeper into the database experience. If feedback is negative, adjust **header only** before touching Weapons or Build Lab.
-
-## 7. Weapons database / canonical data state
+## 6. Weapons database / canonical state
 
 Weapons are the first fully migrated player-facing category.
 
-- 120 weapons total = 95 ranged + 25 melee.
-- 600 Tier rows.
+- 120 weapons = 95 ranged + 25 melee.
+- 600 Gear Tier rows.
 - 545 Blueprint-Star rows.
-- 2,725 legal Tier × Star combinations.
-- Current player-facing projection: `database/weapons/weapon-math-data.js`.
+- 2,725 legal Gear Tier × Blueprint Star combinations.
+- Existing browser projection: `database/weapons/weapon-math-data.js`.
 - Catalogue: `/database/weapons/`.
-- Representative detail: `/database/weapons/sks-pathfinder/`.
-- Reusable detail route: `/database/weapons/detail/?weapon=<id>`.
-- Planner consumes the same canonical weapon payload through `weapon-data-adapter.js`.
+- Reusable detail: `/database/weapons/detail/?weapon=<id>`.
+- Planner consumes the same canonical weapon data through `weapon-data-adapter.js`.
 
 Player-facing terminology:
 
-- say **Gear Tier** and **Blueprint Stars**;
-- Gear Tier is I–V only;
-- rarity caps Blueprint Stars;
-- say **Base Attack**, not internal `Intrinsic Attack` as the primary UI term.
+- **Gear Tier** = I–V only.
+- **Blueprint Stars** are separate and rarity-capped.
+- Primary UI term is **Base Attack**, not internal `Intrinsic Attack`.
 
-Proven static attack rule:
+Proven static rule:
 
 ```text
 Base Attack = int(tier_base_attack * preset_attack_ratio[stars])
 ```
 
-Static D0101 + D0102 ratios share one additive ratio bucket; D0100 is flat attack. Do not invent configured DPS/runtime proc relationships beyond proven mined evidence.
+D0101 + D0102 share one additive ratio bucket; D0100 is flat Attack. Runtime proc logic, enemy mitigation, conditional buffs, and configured DPS remain fail-closed until proven.
 
-## 8. Current player-facing data baseline
+### Weapons completion opportunity
+
+The website currently exposes less than the Miner already knows. The next Weapons pass should surface existing mined/proven fields such as:
+
+- Crit / Crit DMG / Weakspot attributes where correctly resolved;
+- actual reload seconds;
+- ammunition binding;
+- damage falloff distances/multiplier;
+- acquisition / blueprint information;
+- Tier I–V crafting recipes;
+- firearm/profile/configuration evidence;
+- unique weapon mechanic text and linked evidence without invented runtime semantics.
+
+The current Compare dialog already has Crit/Crit DMG/Weakspot rows, but the catalogue stats object does not populate those fields yet. Fix this as part of the completion pass.
+
+## 7. Miner v1.5.12.0 — Publishing & Integrity
+
+Canonical Miner source is `tools/miner/`.
+
+**Current canonical source version: `1.5.12.0`.**
+
+Verified source commit:
+
+- `951ff290bd1c00bc3c803a94c33a0b5ee664d490` — **Miner v1.5.12 publishing and integrity**.
+
+The GitHub materialization run successfully passed:
+
+- patch SHA-256 verification;
+- Python 3.11 setup/dependencies;
+- compile check;
+- full Miner unit-test suite (**31/31 passing**);
+- final verified source commit.
+
+Temporary patch chunks/workflow were removed by the final commit.
+
+### v1.5.12 publishing outputs
+
+After normalization and artwork linking the Miner now owns the website-facing handoff and produces:
+
+- `published/web/weapons.json`
+- `published/web/weapon-configuration.json`
+- `published/web/armor.json`
+- `published/web/relationship-graph.json`
+- `published/web/catalog-index.json`
+- `published/reports/data-quality.json`
+- `published/reports/change-report.json`
+- human-readable `published/reports/CHANGE-REPORT.txt`
+- `published/snapshot-manifest.json`
+
+Audit-grade normalized files remain under `published/data/`; the compact `published/web/` layer is the intended consumption contract for Dead Signal.
+
+### Relationship graph rule
+
+The initial relationship graph records direct mined identifier/evidence links such as:
+
+- weapon → `gun_no`;
+- gun → ammo item;
+- gun → linked skill ID;
+- weapon/passive skill → buff/keyword/status evidence;
+- Armor piece → Armor Set;
+- Key Armor → passive skill → buff.
+
+Initial edges are evidence such as `proven-direct-link`. They **do not** claim trigger conditions, proc chance, stack count, duration, cooldown, refresh behavior, additive/multiplicative buckets, or DPS unless those semantics are separately proven.
+
+This graph is the scaffold for later deeper mechanic resolution.
+
+### v1.5.12 other changes
+
+- Obsolete WordPress Studio sync/config/UI workflow was removed.
+- `publish_web_data.py` added as the canonical publishing/integrity stage.
+- Internal data-quality/readiness reporting is based on the Miner corpus itself, never external-site counts.
+- Snapshot/change reporting can show what changed between successful local mines after Once Human patches.
+- Snapshot manifest fingerprints Miner/game/pipeline/output artifacts for reproducibility.
+- `build.ps1` includes the new publisher module.
+
+## 8. Miner updater / release rule
+
+The Miner has a working GitHub self-update feature. **Preserve it.**
+
+Important separation:
+
+- GitHub `main` is the canonical maintained **source**.
+- Codex/local Windows owns building/testing the Windows Miner release package/EXE.
+- Installed Miners discover released updates through `tools/miner/release/latest.json`.
+- The release manifest must be updated **last**, only after the exact GitHub-hosted release ZIP exists and its public URL, byte size, and SHA-256 have been verified.
+- The updater accepts GitHub-hosted HTTPS packages and validates size + SHA-256 before installation.
+- Do not point `latest.json` at v1.5.12.0 merely because source is now on `main`.
+
+Therefore at this checkpoint:
+
+- v1.5.12.0 source: **landed and verified**.
+- v1.5.12.0 installed self-update release: **pending Codex/local Windows packaging and verified GitHub asset**.
+- Existing release manifest should remain on the last verified packaged release until that work is complete.
+
+ChatGPT does not own recurring manual EXE/ZIP handoffs; Codex owns local Windows package lifecycle.
+
+## 9. Current player-facing data baseline
+
+Known current Dead Signal player-facing baseline:
 
 - Weapons: **120**
 - Armor: **173**
@@ -174,30 +216,50 @@ Static D0101 + D0102 ratios share one additive ratio bucket; D0100 is flat attac
 - Unique player-facing Cradles: **120**
 - Usable Ammo: **144**
 - Build-relevant Consumables: **150**
-- Older planner Mods: **817 / 105 families**
+- Older planner Mods: **817 entries / 105 families**
 - Older planner Attachments: **108**
 
-Latest broader Miner snapshot includes:
+Broader Miner normalization previously observed:
 
-- mods: 1,618
-- calibrations: 188 raw = 94 current + 94 legacy
-- ammo: 187
-- attachments: 202 raw
-- cradles: 170
-- deviations: 160
-- consumables: 1,086
-- buffs: 3,841 records / 11,046 definitions
-- statuses: 24
-- keywords: 10
-- skills: 590
-- stat definitions: 838
-- progression: 1,563
+- mods 1,618
+- calibrations 188 raw = 94 current + 94 legacy
+- ammo 187
+- attachments 202 raw
+- cradles 170
+- deviations 160
+- consumables 1,086
+- buffs 3,841 records / 11,046 definitions
+- statuses 24
+- keywords 10
+- skills 590
+- stat definitions 838
+- progression 1,563
 
-Raw attachments contain 202 rows, but verified weapon-slot accessories currently resolve to 119 player-facing accessories: 30 Sight, 36 Muzzle, 36 Tactical, 17 Magazine. Do not dump all raw rows into the picker.
+Raw attachments are not equivalent to valid player picker accessories. Previously verified weapon-slot accessories were 119: 30 Sight, 36 Muzzle, 36 Tactical, 17 Magazine. Reconcile the older planner set before replacing its picker.
 
-## 9. Calibration / mod model rules
+## 10. Armor data state
 
-Current Calibration Blueprints:
+The current Miner Armor normalizer is already substantially richer than the old website handoff implied. It supports:
+
+- Armor Sets and individual pieces;
+- Helmet, Top, Pants, Shoes, Gloves, Mask slots;
+- Tier I–V stats;
+- HP, Pollution Resistance, Psi Intensity, durability, weight, and other resolved attributes;
+- set bonuses with required piece counts;
+- standalone Key Armor;
+- Key Armor passive/effect resolution;
+- rarity and blueprint IDs;
+- Tier crafting recipes;
+- fixed/selectable crafting materials and selectable material effects;
+- currency cost and craft time;
+- artwork references;
+- explicit review queues for unresolved records.
+
+Armor is still `SOON` on the public site. Do not enable it until a current real `published/web/armor.json` snapshot has been generated and the player-facing catalogue/detail experience is ready.
+
+## 11. Calibration / Mod rules
+
+Current Calibration Blueprint model:
 
 1. deterministic fixed Style;
 2. guaranteed Weapon DMG RNG;
@@ -205,88 +267,78 @@ Current Calibration Blueprints:
 
 Weapon DMG RNG ranges:
 
-- Rare 18%–25%
-- Epic 26%–33%
-- Legendary 34%–50%
+- Rare 18–25%
+- Epic 26–33%
+- Legendary 34–50%
 
-My Gear uses exact numeric percentage inputs with validation/clamping. **No sliders.** Calibration selection remains Style-first, then native rarity/record.
+My Gear uses exact numeric percentage inputs with validation/clamping; **no sliders**. Calibration selection remains Style-first, then native rarity/record.
 
 Current Mod 2.0 baseline:
 
 - regular mods keep a main attribute and fixed sub-attributes;
-- mod level 1–17;
-- Lv.17 regular ceiling;
+- levels 1–17;
+- Lv17 regular ceiling;
 - Shiny Mods are distinct stronger-main-attribute variants;
-- legacy random-sub-attribute logic is not the default current model.
+- legacy random sub-attributes are not the default current model.
 
-## 10. Miner ownership / source rule
-
-Canonical Miner development source is under `tools/miner/`.
-
-- ChatGPT may inspect/update repository-side Miner source, data, tests, schemas, and docs.
-- **Codex owns local Windows EXE packaging/build/update work.**
-- Do not return to repeated manual Miner ZIP/EXE handoffs from ChatGPT.
-- Do not execute transformed Once Human game bytecode.
-- Stock `dis` is not authoritative for transformed game PYC without corroboration.
-
-Current weapon relationship milestones include Miner 1.5.10/1.5.11 configuration and gun-profile exports. Keep runtime proc/conditional math fail-closed until proven.
-
-## 11. Readability / accessibility
+## 12. Readability / accessibility
 
 Readability is a product requirement.
 
-- Shared system: `shared/readability.css` + `shared/readability.js`.
-- Modes: compact, default, large, xlarge.
-- Origin-wide storage key: `dead-signal-font-size`.
-- New interfaces should use shared semantic `--ds-type-*` variables rather than tiny arbitrary text.
-- Reduced-motion users must not be forced through decorative motion.
+- Shared controller: `shared/readability.css` + `.js`.
+- Modes: compact/default/large/xlarge.
+- Storage key: `dead-signal-font-size`.
+- New interfaces should use the shared semantic `--ds-type-*` variables rather than tiny arbitrary fixed text.
+- Respect `prefers-reduced-motion`.
 
-## 12. Deployment / production rules
+## 13. Immediate evening plan
 
-- Work on current `main`; fetch current HEAD before writes because other sessions may commit concurrently.
-- Production publishes through cPanel Git Version Control: **Update from Remote → Deploy HEAD Commit**.
-- Preserve copy-only deployment.
-- Do not reopen DNS/SSL work without new evidence; the prior public-site DNS/SSL problem was resolved.
-- Do not upload the ~3 GB master asset archive or `reference-tracer.sqlite` into normal Git/production.
-- Keep concept folders isolated unless the user explicitly approves production translation.
+The next work block is **Weapons completion**, not another landing-page polish pass and not Armor yet.
 
-## 13. Immediate priorities
-
-1. Have the user deploy/review **`ce2836ae`** header polish live.
-2. If accepted, freeze the landing hero/feed/header and continue layer-by-layer into the next database category experience.
-3. Migrate Armor from the compatibility corpus to the normalized Miner snapshot using the same canonical-data pattern as Weapons.
-4. Make public-data projections reproducible from Miner outputs for each migrated category.
-5. Preserve the Build Planner persistence torture test as an open production gate.
-6. Reconcile older planner attachments against the verified 119 weapon-slot accessory set.
-7. Keep configured DPS/runtime proc math last unless each layer is fully proven.
+1. Use Miner v1.5.12's new publishing contract as the canonical web-data path.
+2. Generate/inspect the newest real local Miner `published/web/weapons.json` when available; do not substitute community database counts.
+3. Expand the website weapon projection/adapter so the browser consumes the useful already-mined weapon detail instead of only the old math-focused subset.
+4. Upgrade weapon detail UX around player questions:
+   - Overview
+   - Combat
+   - Handling
+   - Damage Profile
+   - Weapon Mechanic
+   - Gear Tier × Blueprint Stars
+   - Crafting
+   - Configure in Build Lab
+5. Upgrade Compare with actual populated proven fields, legal Tier/Star configuration, and simple proven arithmetic deltas where useful.
+6. Keep configured DPS, proc frequency, enemy mitigation, rankings, and speculative mechanics out until fully proven.
+7. Once Weapons is the gold-standard vertical, use its data/presentation lessons for Armor without cloning the UI blindly.
 
 ## 14. Files future sessions should read first
 
 1. `AI-CONTINUITY.md`
 2. `PROJECT-RULES.md`
-3. `.cpanel.yml`
-4. `index.html`
-5. `landing-workstation.css`
-6. `site.js`
-7. `shared/workstation-shell.css` / `.js`
-8. `api/twitter/cache/index.php` for official-feed work
-9. `database/weapons/weapon-math-data.js`
-10. `database/weapons/index.html` + catalogue/detail JS/CSS
-11. `preview/build-lab/index.html` and planner bridge/persistence modules
-12. `tools/miner/README.md`, `tools/miner/VERSION`, and canonical `tools/miner/` source for Miner work
+3. `tools/miner/README.md`
+4. `tools/miner/docs/PUBLISHING-v1.5.12.0.md`
+5. `tools/miner/src/extractor/publish_web_data.py`
+6. `tools/miner/src/miner_core.py`
+7. `tools/miner/release/latest.json` before updater/release work
+8. `database/weapons/index.html`
+9. `database/weapons/catalogue.js` / `catalogue.css`
+10. `database/weapons/weapon-math-data.js`
+11. `preview/build-lab/` weapon adapter/handoff/persistence modules
+12. `.cpanel.yml`
 
 ## 15. Continuity rules
 
 - Read this file and `PROJECT-RULES.md` first.
-- Do not make the user re-explain project history when the repository can answer it.
-- Prefer small, testable UI changes and screenshot/live iteration.
-- Isolate the broken layer before changing unrelated code.
-- Unbuilt database destinations stay visibly `SOON`.
-- Preserve one global shell and route-local tools.
+- Do not make the user re-explain history when the repo can answer it.
+- Work on current `main`; fetch current HEAD before writes because other sessions may commit concurrently.
 - Prefer installed-game/mined evidence over community guesses.
+- External databases are UX/reference material, never corpus authority.
 - Do not invent mechanics, compatibility, rankings, or numeric relationships.
-- Gold/amber structural accents remain forbidden because they collide with Legendary rarity semantics.
+- Keep runtime mechanic/math resolution fail-closed until proven.
+- Preserve one global shell and route-local tools.
+- Unbuilt database destinations stay `SOON`.
+- Preserve copy-only cPanel deployment.
+- Preserve GitHub Miner self-update architecture and publish updater manifests last.
+- Do not execute transformed game bytecode.
+- ChatGPT does not own Miner EXE packaging/updating; Codex does.
 - Update this handoff after major milestones.
-- **The official X feed is now a deliberate server-side exception; do not remove PHP merely because older handoff text said the site was fully static.**
-- **Do not replace the working feed with a visitor-side X widget without strong new evidence.**
-- **ChatGPT does not own Miner EXE packaging/updating; Codex does.**
