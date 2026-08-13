@@ -2,7 +2,7 @@
 
 > **Purpose:** Canonical current-state handoff for ChatGPT/Codex sessions working on Dead Signal. Read this file and `PROJECT-RULES.md` before changing anything.
 >
-> Last updated: **2026-08-13 (Miner v1.5.12.0 Publishing & Integrity landed; Weapons completion night next)**
+> Last updated: **2026-08-13 (Night Shift active; Miner v1.5.12.1 live; fresh mined snapshot audited; Weapons completion in progress)**
 
 ## 1. Project identity
 
@@ -83,16 +83,25 @@ Canonical current-item counts come from Dead Signal's installed-game Miner plus 
 
 ## 6. Weapons database / canonical state
 
-Weapons are the first fully migrated player-facing category.
+Weapons are the first fully migrated player-facing category and tonight's active completion target.
 
-- 120 weapons = 95 ranged + 25 melee.
-- 600 Gear Tier rows.
-- 545 Blueprint-Star rows.
-- 2,725 legal Gear Tier × Blueprint Star combinations.
-- Existing browser projection: `database/weapons/weapon-math-data.js`.
-- Catalogue: `/database/weapons/`.
-- Reusable detail: `/database/weapons/detail/?weapon=<id>`.
-- Planner consumes the same canonical weapon data through `weapon-data-adapter.js`.
+Fresh Miner v1.5.12.1 snapshot confirms:
+
+- **120 canonical weapons = 95 ranged + 25 melee**
+- **600 Gear Tier rows**
+- **545 Blueprint-Star rows**
+- **2,725 legal Gear Tier × Blueprint Star combinations**
+- **120/120 weapon artwork linked**
+- **120/120 exactly five Gear Tier rows**
+- **95/95 firearm profiles resolved**
+- **0 unresolved firearm profiles**
+
+Existing website files/routes:
+
+- Current browser projection: `database/weapons/weapon-math-data.js`
+- Catalogue: `/database/weapons/`
+- Reusable detail: `/database/weapons/detail/?weapon=<id>`
+- Planner consumes canonical weapon data through `weapon-data-adapter.js`
 
 Player-facing terminology:
 
@@ -108,44 +117,49 @@ Base Attack = int(tier_base_attack * preset_attack_ratio[stars])
 
 D0101 + D0102 share one additive ratio bucket; D0100 is flat Attack. Runtime proc logic, enemy mitigation, conditional buffs, and configured DPS remain fail-closed until proven.
 
-### Weapons completion opportunity
+### Fresh snapshot findings that affect publication
 
-The website currently exposes less than the Miner already knows. The next Weapons pass should surface existing mined/proven fields such as:
+The new v1.5.12.1 publisher proves the website can safely expose much more than it currently does, including:
 
-- Crit / Crit DMG / Weakspot attributes where correctly resolved;
-- actual reload seconds;
-- ammunition binding;
-- damage falloff distances/multiplier;
-- acquisition / blueprint information;
-- Tier I–V crafting recipes;
-- firearm/profile/configuration evidence;
-- unique weapon mechanic text and linked evidence without invented runtime semantics.
+- RPM, magazine, reload seconds, range, accuracy, stability, mobility;
+- full-damage distance, minimum-damage distance, minimum-damage multiplier;
+- ammo identity/binding;
+- acquisition/blueprint fields;
+- Gear Tier × Blueprint Star progression;
+- Tier crafting data where a real recipe exists;
+- firearm profile/configuration evidence;
+- resolved weapon effects where present.
 
-The current Compare dialog already has Crit/Crit DMG/Weakspot rows, but the catalogue stats object does not populate those fields yet. Fix this as part of the completion pass.
+Current integrity findings:
 
-## 7. Miner v1.5.12.0 — Publishing & Integrity
+- **76/120** weapons currently resolve a weapon effect.
+- **44/120** have no resolved effect; **29 of those are Common**, so absence may be legitimate for many of them.
+- The unresolved non-Common group is a mechanics-research queue, not permission to invent effects.
+- Known Legendary unresolved examples include **G17 – Cash Only, DBSG – Format, HAMR – Hannya, and MPS7 – Chaos Domain**.
+- **14 weapons currently appear to lack Tier recipes; all 14 are melee.** Treat this as a likely `non-craftable` vs `missing recipe` classification problem until the Miner proves otherwise.
+- Only a small subset of weapon short descriptions are currently trustworthy; at least one flavor-description mapping is cross-wired (for example Kukri inheriting unrelated fish-flavor text). **Do not expose `short_description` broadly until the resolver is fixed.**
+- The current Compare dialog contains Crit/Crit DMG/Weakspot rows but the catalogue stats object does not populate them. Fix during the completion pass using only correctly resolved mined attributes.
+
+## 7. Miner v1.5.12.1 — Publishing & Integrity hotfix line
 
 Canonical Miner source is `tools/miner/`.
 
-**Current canonical source version: `1.5.12.0`.**
+**Current canonical/released version: `1.5.12.1`.**
 
-Verified source commit:
+Relevant release state:
 
-- `951ff290bd1c00bc3c803a94c33a0b5ee664d490` — **Miner v1.5.12 publishing and integrity**.
+- v1.5.12.0 introduced Publishing & Integrity.
+- v1.5.12.1 fixes a release-blocking behavior where a `BLOCKED` data-quality state was incorrectly returned as extractor exit code `1`.
+- `BLOCKED` is now a **quality/reporting state**, not a Miner crash.
+- Real exceptions still fail the Miner normally.
+- Publisher logs now print exact `Quality blocker [...]` / `Quality warning [...]` lines.
+- GitHub Windows release pipeline builds, tests, packaged-self-tests, publishes, publicly re-downloads, verifies size/SHA-256, and only then updates `tools/miner/release/latest.json`.
+- Current updater manifest points to the verified **v1.5.12.1** Windows release.
+- The user successfully updated through the Miner's built-in updater.
 
-The GitHub materialization run successfully passed:
+### Publishing outputs
 
-- patch SHA-256 verification;
-- Python 3.11 setup/dependencies;
-- compile check;
-- full Miner unit-test suite (**31/31 passing**);
-- final verified source commit.
-
-Temporary patch chunks/workflow were removed by the final commit.
-
-### v1.5.12 publishing outputs
-
-After normalization and artwork linking the Miner now owns the website-facing handoff and produces:
+After normalization and artwork linking the Miner owns the website-facing handoff and produces:
 
 - `published/web/weapons.json`
 - `published/web/weapon-configuration.json`
@@ -161,7 +175,7 @@ Audit-grade normalized files remain under `published/data/`; the compact `publis
 
 ### Relationship graph rule
 
-The initial relationship graph records direct mined identifier/evidence links such as:
+The relationship graph records direct mined identifier/evidence links such as:
 
 - weapon → `gun_no`;
 - gun → ammo item;
@@ -174,39 +188,31 @@ Initial edges are evidence such as `proven-direct-link`. They **do not** claim t
 
 This graph is the scaffold for later deeper mechanic resolution.
 
-### v1.5.12 other changes
+### Publishing/integrity philosophy
 
-- Obsolete WordPress Studio sync/config/UI workflow was removed.
-- `publish_web_data.py` added as the canonical publishing/integrity stage.
-- Internal data-quality/readiness reporting is based on the Miner corpus itself, never external-site counts.
-- Snapshot/change reporting can show what changed between successful local mines after Once Human patches.
-- Snapshot manifest fingerprints Miner/game/pipeline/output artifacts for reproducibility.
-- `build.ps1` includes the new publisher module.
+The Miner should increasingly own:
+
+**installed game → extraction → normalization → validation → compact web projection → change/readiness reports → Dead Signal**
+
+Do not create a second competing normalization truth inside the website.
 
 ## 8. Miner updater / release rule
 
 The Miner has a working GitHub self-update feature. **Preserve it.**
 
-Important separation:
+Current architecture:
 
-- GitHub `main` is the canonical maintained **source**.
-- Codex/local Windows owns building/testing the Windows Miner release package/EXE.
+- GitHub `main` is the canonical maintained source.
+- Verified Windows release packages are built through the repository's Windows GitHub release workflow.
 - Installed Miners discover released updates through `tools/miner/release/latest.json`.
 - The release manifest must be updated **last**, only after the exact GitHub-hosted release ZIP exists and its public URL, byte size, and SHA-256 have been verified.
 - The updater accepts GitHub-hosted HTTPS packages and validates size + SHA-256 before installation.
-- Do not point `latest.json` at v1.5.12.0 merely because source is now on `main`.
-
-Therefore at this checkpoint:
-
-- v1.5.12.0 source: **landed and verified**.
-- v1.5.12.0 installed self-update release: **pending Codex/local Windows packaging and verified GitHub asset**.
-- Existing release manifest should remain on the last verified packaged release until that work is complete.
-
-ChatGPT does not own recurring manual EXE/ZIP handoffs; Codex owns local Windows package lifecycle.
+- Do not manually hand the user replacement EXEs/ZIPs when the updater path can deliver the patch correctly.
+- Keep CI-only fake game-install markers isolated to release self-test infrastructure; they are not mined data and must never become part of runtime assumptions.
 
 ## 9. Current player-facing data baseline
 
-Known current Dead Signal player-facing baseline:
+Fresh known Dead Signal baseline:
 
 - Weapons: **120**
 - Armor: **173**
@@ -237,9 +243,11 @@ Broader Miner normalization previously observed:
 
 Raw attachments are not equivalent to valid player picker accessories. Previously verified weapon-slot accessories were 119: 30 Sight, 36 Muzzle, 36 Tactical, 17 Magazine. Reconcile the older planner set before replacing its picker.
 
-## 10. Armor data state
+## 10. Armor data state / next Miner fixes
 
-The current Miner Armor normalizer is already substantially richer than the old website handoff implied. It supports:
+Armor remains `SOON`, but the v1.5.12.1 snapshot exposed the exact schema blocker.
+
+The current Armor normalizer supports:
 
 - Armor Sets and individual pieces;
 - Helmet, Top, Pants, Shoes, Gloves, Mask slots;
@@ -255,7 +263,25 @@ The current Miner Armor normalizer is already substantially richer than the old 
 - artwork references;
 - explicit review queues for unresolved records.
 
-Armor is still `SOON` on the public site. Do not enable it until a current real `published/web/armor.json` snapshot has been generated and the player-facing catalogue/detail experience is ready.
+### Current Armor blocker
+
+The overall fresh snapshot reports `BLOCKED` because the public Armor projection currently builds canonical piece IDs from **blueprint ID alone**, but the installed game contains legitimate variant families that reuse underlying blueprint IDs.
+
+Known examples:
+
+- Blackstone Set
+- Blackstone Set (Cold)
+- Blackstone Set (Heat)
+- Rustic / Snowland Rustic variants
+
+Therefore:
+
+- do **not** deduplicate them away;
+- do **not** assume the Miner count is wrong;
+- fix the public canonical identity scheme to be variant-aware;
+- keep Armor public route `SOON` until identity is collision-free and the generated snapshot passes its internal invariants.
+
+After Weapons completion, this is the first Miner/schema fix before the Armor catalogue is built.
 
 ## 11. Calibration / Mod rules
 
@@ -291,13 +317,15 @@ Readability is a product requirement.
 - New interfaces should use the shared semantic `--ds-type-*` variables rather than tiny arbitrary fixed text.
 - Respect `prefers-reduced-motion`.
 
-## 13. Immediate evening plan
+## 13. Night Shift — active objectives
 
-The next work block is **Weapons completion**, not another landing-page polish pass and not Armor yet.
+**Night Shift is active.** Do not substitute stale older priorities.
 
-1. Use Miner v1.5.12's new publishing contract as the canonical web-data path.
-2. Generate/inspect the newest real local Miner `published/web/weapons.json` when available; do not substitute community database counts.
-3. Expand the website weapon projection/adapter so the browser consumes the useful already-mined weapon detail instead of only the old math-focused subset.
+### Primary objective — finish Weapons as the gold-standard database vertical
+
+1. Use the user's fresh **v1.5.12.1 mined snapshot** as the authoritative source.
+2. Treat the large audit/publisher output as source evidence; do **not** dump giant raw JSON into every browser route.
+3. Build/use a compact canonical website Weapons contract derived from the Miner publishing output.
 4. Upgrade weapon detail UX around player questions:
    - Overview
    - Combat
@@ -305,11 +333,43 @@ The next work block is **Weapons completion**, not another landing-page polish p
    - Damage Profile
    - Weapon Mechanic
    - Gear Tier × Blueprint Stars
-   - Crafting
+   - Crafting / acquisition when proven
    - Configure in Build Lab
-5. Upgrade Compare with actual populated proven fields, legal Tier/Star configuration, and simple proven arithmetic deltas where useful.
-6. Keep configured DPS, proc frequency, enemy mitigation, rankings, and speculative mechanics out until fully proven.
-7. Once Weapons is the gold-standard vertical, use its data/presentation lessons for Armor without cloning the UI blindly.
+   - Provenance / limits
+5. Populate Compare with proven fields, legal Tier/Star configuration, and simple arithmetic deltas where useful.
+6. Preserve exact configured Tier/Stars when handing a weapon into Build Lab.
+7. Do not expose known-bad flavor descriptions.
+8. Do not convert unresolved effect/recipe fields into guessed content.
+9. Do not add speculative DPS, proc frequency, enemy mitigation, rankings, or invented multiplier semantics.
+
+### Secondary objective — patch Miner issues exposed by the fresh snapshot
+
+After the Weapons completion pass is stable, patch the Miner/publisher for:
+
+1. **variant-aware Armor canonical identity**;
+2. explicit **non-craftable vs missing-recipe** classification;
+3. **weapon short-description resolver** correctness;
+4. deeper investigation of **unresolved non-Common weapon effects**;
+5. any additional integrity checks discovered while wiring the real website projection.
+
+Release Miner patches through the verified GitHub updater workflow and update `latest.json` last.
+
+### After those fixes
+
+The planned category order is:
+
+**Armor & Sets → Calibrations → Mods → Attachments → Deviations / Cradles → full mechanics-aware Build Lab**
+
+Armor should use the mature Weapons data-contract lessons, but should remain set-centric rather than blindly cloning the Weapons UI.
+
+### End-of-shift requirement
+
+Before stopping Night Shift:
+
+- leave `main` in a clean, deployable state;
+- record completed commits/current HEAD;
+- record anything intentionally incomplete or blocked;
+- update **this handoff** with the exact morning state so another session can recover without user repetition.
 
 ## 14. Files future sessions should read first
 
@@ -326,11 +386,13 @@ The next work block is **Weapons completion**, not another landing-page polish p
 11. `preview/build-lab/` weapon adapter/handoff/persistence modules
 12. `.cpanel.yml`
 
+Also inspect the newest user-provided Miner `published/` snapshot when it is available in the active conversation; repository docs describe the schema, but the current mine is the authoritative current data snapshot.
+
 ## 15. Continuity rules
 
 - Read this file and `PROJECT-RULES.md` first.
-- Do not make the user re-explain history when the repo can answer it.
-- Work on current `main`; fetch current HEAD before writes because other sessions may commit concurrently.
+- Do not make the user re-explain history when the repo/current snapshot can answer it.
+- Work on current `main`; fetch current HEAD/current blobs before writes because other sessions may commit concurrently.
 - Prefer installed-game/mined evidence over community guesses.
 - External databases are UX/reference material, never corpus authority.
 - Do not invent mechanics, compatibility, rankings, or numeric relationships.
@@ -340,5 +402,4 @@ The next work block is **Weapons completion**, not another landing-page polish p
 - Preserve copy-only cPanel deployment.
 - Preserve GitHub Miner self-update architecture and publish updater manifests last.
 - Do not execute transformed game bytecode.
-- ChatGPT does not own Miner EXE packaging/updating; Codex does.
-- Update this handoff after major milestones.
+- **Update this handoff after every major Night Shift milestone, not only at the end.**
