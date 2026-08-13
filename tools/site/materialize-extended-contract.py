@@ -29,6 +29,16 @@ EXPECTED_STATUSES = {
     "cradles": "display-name-families-with-source-variants-preserved",
 }
 
+SOURCE_VARIANT_PREFIXES = {
+    "deviations": "ds-dev",
+    "cradles": "ds-cradle",
+}
+
+FAMILY_PREFIXES = {
+    "deviations": "ds-dev-family-",
+    "cradles": "ds-cradle-family-",
+}
+
 CALIBRATION_RANGES = {
     "Rare": (18.0, 25.0),
     "Epic": (26.0, 33.0),
@@ -148,11 +158,62 @@ def _validate_attachment_contract(payload: dict[str, Any], records: list[dict[st
         raise ValueError("Attachment compatibility evidence counts do not match record contents")
 
 
+def _validate_source_variant_identity(category: str, payload: dict[str, Any], records: list[dict[str, Any]]) -> None:
+    prefix = SOURCE_VARIANT_PREFIXES[category]
+    family_prefix = FAMILY_PREFIXES[category]
+    if payload.get("duplicate_variant_canonical_ids") or payload.get("missing_variant_canonical_ids"):
+        raise ValueError(f"{category} contract contains unresolved source variant identity")
+    if not _text(payload.get("variant_identity_policy")):
+        raise ValueError(f"{category} contract must declare its source variant identity policy")
+
+    variant_ids: list[str] = []
+    multi = 0
+    for family in records:
+        family_id = _text(family.get("canonical_id"))
+        if not family_id.startswith(family_prefix):
+            raise ValueError(f"{category} family {family_id!r} does not use the canonical family prefix")
+        variants = family.get("variants")
+        if not isinstance(variants, list) or not variants:
+            raise ValueError(f"{category} family {family_id} must preserve at least one source variant")
+        if family.get("variant_count") != len(variants):
+            raise ValueError(f"{category} family {family_id} variant_count does not match payload")
+        expected_status = "single-source-record" if len(variants) == 1 else "multiple-source-variants-preserved"
+        if family.get("variant_status") != expected_status:
+            raise ValueError(f"{category} family {family_id} has invalid variant_status")
+        if len(variants) > 1:
+            multi += 1
+        for variant in variants:
+            if not isinstance(variant, dict):
+                raise ValueError(f"{category} family {family_id} contains a non-object source variant")
+            source_id = variant.get("id")
+            expected_variant_id = f"{prefix}-{source_id}" if source_id not in (None, "") else ""
+            canonical_variant_id = _text(variant.get("canonical_id"))
+            if not expected_variant_id or canonical_variant_id != expected_variant_id:
+                raise ValueError(f"{category} variant {canonical_variant_id!r} does not match source ID {source_id!r}")
+            variant_ids.append(canonical_variant_id)
+
+    if len(variant_ids) != len(set(variant_ids)):
+        raise ValueError(f"{category} source variant canonical IDs must be globally unique")
+    counts = payload.get("record_counts") or {}
+    expected_counts = {
+        "display_name_families": len(records),
+        "source_variants": len(variant_ids),
+        "single_variant_families": len(records) - multi,
+        "multi_variant_families": multi,
+    }
+    for key, value in expected_counts.items():
+        if counts.get(key) != value:
+            raise ValueError(f"{category} record_counts.{key}={counts.get(key)!r}, expected {value}")
+
+
 def _validate_family_contract(category: str, payload: dict[str, Any], records: list[dict[str, Any]]) -> None:
     if payload.get("schema_version") != 1:
         raise ValueError(f"{category} contract must use schema_version 1")
     if payload.get("publication_status") != EXPECTED_STATUSES[category]:
         raise ValueError(f"{category} contract has unexpected publication_status {payload.get('publication_status')!r}")
+    if category in SOURCE_VARIANT_PREFIXES:
+        _validate_source_variant_identity(category, payload, records)
+        return
     for family in records:
         variants = family.get("variants")
         if not isinstance(variants, list) or not variants:
