@@ -11,6 +11,7 @@ on:
       - 'preview/build-lab/weapon-data-adapter.js'
       - 'preview/build-lab/weapon-model-ui.js'
       - 'preview/build-lab/catalogue-handoff.js'
+      - 'preview/build-lab/canonical-category-variant-guard.js'
       - 'preview/build-lab/canonical-category-bridge.js'
       - '.cpanel.yml'
       - '.github/workflows/test-site-tools.yml'
@@ -55,4 +56,5 @@ jobs:
           node --check preview/build-lab/weapon-data-adapter.js
           node --check preview/build-lab/weapon-model-ui.js
           node --check preview/build-lab/catalogue-handoff.js
+          node --check preview/build-lab/canonical-category-variant-guard.js
           node --check preview/build-lab/canonical-category-bridge.js
