@@ -15,19 +15,31 @@ def link_images_and_publish_extended(published, log):
     result = _original_link_published_images(published, log)
     publisher = importlib.import_module("publish_extended_web_data")
     outputs = publisher.publish(published / "data", published)
+
+    calibration_projector = importlib.import_module("publish_current_calibrations")
+    calibration_path = published / "web" / "calibrations.json"
+    calibration = calibration_projector.project_file(calibration_path)
+    outputs["calibrations"]["record_counts"] = calibration.get("record_counts", {})
+    outputs["calibrations"]["publication_status"] = calibration.get("publication_status")
+
     log("Published compact extended website contracts: " + ", ".join(sorted(outputs)))
     return result
 
 
 def self_test_with_extended_publisher():
     checks = _original_self_test()
-    resource = miner_core.EXTRACTOR_ROOT / "publish_extended_web_data.py"
-    checks.setdefault("resources", {})[str(resource)] = resource.is_file()
-    try:
-        module = importlib.import_module("publish_extended_web_data")
-        checks.setdefault("imports", {})["publish_extended_web_data"] = getattr(module, "__version__", "ok")
-    except Exception as error:
-        checks.setdefault("imports", {})["publish_extended_web_data"] = f"ERROR: {type(error).__name__}: {error}"
+    resources = (
+        miner_core.EXTRACTOR_ROOT / "publish_extended_web_data.py",
+        miner_core.EXTRACTOR_ROOT / "publish_current_calibrations.py",
+    )
+    for resource in resources:
+        checks.setdefault("resources", {})[str(resource)] = resource.is_file()
+    for module_name in ("publish_extended_web_data", "publish_current_calibrations"):
+        try:
+            module = importlib.import_module(module_name)
+            checks.setdefault("imports", {})[module_name] = getattr(module, "__version__", "ok")
+        except Exception as error:
+            checks.setdefault("imports", {})[module_name] = f"ERROR: {type(error).__name__}: {error}"
     checks["ok"] = bool(
         all(checks.get("resources", {}).values())
         and all(not str(value).startswith("ERROR") for value in checks.get("imports", {}).values())
