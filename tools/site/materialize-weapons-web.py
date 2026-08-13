@@ -11,11 +11,20 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 from pathlib import Path
 from typing import Any
 
 
 EXPECTED_SCHEMA = "dead-signal-weapons"
+EXPECTED_SCHEMA_VERSION = 1
+LEGAL_GEAR_TIERS = {1, 2, 3, 4, 5}
+RARITY_STAR_CAPS = {
+    "common": 3,
+    "rare": 4,
+    "epic": 5,
+    "legendary": 6,
+}
 
 
 def resolve_source(path: Path) -> Path:
@@ -29,25 +38,106 @@ def resolve_source(path: Path) -> Path:
     raise FileNotFoundError(f"Could not find published Weapons JSON under: {path}")
 
 
+def _positive_int(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return None
+    return number if number > 0 else None
+
+
+def _finite_number(value: Any) -> bool:
+    if isinstance(value, bool):
+        return False
+    try:
+        return math.isfinite(float(value))
+    except (TypeError, ValueError):
+        return False
+
+
+def _validate_progression(record: dict[str, Any]) -> None:
+    canonical_id = record.get("canonical_id") or "<missing canonical_id>"
+    progression = record.get("progression")
+    if not isinstance(progression, dict):
+        raise ValueError(f"Weapon {canonical_id} is missing progression data")
+
+    gear_tiers = progression.get("gear_tiers")
+    if not isinstance(gear_tiers, list) or len(gear_tiers) != 5:
+        raise ValueError(f"Weapon {canonical_id} must contain exactly five Gear Tier rows")
+    tier_numbers = [_positive_int(row.get("tier")) if isinstance(row, dict) else None for row in gear_tiers]
+    if set(tier_numbers) != LEGAL_GEAR_TIERS or len(set(tier_numbers)) != 5:
+        raise ValueError(f"Weapon {canonical_id} Gear Tier rows must be unique Tier I-V")
+
+    matrix = progression.get("tier_star_matrix")
+    if not isinstance(matrix, list) or len(matrix) != 5:
+        raise ValueError(f"Weapon {canonical_id} must contain five Tier × Blueprint Star matrix rows")
+    matrix_tiers = [_positive_int(row.get("gear_tier")) if isinstance(row, dict) else None for row in matrix]
+    if set(matrix_tiers) != LEGAL_GEAR_TIERS or len(set(matrix_tiers)) != 5:
+        raise ValueError(f"Weapon {canonical_id} Tier × Star matrix must cover unique Gear Tier I-V")
+
+    rarity = str(record.get("rarity") or "").strip().lower()
+    star_cap = RARITY_STAR_CAPS.get(rarity)
+    for row in matrix:
+        stars = row.get("blueprint_star_values") if isinstance(row, dict) else None
+        if not isinstance(stars, list) or not stars:
+            raise ValueError(f"Weapon {canonical_id} has an empty Blueprint Star matrix row")
+        star_numbers = [_positive_int(star.get("blueprint_stars")) if isinstance(star, dict) else None for star in stars]
+        if any(value is None for value in star_numbers) or len(star_numbers) != len(set(star_numbers)):
+            raise ValueError(f"Weapon {canonical_id} has invalid or duplicate Blueprint Star rows")
+        if star_cap is not None and any(value > star_cap for value in star_numbers if value is not None):
+            raise ValueError(f"Weapon {canonical_id} exceeds the {record.get('rarity')} Blueprint Star cap")
+        for star in stars:
+            if not _finite_number(star.get("base_attack") if isinstance(star, dict) else None):
+                raise ValueError(f"Weapon {canonical_id} has a Tier × Star row without numeric Base Attack")
+
+    if progression.get("validation_issues"):
+        raise ValueError(f"Weapon {canonical_id} carries unresolved progression validation issues")
+
+
 def load_and_validate(path: Path) -> dict[str, Any]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise ValueError("Published Weapons payload must be a JSON object")
     if payload.get("schema") != EXPECTED_SCHEMA:
         raise ValueError(f"Expected schema {EXPECTED_SCHEMA!r}, found {payload.get('schema')!r}")
+    if payload.get("schema_version") != EXPECTED_SCHEMA_VERSION:
+        raise ValueError(
+            f"Expected schema_version {EXPECTED_SCHEMA_VERSION}, found {payload.get('schema_version')!r}"
+        )
     records = payload.get("weapons")
     if not isinstance(records, list) or not records:
         raise ValueError("Published Weapons payload contains no weapon records")
+    if any(not isinstance(record, dict) for record in records):
+        raise ValueError("Every published weapon record must be a JSON object")
 
-    ids = [record.get("canonical_id") for record in records if isinstance(record, dict)]
-    if len(ids) != len(records) or any(not value for value in ids):
+    ids = [record.get("canonical_id") for record in records]
+    if any(not value for value in ids):
         raise ValueError("Every published weapon must have a canonical_id")
     if len(ids) != len(set(ids)):
         raise ValueError("Published Weapons payload contains duplicate canonical_id values")
 
-    declared = (payload.get("record_counts") or {}).get("weapons")
+    for record in records:
+        if not str(record.get("name") or "").strip():
+            raise ValueError(f"Weapon {record.get('canonical_id')} is missing a player-facing name")
+        _validate_progression(record)
+
+    counts = payload.get("record_counts") or {}
+    declared = counts.get("weapons")
     if declared is not None and int(declared) != len(records):
         raise ValueError(f"record_counts.weapons={declared} but payload contains {len(records)} records")
+
+    ranged_count = sum(bool((record.get("baseline") or {}).get("ranged")) for record in records)
+    melee_count = sum(bool((record.get("baseline") or {}).get("melee")) for record in records)
+    if counts.get("ranged_weapons") is not None and int(counts["ranged_weapons"]) != ranged_count:
+        raise ValueError(
+            f"record_counts.ranged_weapons={counts['ranged_weapons']} but payload contains {ranged_count} ranged records"
+        )
+    if counts.get("melee_weapons") is not None and int(counts["melee_weapons"]) != melee_count:
+        raise ValueError(
+            f"record_counts.melee_weapons={counts['melee_weapons']} but payload contains {melee_count} melee records"
+        )
     return payload
 
 
