@@ -66,10 +66,10 @@ html,body{margin:0;min-height:100%;background:#07090b;color:#d9e1e5;font-family:
 </style>
 </head>
 <body>
-<a class="twitter-timeline" href="https://twitter.com/OnceHuman_?ref_src=twsrc%5Etfw">Tweets by OnceHuman_</a>
-<div class="feed-status" id="feedStatus"><div><strong>X timeline did not initialize</strong><span>The browser or X blocked the embed. </span><a href="https://x.com/OnceHuman_" target="_blank" rel="noopener noreferrer">Open @OnceHuman_ on X</a></div></div>
-<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"><\/script>
-<script>window.setTimeout(function(){if(document.querySelector('iframe'))return;var a=document.querySelector('.twitter-timeline'),s=document.getElementById('feedStatus');if(a)a.style.display='none';if(s)s.style.display='grid'},6000)<\/script>
+<a class="twitter-timeline" data-height="360" data-theme="dark" href="https://x.com/OnceHuman_">Tweets by OnceHuman_</a>
+<div class="feed-status" id="feedStatus"><div><strong>X timeline did not initialize</strong><span>The current X embed service did not render the timeline. </span><a href="https://x.com/OnceHuman_" target="_blank" rel="noopener noreferrer">Open @OnceHuman_ on X</a></div></div>
+<script async src="https://platform.x.com/widgets.js" charset="utf-8"><\/script>
+<script>window.setTimeout(function(){var rendered=document.querySelector('iframe.twitter-timeline-rendered,iframe[id^="twitter-widget-"]');if(rendered)return;var a=document.querySelector('a.twitter-timeline'),s=document.getElementById('feedStatus');if(a)a.style.display='none';if(s)s.style.display='grid'},8000)<\/script>
 </body>
 </html>`;
 
