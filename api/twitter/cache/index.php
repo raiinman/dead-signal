@@ -5,12 +5,12 @@ const DS_X_HANDLE = 'OnceHuman_';
 const DS_X_NAME = 'Once Human';
 const DS_X_CACHE_TTL = 300;
 const DS_X_MAX_ITEMS = 8;
-const DS_X_CACHE_VERSION = 4;
+const DS_X_CACHE_VERSION = 5;
+const DS_BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36';
 
 $cacheFile = __DIR__ . '/timeline-cache.json';
 $lockFile = __DIR__ . '/timeline-cache.lock';
 $profileUrl = 'https://x.com/' . DS_X_HANDLE;
-$jinaUrl = 'https://r.jina.ai/' . $profileUrl;
 
 header('Content-Type: text/html; charset=utf-8');
 header('Cache-Control: public, max-age=60, stale-while-revalidate=600');
@@ -33,7 +33,7 @@ function ds_write_cache(string $file, array $data): void {
     }
 }
 
-function ds_http_get(string $url, array $headers = [], int $timeout = 30): ?array {
+function ds_http_get(string $url, array $headers = [], int $timeout = 30, ?string $userAgent = null): ?array {
     if (!function_exists('curl_init')) return null;
 
     $ch = curl_init($url);
@@ -44,7 +44,7 @@ function ds_http_get(string $url, array $headers = [], int $timeout = 30): ?arra
         CURLOPT_TIMEOUT => $timeout,
         CURLOPT_ENCODING => '',
         CURLOPT_HTTPHEADER => $headers,
-        CURLOPT_USERAGENT => 'DeadSignal/1.0 (+https://deadsignaldb.com/)',
+        CURLOPT_USERAGENT => $userAgent ?: 'DeadSignal/1.0 (+https://deadsignaldb.com/)',
     ]);
 
     $body = curl_exec($ch);
@@ -55,50 +55,49 @@ function ds_http_get(string $url, array $headers = [], int $timeout = 30): ?arra
     return ['status' => $status, 'body' => $body];
 }
 
-function ds_fetch_jina_profile(string $url): ?array {
+function ds_fetch_x_profile_html(string $url): ?string {
     $response = ds_http_get($url, [
-        'Accept: application/json',
-        'X-Respond-With: markdown',
-        'X-Engine: browser',
-        'X-No-Cache: true',
-        'X-Timeout: 30',
-    ], 40);
+        'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language: en-US,en;q=0.9',
+        'Cache-Control: no-cache',
+        'Pragma: no-cache',
+        'Sec-Fetch-Dest: document',
+        'Sec-Fetch-Mode: navigate',
+        'Sec-Fetch-Site: none',
+        'Upgrade-Insecure-Requests: 1',
+    ], 35, DS_BROWSER_UA);
+
     if (!$response) return null;
+    return (string)$response['body'];
+}
 
-    $decoded = json_decode((string)$response['body'], true);
-    if (is_array($decoded)) {
-        $content = '';
-        if (isset($decoded['data']['content']) && is_string($decoded['data']['content'])) {
-            $content = $decoded['data']['content'];
-        } elseif (isset($decoded['content']) && is_string($decoded['content'])) {
-            $content = $decoded['content'];
-        }
-        if ($content !== '') return ['content' => $content, 'raw' => $decoded];
-    }
-
-    return ['content' => (string)$response['body'], 'raw' => null];
+function ds_normalize_x_html(string $content): string {
+    $content = html_entity_decode($content, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    return str_replace(
+        ['\\/', '\\u002F', '\\u002f', '\\u003A', '\\u003a'],
+        ['/', '/', '/', ':', ':'],
+        $content
+    );
 }
 
 function ds_extract_profile_avatar(string $content): string {
+    $content = ds_normalize_x_html($content);
     if (preg_match('~https://pbs\.twimg\.com/profile_images/[^\s)\]"\']+~i', $content, $m)) {
-        return html_entity_decode($m[0], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        return $m[0];
     }
     return '';
 }
 
 function ds_extract_statuses(string $content): array {
+    $content = ds_normalize_x_html($content);
     $quotedHandle = preg_quote(DS_X_HANDLE, '~');
-    $patterns = [
-        '~https?://(?:www\.)?x\.com/' . $quotedHandle . '/status/(\d+)~i',
-        '~https?://(?:www\.)?twitter\.com/' . $quotedHandle . '/status/(\d+)~i',
-    ];
+    $pattern = '~(?:(?:https?://)?(?:www\.)?(?:x\.com|twitter\.com))?/' . $quotedHandle . '/status/(\d+)~i';
 
     $found = [];
-    foreach ($patterns as $pattern) {
-        if (!preg_match_all($pattern, $content, $matches, PREG_SET_ORDER)) continue;
+    if (preg_match_all($pattern, $content, $matches, PREG_SET_ORDER)) {
         foreach ($matches as $match) {
-            $id = (string)$match[1];
-            if ($id === '') continue;
+            $id = (string)($match[1] ?? '');
+            if ($id === '' || !ctype_digit($id)) continue;
             $found[$id] = 'https://x.com/' . DS_X_HANDLE . '/status/' . $id;
         }
     }
@@ -190,6 +189,13 @@ function ds_build_posts(array $statuses, string $avatar): array {
         ];
     }
 
+    usort($posts, static function (array $a, array $b): int {
+        $aId = (string)($a['id'] ?? '');
+        $bId = (string)($b['id'] ?? '');
+        if (strlen($aId) !== strlen($bId)) return strlen($bId) <=> strlen($aId);
+        return strcmp($bId, $aId);
+    });
+
     return array_slice($posts, 0, DS_X_MAX_ITEMS);
 }
 
@@ -201,7 +207,7 @@ function ds_cache_is_fresh(?array $cache): bool {
         && !empty($cache['posts']);
 }
 
-function ds_refresh_cache(string $cacheFile, string $lockFile, string $jinaUrl): ?array {
+function ds_refresh_cache(string $cacheFile, string $lockFile, string $profileUrl): ?array {
     $cache = ds_read_cache($cacheFile);
     if (ds_cache_is_fresh($cache)) return $cache;
 
@@ -214,9 +220,8 @@ function ds_refresh_cache(string $cacheFile, string $lockFile, string $jinaUrl):
 
     $cache = ds_read_cache($cacheFile);
     if (!ds_cache_is_fresh($cache)) {
-        $profile = ds_fetch_jina_profile($jinaUrl);
-        if ($profile && !empty($profile['content'])) {
-            $content = (string)$profile['content'];
+        $content = ds_fetch_x_profile_html($profileUrl);
+        if (is_string($content) && $content !== '') {
             $statuses = ds_extract_statuses($content);
             $avatar = ds_extract_profile_avatar($content);
             if ($avatar === '' && is_array($cache) && !empty($cache['avatar'])) {
@@ -227,9 +232,11 @@ function ds_refresh_cache(string $cacheFile, string $lockFile, string $jinaUrl):
             if ($posts) {
                 $cache = [
                     'version' => DS_X_CACHE_VERSION,
+                    'source' => 'x-profile-initial-html',
                     'fetched_at' => time(),
                     'handle' => DS_X_HANDLE,
                     'avatar' => $avatar,
+                    'status_count' => count($statuses),
                     'posts' => $posts,
                 ];
                 ds_write_cache($cacheFile, $cache);
@@ -239,7 +246,7 @@ function ds_refresh_cache(string $cacheFile, string $lockFile, string $jinaUrl):
 
     @flock($lock, LOCK_UN);
     fclose($lock);
-    return ds_cache_is_fresh($cache) ? $cache : $cache;
+    return $cache;
 }
 
 function h(string $value): string {
@@ -258,7 +265,7 @@ function ds_time_label(string $raw): string {
     return gmdate('M j', $ts);
 }
 
-$cache = ds_refresh_cache($cacheFile, $lockFile, $jinaUrl);
+$cache = ds_refresh_cache($cacheFile, $lockFile, $profileUrl);
 $posts = is_array($cache['posts'] ?? null) ? $cache['posts'] : [];
 $stale = $cache && isset($cache['fetched_at']) ? max(0, time() - (int)$cache['fetched_at']) : null;
 ?>
@@ -277,7 +284,7 @@ $stale = $cache && isset($cache['fetched_at']) ? max(0, time() - (int)$cache['fe
 <body>
 <div class="feed">
 <?php if (!$posts): ?>
-  <div class="empty"><strong>Official X feed is warming up</strong><span>Dead Signal is acquiring the latest public @<?=h(DS_X_HANDLE)?> posts through its free cached bridge.</span><a href="https://x.com/<?=h(DS_X_HANDLE)?>" target="_blank" rel="noopener noreferrer">Open @<?=h(DS_X_HANDLE)?> on X</a></div>
+  <div class="empty"><strong>Official X feed is warming up</strong><span>Dead Signal is reading the latest public @<?=h(DS_X_HANDLE)?> posts directly from X on this web server.</span><a href="https://x.com/<?=h(DS_X_HANDLE)?>" target="_blank" rel="noopener noreferrer">Open @<?=h(DS_X_HANDLE)?> on X</a></div>
 <?php else: ?>
 <?php foreach ($posts as $post): ?>
   <article class="tweet">
