@@ -82,16 +82,19 @@ def _validate_calibrations(payload: dict[str, Any], records: list[dict[str, Any]
         raise ValueError("Current Calibration contract is not ready-current-system")
     if payload.get("expected_current_families") != 94 or len(records) != 94:
         raise ValueError("Current Calibration contract must contain exactly 94 families")
-    if payload.get("duplicate_canonical_ids") or payload.get("ambiguous_family_ids"):
-        raise ValueError("Current Calibration contract contains duplicate or ambiguous family identity")
+    if payload.get("duplicate_canonical_ids") or payload.get("ambiguous_family_ids") or payload.get("secondary_pool_failure_ids"):
+        raise ValueError("Current Calibration contract contains unresolved identity or secondary-pool evidence")
     if (payload.get("main_roll_semantics") or {}).get("stat_id") != "D0102":
         raise ValueError("Current Calibration main roll must identify stat_id D0102")
+    secondary = payload.get("secondary_roll_semantics") or {}
+    if secondary.get("selection_count") != 1 or secondary.get("observed_candidate_weights") != [200, 200, 200, 200]:
+        raise ValueError("Current Calibration secondary-roll contract is not proven")
 
     for family in records:
         canonical_id = _text(family.get("canonical_id"))
         if family.get("variant_count") != 1:
             raise ValueError(f"Calibration family {canonical_id} variant_count must be 1")
-        if family.get("variant_status") != "current-system-selected-from-proven-rarity-roll-range":
+        if family.get("variant_status") != "current-system-selected-from-proven-main-roll-and-secondary-pool":
             raise ValueError(f"Calibration family {canonical_id} lacks proven current-system variant status")
         variants = family.get("variants")
         if not isinstance(variants, list) or len(variants) != 1 or not isinstance(variants[0], dict):
@@ -105,19 +108,44 @@ def _validate_calibrations(payload: dict[str, Any], records: list[dict[str, Any]
         actual = (_number(roll.get("minimum_percent")), _number(roll.get("maximum_percent")))
         if actual != expected:
             raise ValueError(f"Calibration family {canonical_id} has invalid {rarity} Weapon DMG range {actual}")
+        candidates = variant.get("secondary_roll_candidates")
+        if not isinstance(candidates, list) or len(candidates) != 4:
+            raise ValueError(f"Calibration family {canonical_id} must contain four proven secondary candidates")
+        if [row.get("weight") for row in candidates if isinstance(row, dict)] != [200, 200, 200, 200]:
+            raise ValueError(f"Calibration family {canonical_id} has invalid secondary candidate weights")
 
 
 def _validate_attachment_contract(payload: dict[str, Any], records: list[dict[str, Any]]) -> None:
-    if payload.get("schema_version") != 1 or payload.get("publication_status") != EXPECTED_STATUSES["attachments"]:
-        raise ValueError("Attachment contract is not a ready schema_version 1 contract")
+    if payload.get("schema_version") != 2 or payload.get("publication_status") != EXPECTED_STATUSES["attachments"]:
+        raise ValueError("Attachment contract is not a ready schema_version 2 contract")
     if payload.get("duplicate_canonical_ids"):
         raise ValueError("Attachment contract carries duplicate canonical IDs")
     required_slots = {"Magazine", "Muzzle", "Sight", "Tactical"}
     if set(payload.get("slot_types") or []) != required_slots:
         raise ValueError("Attachment contract must expose exactly Magazine/Muzzle/Sight/Tactical player slots")
+    direct = 0
+    unresolved = 0
     for row in records:
+        canonical_id = _text(row.get("canonical_id"))
         if _text(row.get("attachment_type")) not in required_slots:
-            raise ValueError(f"Attachment {_text(row.get('canonical_id'))} is not a player weapon-slot accessory")
+            raise ValueError(f"Attachment {canonical_id} is not a player weapon-slot accessory")
+        evidence = row.get("compatibility_evidence")
+        if not isinstance(evidence, dict):
+            raise ValueError(f"Attachment {canonical_id} is missing compatibility_evidence")
+        status = _text(evidence.get("status"))
+        if status == "direct-localized-installed-game-text":
+            if not _text(evidence.get("text")) or evidence.get("source_field") != "description":
+                raise ValueError(f"Attachment {canonical_id} has malformed direct compatibility evidence")
+            direct += 1
+        elif status == "unresolved":
+            if _text(evidence.get("text")):
+                raise ValueError(f"Attachment {canonical_id} unresolved evidence must not carry inferred text")
+            unresolved += 1
+        else:
+            raise ValueError(f"Attachment {canonical_id} has unsupported compatibility evidence status {status!r}")
+    counts = payload.get("record_counts") or {}
+    if counts.get("direct_compatibility_text") != direct or counts.get("unresolved_compatibility") != unresolved:
+        raise ValueError("Attachment compatibility evidence counts do not match record contents")
 
 
 def _validate_family_contract(category: str, payload: dict[str, Any], records: list[dict[str, Any]]) -> None:
