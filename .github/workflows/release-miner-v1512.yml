@@ -63,8 +63,9 @@ jobs:
       - name: Run packaged self-test
         shell: pwsh
         run: |
-          & 'tools/miner/dist/Dead Signal Miner/Dead Signal Miner.exe' --self-test
-          if ($LASTEXITCODE -ne 0) { throw "Packaged Miner self-test failed with exit code $LASTEXITCODE" }
+          $miner = (Resolve-Path 'tools/miner/dist/Dead Signal Miner/Dead Signal Miner.exe').Path
+          $process = Start-Process -FilePath $miner -ArgumentList '--self-test' -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Packaged Miner self-test failed with exit code $($process.ExitCode)" }
           if (-not (Test-Path 'tools/miner/dist/Dead Signal Miner/Dead Signal Miner Updater.exe')) { throw 'Packaged updater helper is missing.' }
 
       - name: Package release
