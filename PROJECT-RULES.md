@@ -12,9 +12,20 @@ These are the working constraints for the Ultimate Planner.
 - Production deploys use the existing `main` branch and cPanel Git Version Control workflow only.
 - Namecheap shared-hosting deployment must remain **copy-only**.
 - Build, normalize, patch, transform, validate, unzip, scan, or generate files before deployment; do not perform those operations inside `.cpanel.yml`.
-- `.cpanel.yml` should only create the destination directory, copy already-prepared files into `/public_html/build-planner/`, remove explicitly obsolete presentation files when necessary, and write lightweight status markers.
+- `.cpanel.yml` should only create destination directories, copy already-prepared files, remove explicitly obsolete presentation/diagnostic files when necessary, and write lightweight status markers.
 - Persistent hosted game imagery under `/public_html/build-planner/assets/reference-images/` is not rebuilt or scanned during normal deploys.
-- Do not add server-side Python, recursive `find`, archive reconstruction/extraction, external downloads, or other runtime build steps back into normal cPanel deployment.
+- Do not add server-side Python, recursive `find`, archive reconstruction/extraction, external downloads, or runtime build steps back into normal cPanel deployment.
+- **Intentional runtime exception:** `api/twitter/cache/index.php` is a small PHP endpoint for the landing-page Official Once Human Feed. It is copied as prepared source by cPanel; it fetches public X pages at runtime, maintains a short local cache, and does not require an X developer account, Bearer Token, API key, OAuth, paid widget, or GitHub worker.
+- Do not generalize that PHP exception into a server-side application framework. Dead Signal remains primarily a prepared static workstation with one narrowly scoped feed cache endpoint.
+
+## Global workstation architecture
+- Dead Signal uses exactly **one global workstation sidebar**.
+- The global shell owns brand, primary route navigation, route state, readability controls, and system/Miner context.
+- Individual routes own only local tools and local content.
+- Do not add a second global sidebar, duplicate global masthead, or unrelated route-specific shell.
+- Desktop sidebar collapse must remain explicit and persisted with `dead-signal-nav-collapsed`; do not return to hover-only expansion.
+- Unbuilt database destinations remain visibly `SOON`; do not imply unfinished routes are live.
+- Shared motion should remain restrained, progressive-enhancement behavior with reduced-motion support.
 
 ## Readability / accessibility
 - Readability is a product requirement, not optional polish. Do not optimize information density to the point that normal text requires squinting.
@@ -24,11 +35,23 @@ These are the working constraints for the Ultimate Planner.
 - New Dead Signal interfaces should map typography onto the shared semantic `--ds-type-*` variables rather than adding arbitrary fixed tiny font sizes.
 - The Build Lab exposes the control as `A− / A / A+ / A++` in the left sidebar. Other site sections should use the same setting and shared controller when integrated.
 - Text scaling should prioritize typography, not browser-style page zoom; do not unnecessarily enlarge game art or destroy layout proportions.
+- Respect `prefers-reduced-motion` for decorative motion and transitions.
 
 ## Provenance / transparency
 - Preserve source provenance internally on records.
 - Show plain-text attribution to users when useful (for example: `Source: Wikily`, `Source: OnceHumanDB`, `Source: Once Human Official`).
-- Do not add outbound source links or clickable link-backs in the Dead Signal UI.
+- Do not add outbound source links or clickable link-backs in normal database/planner factual attribution UI.
+- **Official social-feed exception:** the landing-page Official Once Human Feed may link to the verified `@OnceHuman_` profile and original X posts because opening the source post is part of the feed interaction itself, not factual-record attribution.
+
+## Official Once Human feed
+- Canonical implementation: `api/twitter/cache/index.php`.
+- Working architecture: Namecheap PHP reads the public `x.com/OnceHuman_` profile, extracts current status IDs, orders them newest-first, uses public/keyless X oEmbed for post text, inspects public post HTML for media/thread evidence, then serves a short same-origin cache to the landing page.
+- No X developer account, API v2 credentials, Bearer Token, OAuth, SociableKIT, Jina runtime, GitHub Actions feed worker, direct syndication iframe, or visitor-side X widget is part of the approved architecture.
+- Photo previews are allowed from public X media URLs.
+- Video/GIF posts should use a public poster/thumbnail with an `OPEN ON X` treatment rather than proxying or hosting the actual video stream.
+- Thread detection must be conservative and evidence-based; missing a thread is preferable to grouping unrelated posts.
+- If upstream X temporarily fails, prefer serving the last useful cached feed instead of blanking the homepage.
+- Do not replace this working path merely to imitate X's native widget chrome.
 
 ## Gear progression terminology
 - Gear Tier is I–V only. There is no Gear Tier VI.
