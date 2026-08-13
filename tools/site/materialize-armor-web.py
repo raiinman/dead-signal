@@ -2,8 +2,8 @@
 """Materialize the Miner's compact public Armor JSON for the static website.
 
 This wrapper preserves the exact published/web/armor.json payload. It validates
-public canonical identity before creating the browser assignment and does not
-reinterpret Armor mechanics or set semantics.
+public canonical identity and player-facing Gear Tier structure before creating
+the browser assignment; it does not reinterpret Armor mechanics or set semantics.
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ from typing import Any
 
 EXPECTED_SCHEMA = "dead-signal-armor"
 EXPECTED_SCHEMA_VERSION = 1
+EXPECTED_TIERS = {1, 2, 3, 4, 5}
 
 
 def resolve_source(path: Path) -> Path:
@@ -33,6 +34,30 @@ def _required_id(value: Any, label: str) -> str:
     if value is None or value == "":
         raise ValueError(f"{label} is required")
     return str(value)
+
+
+def _tier_number(row: dict[str, Any]) -> int | None:
+    value = row.get("data_level") if row.get("data_level") is not None else row.get("tier")
+    if isinstance(value, bool):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _validate_piece_structure(piece: dict[str, Any], canonical_piece_id: str) -> None:
+    if not str(piece.get("slot") or "").strip():
+        raise ValueError(f"Armor piece {canonical_piece_id} is missing a player-facing armor slot")
+
+    tiers = piece.get("tiers")
+    if not isinstance(tiers, list) or len(tiers) != 5:
+        raise ValueError(f"Armor piece {canonical_piece_id} must contain exactly five Gear Tier rows")
+    if any(not isinstance(row, dict) for row in tiers):
+        raise ValueError(f"Armor piece {canonical_piece_id} contains a non-object Gear Tier row")
+    tier_numbers = [_tier_number(row) for row in tiers]
+    if set(tier_numbers) != EXPECTED_TIERS or len(set(tier_numbers)) != 5:
+        raise ValueError(f"Armor piece {canonical_piece_id} Gear Tier rows must be unique Tier I-V")
 
 
 def load_and_validate(path: Path) -> dict[str, Any]:
@@ -72,6 +97,11 @@ def load_and_validate(path: Path) -> dict[str, Any]:
             raise ValueError(f"Armor Set {canonical_set_id} must contain a pieces array")
         if any(not isinstance(piece, dict) for piece in set_pieces):
             raise ValueError(f"Armor Set {canonical_set_id} contains a non-object piece record")
+        declared_piece_count = armor_set.get("piece_count")
+        if declared_piece_count is not None and int(declared_piece_count) != len(set_pieces):
+            raise ValueError(
+                f"Armor Set {canonical_set_id} piece_count={declared_piece_count} but payload contains {len(set_pieces)} pieces"
+            )
         for piece in set_pieces:
             piece_suit_id = _required_id(piece.get("suit_id"), f"Armor piece in {canonical_set_id} suit_id")
             blueprint_id = _required_id(piece.get("blueprint_id"), f"Armor piece in {canonical_set_id} blueprint_id")
@@ -87,6 +117,7 @@ def load_and_validate(path: Path) -> dict[str, Any]:
                 )
             if not str(piece.get("name") or "").strip():
                 raise ValueError(f"Armor piece {canonical_piece_id} is missing a player-facing name")
+            _validate_piece_structure(piece, canonical_piece_id)
             pieces.append(piece)
             set_piece_count += 1
 
@@ -100,6 +131,7 @@ def load_and_validate(path: Path) -> dict[str, Any]:
             )
         if not str(piece.get("name") or "").strip():
             raise ValueError(f"Key Armor {canonical_piece_id} is missing a player-facing name")
+        _validate_piece_structure(piece, canonical_piece_id)
         pieces.append(piece)
 
     if len(set_ids) != len(set(set_ids)):
