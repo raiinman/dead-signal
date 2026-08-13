@@ -9,17 +9,173 @@
 <link rel="stylesheet" href="../extended-catalogue.css">
 <script src="../../shared/readability.js" defer></script>
 <script src="../../shared/workstation-shell.js" defer></script>
-<script src="mods-data.js?v=20260813a"></script>
-<script src="../extended-catalogue.js?v=20260813a" defer></script>
+<script src="mods-data.js?v=20260813b"></script>
+<style>
+.mod-variant{margin-top:12px;padding:12px;border:1px solid #303941;background:#0a0e11}.mod-variant-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.mod-variant-head h3{margin:0;font-size:1rem}.mod-badges{display:flex;flex-wrap:wrap;gap:6px}.mod-badge{padding:3px 7px;border:1px solid #354149;border-radius:999px;color:#9eabb2;font-size:.68rem}.mod-badge.shiny{border-color:#51656a;color:#9ee9ec}.mod-code-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px}.mod-code-grid div{padding:8px;border:1px solid #242c31;background:#080b0d}.mod-code-grid span{display:block;color:#738089;font-size:.64rem;text-transform:uppercase;letter-spacing:.08em}.mod-code-grid b{display:block;margin-top:3px;color:#dfe5e8;font-size:.8rem;overflow-wrap:anywhere}.mod-effect-list{margin-top:10px}.mod-effect-list summary{cursor:pointer;color:#86d9dd;font-weight:800}.mod-effect-row{margin-top:8px;padding:9px;border-left:2px solid #36434a;background:#0b1013}.mod-effect-row strong{display:block;color:#edf1f3}.mod-effect-row p{margin:4px 0 0;color:#9eabb2}.mod-effect-row small{display:block;margin-top:5px;color:#6f7d84}.mod-warning{margin-top:10px;padding:9px;border-left:2px solid #86533b;background:#130f0d;color:#b8a89d}@media(max-width:760px){.mod-code-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:440px){.mod-code-grid{grid-template-columns:1fr}.mod-variant-head{display:block}.mod-badges{margin-top:7px}}
+</style>
 </head>
 <body data-category="mods">
 <a class="skip-link" href="#databaseMain">Skip to Mods database</a>
 <main id="databaseMain" class="db-route">
-<section class="db-hero"><div><p>DB // Mods</p><h1>Current Mod 2.0 database.</h1><p>Player-facing Mod families come from the current mined Mod 2.0 tables and retain their source variants.</p></div><div class="db-count"><strong id="dbCount">—</strong><span>Mod families</span></div></section>
-<section class="db-controls" aria-label="Mod filters"><label><span>Search</span><input id="dbSearch" type="search" placeholder="Search Mods"></label><label><span>Family</span><select id="dbPrimary"><option value="">All families</option></select></label><label><span>Rarity</span><select id="dbRarity"><option value="">All rarities</option></select></label><button id="dbClear" type="button">Clear filters</button></section>
+<section class="db-hero"><div><p>DB // Mods</p><h1>Current Mod 2.0 database.</h1><p>Mined Mod families preserve every source variant. Main-entry level effects are shown exactly as published; ambiguous families are never collapsed into a guessed player choice.</p></div><div class="db-count"><strong id="dbCount">—</strong><span>Mod families</span></div></section>
+<section class="db-controls" aria-label="Mod filters"><label><span>Search</span><input id="dbSearch" type="search" placeholder="Search Mods, effects, or codes"></label><label><span>Family</span><select id="dbPrimary"><option value="">All families</option></select></label><label><span>Rarity</span><select id="dbRarity"><option value="">All rarities</option></select></label><button id="dbClear" type="button">Clear filters</button></section>
 <p id="dbStatus" class="db-status" aria-live="polite">Loading verified Mod contract…</p>
 <section id="dbGrid" class="db-grid" aria-label="Mod results"></section>
-<section id="dbUnavailable" class="db-unavailable" hidden><strong>MOD DATA AWAITING VERIFIED SNAPSHOT</strong><p>The route is prepared and remains unavailable until the compact Miner contract is materialized.</p></section>
+<section id="dbUnavailable" class="db-unavailable" hidden><strong>MOD DATA AWAITING VERIFIED SNAPSHOT</strong><p>The route remains fail-closed until the Miner publishes the supported Mod-family contract. Source variants stay preserved until current player-selectable identity is proven.</p></section>
 </main>
+<script>
+(() => {
+  'use strict';
+  const data = window.DS_MODS_WEB;
+  const EXPECTED_STATUS = 'mod-code-family-projection-variants-preserved';
+  const grid = document.getElementById('dbGrid');
+  const unavailable = document.getElementById('dbUnavailable');
+  const status = document.getElementById('dbStatus');
+  const search = document.getElementById('dbSearch');
+  const familyFilter = document.getElementById('dbPrimary');
+  const rarityFilter = document.getElementById('dbRarity');
+  const count = document.getElementById('dbCount');
+  const clear = document.getElementById('dbClear');
+  const text = (value) => String(value ?? '').trim();
+  const list = (value) => Array.isArray(value) ? value : [];
+  const add = (parent, tag, value, className = '') => {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    node.textContent = value;
+    parent.append(node);
+    return node;
+  };
+  const valid = !!data
+    && data.schema === 'dead-signal-mods'
+    && data.schema_version === 1
+    && data.publication_status === EXPECTED_STATUS
+    && Array.isArray(data.families)
+    && data.families.length > 0
+    && data.families.every((family) => text(family.canonical_id)
+      && Array.isArray(family.variants)
+      && family.variants.length > 0
+      && Number(family.variant_count) === family.variants.length);
+
+  if (!valid) {
+    grid.hidden = true;
+    unavailable.hidden = false;
+    status.textContent = 'Mod route prepared · supported compact Mod-family contract not materialized.';
+    return;
+  }
+
+  const families = data.families;
+  count.textContent = families.length.toLocaleString();
+  const familyName = (family) => text(family.name) || `Mod code ${text(family.family_key) || 'unknown'}`;
+  const rarities = (family) => [...new Set(list(family.variants).map((variant) => text(variant.rarity)).filter(Boolean))];
+  const option = (select, value) => { const node = document.createElement('option'); node.value = value; node.textContent = value; select.append(node); };
+  [...new Set(families.map(familyName))].sort((a,b) => a.localeCompare(b)).forEach((value) => option(familyFilter, value));
+  [...new Set(families.flatMap(rarities))].sort((a,b) => a.localeCompare(b)).forEach((value) => option(rarityFilter, value));
+
+  function effectText(effect) {
+    return `${text(effect.name)} ${text(effect.description)} ${list(effect.attribute_codes).join(' ')} ${list(effect.attribute_values).join(' ')} ${effect.buff_id ?? ''}`.trim();
+  }
+
+  function searchable(family) {
+    return `${familyName(family)} ${family.family_key ?? ''} ${list(family.name_variants).join(' ')} ${list(family.variants).map((variant) => `${text(variant.name)} ${text(variant.description)} ${text(variant.rarity)} ${variant.mod_code ?? ''} ${variant.main_entry_code ?? ''} ${variant.apply_range_code ?? ''} ${variant.genre_library_code ?? ''} ${variant.frame_code ?? ''} ${list(variant.main_entry_effects).map(effectText).join(' ')}`).join(' ')}`.toLowerCase();
+  }
+
+  function codeCell(parent, label, value) {
+    const cell = document.createElement('div');
+    add(cell, 'span', label);
+    add(cell, 'b', value == null || value === '' ? '—' : String(value));
+    parent.append(cell);
+  }
+
+  function effectDetails(variant) {
+    const effects = list(variant.main_entry_effects).filter((row) => row && typeof row === 'object');
+    const details = document.createElement('details');
+    details.className = 'mod-effect-list';
+    const summary = document.createElement('summary');
+    summary.textContent = effects.length ? `Mined main-entry effects · ${effects.length} level row${effects.length === 1 ? '' : 's'}` : 'No main-entry level rows resolved';
+    details.append(summary);
+    effects.forEach((effect) => {
+      const row = document.createElement('div');
+      row.className = 'mod-effect-row';
+      add(row, 'strong', `Level ${effect.level ?? '—'}${text(effect.name) ? ` · ${text(effect.name)}` : ''}`);
+      if (text(effect.description)) add(row, 'p', text(effect.description));
+      const evidence = [];
+      if (list(effect.attribute_codes).length) evidence.push(`Attrs ${list(effect.attribute_codes).join(', ')}`);
+      if (list(effect.attribute_values).length) evidence.push(`Values ${list(effect.attribute_values).join(', ')}`);
+      if (effect.buff_id) evidence.push(`Buff ${effect.buff_id}`);
+      if (evidence.length) add(row, 'small', evidence.join(' · '));
+      details.append(row);
+    });
+    return details;
+  }
+
+  function variantCard(variant) {
+    const section = document.createElement('section');
+    section.className = 'mod-variant';
+    const head = document.createElement('div');
+    head.className = 'mod-variant-head';
+    const title = document.createElement('div');
+    add(title, 'h3', text(variant.name) || `Item ${variant.item_id ?? 'record'}`);
+    if (text(variant.description)) add(title, 'p', text(variant.description));
+    const badges = document.createElement('div');
+    badges.className = 'mod-badges';
+    if (text(variant.rarity)) add(badges, 'span', text(variant.rarity), 'mod-badge');
+    if (variant.is_shiny) add(badges, 'span', 'Shiny', 'mod-badge shiny');
+    head.append(title, badges);
+    section.append(head);
+
+    const codes = document.createElement('div');
+    codes.className = 'mod-code-grid';
+    codeCell(codes, 'Mod code', variant.mod_code);
+    codeCell(codes, 'Main entry', variant.main_entry_code);
+    codeCell(codes, 'Apply range', variant.apply_range_code);
+    codeCell(codes, 'Genre library', variant.genre_library_code);
+    codeCell(codes, 'Frame', variant.frame_code);
+    codeCell(codes, 'Item ID', variant.item_id);
+    if (variant.shiny_buff_id) codeCell(codes, 'Shiny buff', variant.shiny_buff_id);
+    if (variant.shiny_replacement_mod_code) codeCell(codes, 'Shiny replacement', variant.shiny_replacement_mod_code);
+    section.append(codes, effectDetails(variant));
+    return section;
+  }
+
+  function familyCard(family) {
+    const article = document.createElement('article');
+    article.className = 'db-card';
+    add(article, 'small', `Mod code ${text(family.family_key) || '—'}`);
+    add(article, 'h2', familyName(family));
+    add(article, 'p', family.variants.length === 1
+      ? 'One mined source variant is preserved for this Mod family.'
+      : `${family.variants.length} mined source variants are preserved. Dead Signal will not guess which variant represents the current player-selectable Mod until fresh evidence proves that identity.`);
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const variantMeta = document.createElement('div');
+    add(variantMeta, 'span', 'Variants');
+    add(variantMeta, 'b', String(family.variants.length));
+    const rarityMeta = document.createElement('div');
+    add(rarityMeta, 'span', 'Rarities');
+    add(rarityMeta, 'b', rarities(family).join(', ') || 'Unresolved');
+    meta.append(variantMeta, rarityMeta);
+    article.append(meta);
+    if (family.variants.length > 1) add(article, 'div', 'Variant ambiguity preserved · planner promotion remains blocked until current identity is proven.', 'mod-warning');
+    family.variants.forEach((variant) => article.append(variantCard(variant)));
+    return article;
+  }
+
+  function render() {
+    const query = search.value.trim().toLowerCase();
+    const visible = families.filter((family) => (!query || searchable(family).includes(query))
+      && (!familyFilter.value || familyName(family) === familyFilter.value)
+      && (!rarityFilter.value || rarities(family).includes(rarityFilter.value)));
+    grid.replaceChildren(...visible.map(familyCard));
+    const ambiguous = families.filter((family) => family.variants.length !== 1).length;
+    status.textContent = `${visible.length} of ${families.length} Mod families shown · ${ambiguous} families preserve multiple source variants · ${data.publication_status}.`;
+  }
+
+  search.addEventListener('input', render);
+  familyFilter.addEventListener('change', render);
+  rarityFilter.addEventListener('change', render);
+  clear.addEventListener('click', () => { search.value = ''; familyFilter.value = ''; rarityFilter.value = ''; render(); search.focus(); });
+  render();
+})();
+</script>
 </body>
 </html>
