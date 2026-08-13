@@ -60,8 +60,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Source compile check failed.' }
           & $python -m unittest discover -s tools/miner/tests -v
           if ($LASTEXITCODE -ne 0) { throw 'Miner unit tests failed.' }
-          & $python tools/miner/src/dead_signal_miner.py --self-test
-          if ($LASTEXITCODE -ne 0) { throw 'Source self-test failed.' }
+          & $python tools/miner/src/miner_entry.py --self-test
+          if ($LASTEXITCODE -ne 0) { throw 'Canonical source self-test failed.' }
 
       - name: Build packaged Miner and updater
         shell: pwsh
