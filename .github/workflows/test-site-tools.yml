@@ -1,4 +1,4 @@
-name: Test Weapons website data path
+name: Test database website data paths
 
 on:
   push:
@@ -6,12 +6,8 @@ on:
       - main
     paths:
       - 'tools/site/**'
-      - 'database/weapons/catalogue.js'
-      - 'database/weapons/weapon-public-adapter.js'
-      - 'database/weapons/weapon-detail-extras.js'
-      - 'database/weapons/weapons-data.js'
-      - 'database/weapons/detail/index.html'
-      - 'database/weapons/sks-pathfinder/index.html'
+      - 'database/weapons/**'
+      - 'database/armor/**'
       - 'preview/build-lab/weapon-data-adapter.js'
       - 'preview/build-lab/weapon-model-ui.js'
       - 'preview/build-lab/catalogue-handoff.js'
@@ -37,15 +33,17 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Test compact Weapons materializer and audit tools
+      - name: Test compact database materializers and audits
         run: python -m unittest discover -s tools/site/tests -v
 
-      - name: Syntax-check Weapons browser modules
+      - name: Syntax-check database browser modules
         run: |
           node --check database/weapons/catalogue.js
           node --check database/weapons/weapon-public-adapter.js
           node --check database/weapons/weapon-detail-extras.js
           node --check database/weapons/weapons-data.js
+          node --check database/armor/armor.js
+          node --check database/armor/armor-data.js
           node --check preview/build-lab/weapon-data-adapter.js
           node --check preview/build-lab/weapon-model-ui.js
           node --check preview/build-lab/catalogue-handoff.js
