@@ -43,23 +43,3 @@ document.addEventListener('keydown', (event) => {
     query.focus();
   }
 });
-
-function initOfficialXFrame() {
-  const body = document.querySelector('.official-feed-body');
-  if (!body) return;
-
-  document.querySelectorAll('script[src*="platform.twitter.com/widgets.js"], script[src*="platform.x.com/widgets.js"]').forEach((script) => script.remove());
-
-  const frame = document.createElement('iframe');
-  frame.className = 'official-x-frame';
-  frame.title = 'Official Once Human posts on X';
-  frame.loading = 'eager';
-  frame.referrerPolicy = 'same-origin';
-  frame.setAttribute('scrolling', 'yes');
-  frame.style.cssText = 'display:block;width:100%;height:100%;border:0;background:#07090b';
-  frame.src = '/api/twitter/cache/';
-
-  body.replaceChildren(frame);
-}
-
-initOfficialXFrame();
