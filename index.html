@@ -3,112 +3,66 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#08090b">
-  <meta name="description" content="Search the Dead Signal Once Human database and plan complete builds with player-facing game data.">
+  <meta name="theme-color" content="#07090b">
+  <meta name="description" content="Search the Dead Signal Once Human database and turn verified player-facing data into complete builds.">
   <title>Dead Signal — Once Human Database & Build Planner</title>
   <link rel="stylesheet" href="shared/readability.css">
   <link rel="stylesheet" href="shared/workstation-shell.css">
-  <link rel="stylesheet" href="site.css">
-  <link rel="stylesheet" href="database.css">
-  <link rel="stylesheet" href="hero-art.css">
+  <link rel="stylesheet" href="landing-workstation.css?v=2.0.0">
   <link rel="preload" as="image" href="assets/hero/dead-signal-database-hero-1600.webp" imagesrcset="assets/hero/dead-signal-database-hero-960.webp 960w, assets/hero/dead-signal-database-hero-1600.webp 1600w, assets/hero/dead-signal-database-hero-2560.webp 2560w" imagesizes="100vw" fetchpriority="high">
   <script src="shared/readability.js" defer></script>
   <script src="shared/workstation-shell.js" defer></script>
   <script src="site.js" defer></script>
 </head>
-<body>
+<body class="landing-page">
   <a class="skip-link" href="#main">Skip to content</a>
-  <header class="site-header">
-    <a class="wordmark" href="#top" aria-label="Dead Signal home">
-      <span class="signal-mark" aria-hidden="true"><i></i><i></i><i></i></span>
-      <span>DEAD <b>SIGNAL</b></span>
-    </a>
-    <nav aria-label="Primary navigation">
-      <a href="#database">Database</a>
-      <a href="#capabilities">Planner</a>
-      <a class="nav-cta" href="https://deadsignaldb.com/build-planner/">Launch planner <span aria-hidden="true">↗</span></a>
-    </nav>
-  </header>
-
   <main id="main">
-    <section class="hero" id="top">
-      <picture class="hero-visual" aria-hidden="true">
+    <header class="landing-commandbar">
+      <p><span aria-hidden="true">DS</span> Once Human intelligence</p>
+      <label><span class="sr-only">Search Dead Signal</span><input type="search" data-search-mirror placeholder="Search weapons, armor, mods, and build systems..." autocomplete="off"></label>
+      <span class="verified-state">Verified player-facing data</span>
+      <a href="/build-planner/">Open Build Lab <span aria-hidden="true">→</span></a>
+    </header>
+
+    <section class="landing-hero" id="top">
+      <picture class="landing-hero-art" aria-hidden="true">
         <source type="image/avif" srcset="assets/hero/dead-signal-database-hero-960.avif 960w, assets/hero/dead-signal-database-hero-1600.avif 1600w, assets/hero/dead-signal-database-hero-2560.avif 2560w" sizes="100vw">
         <source type="image/webp" srcset="assets/hero/dead-signal-database-hero-960.webp 960w, assets/hero/dead-signal-database-hero-1600.webp 1600w, assets/hero/dead-signal-database-hero-2560.webp 2560w" sizes="100vw">
         <img src="assets/hero/dead-signal-database-hero-1600.webp" width="1600" height="900" alt="" fetchpriority="high" decoding="async">
       </picture>
-      <div class="hero-copy">
-        <p class="eyebrow"><span></span> Once Human database + build intelligence</p>
+      <div class="landing-hero-copy">
+        <p class="landing-kicker">Database + build intelligence</p>
         <h1>Know the data.<br><em>Build beyond it.</em></h1>
-        <p class="lede">Search weapons, armor, mods, calibrations, deviations, and Cradle options—then turn what you find into a complete loadout.</p>
-        <div class="hero-actions">
-          <a class="button primary" href="https://deadsignaldb.com/build-planner/">Launch Build Planner <span aria-hidden="true">→</span></a>
-          <a class="button secondary" href="#database">Search the database</a>
-        </div>
-        <ul class="trust-line" aria-label="Planner principles">
-          <li>Player-facing data</li>
-          <li>No account required</li>
-          <li>Built for accuracy</li>
-        </ul>
+        <p>Research the systems behind a Once Human build, then carry verified records directly into one complete planning workspace.</p>
+        <div class="landing-actions"><a class="landing-primary" href="/build-planner/">Open Build Lab <span>→</span></a><a class="landing-secondary" href="#database">Explore Database</a></div>
       </div>
-
-      <div class="planner-window" aria-label="Dead Signal planner preview">
-        <div class="window-bar"><span>DEAD SIGNAL // BUILD LAB</span><span class="live-dot">SYSTEM READY</span></div>
-        <div class="window-body">
-          <aside aria-hidden="true">
-            <b>BUILD FLOW</b><span class="active">01 Weapons</span><span>02 Armor + Mods</span><span>03 Build Systems</span><span>04 Results</span>
-          </aside>
-          <div class="loadout">
-            <div class="loadout-head"><div><small>ACTIVE LOADOUT</small><strong>Frost Control</strong></div><span>MY GEAR</span></div>
-            <div class="weapon-grid">
-              <article><small>PRIMARY WEAPON</small><div class="weapon-art"><span></span></div><h3>SKS — Pathfinder</h3><p>Tier V · Blueprint 6★</p><dl><div><dt>BASE ATTACK</dt><dd>683</dd></div><div><dt>CONFIG</dt><dd>6 / 6</dd></div></dl></article>
-              <article><small>SECONDARY WEAPON</small><div class="weapon-art pistol"><span></span></div><h3>DE.50 — Jaws</h3><p>Tier V · Blueprint 6★</p><dl><div><dt>BASE ATTACK</dt><dd>938</dd></div><div><dt>CONFIG</dt><dd>6 / 6</dd></div></dl></article>
-            </div>
-          </div>
-        </div>
-      </div>
+      <article class="loadout-preview" aria-label="Build Lab preview">
+        <header><span>Loadout workstation</span><b><i></i> Ready</b></header>
+        <div class="preview-main"><div class="preview-weapon"><small>Primary weapon</small><strong>SKS — Pathfinder</strong><div class="weapon-silhouette" aria-hidden="true"></div><span>Gear Tier V · Blueprint Stars 3</span></div><div class="preview-completion"><strong>92%</strong><span>Build complete</span></div></div>
+        <div class="preview-systems"><span>Armor <b>6/6</b></span><span>Mods <b>7/7</b></span><span>Deviation <b>1/1</b></span><span>Cradle <b>7/8</b></span></div>
+      </article>
     </section>
 
-    <section class="stat-strip" id="data" aria-label="Current data coverage">
-      <div><strong>120</strong><span>Weapons</span></div><div><strong>173</strong><span>Armor pieces</span></div><div><strong>94</strong><span>Calibrations</span></div><div><strong>97</strong><span>Deviations</span></div><div><strong>120</strong><span>Cradle options</span></div>
+    <section class="signal-search" aria-labelledby="search-title">
+      <div><span aria-hidden="true">⌕</span><strong id="search-title">Search the signal</strong></div>
+      <label><span class="sr-only">Search database categories</span><input id="databaseQuery" type="search" placeholder="Search weapons, armor, mods, and build systems..." autocomplete="off"></label>
+      <kbd>/</kbd>
     </section>
+    <p id="searchStatus" class="search-status" aria-live="polite">Search across the current player-facing database.</p>
 
-    <section class="database" id="database">
-      <div class="database-head">
-        <div><p class="eyebrow"><span></span> Player-facing game data</p><h2>Search the signal.</h2><p>Explore the systems that make a build work. Every category is designed to flow directly into the planner.</p></div>
-        <span class="snapshot">DATA SNAPSHOT // CURRENT</span>
+    <section class="database-landing" id="database" aria-labelledby="database-title">
+      <div class="database-title-row"><div><p>Database</p><h2 id="database-title">Choose a system.</h2></div><span>Current mined snapshot</span></div>
+      <div class="landing-category-grid" id="categoryGrid">
+        <a class="landing-category weapons" href="database/weapons/" data-search="weapons guns melee attack firearm"><picture><source type="image/avif" srcset="assets/database-icons/weapons-v2-256.avif 256w, assets/database-icons/weapons-v2-512.avif 512w"><img src="assets/database-icons/weapons-v2-256.webp" srcset="assets/database-icons/weapons-v2-256.webp 256w, assets/database-icons/weapons-v2-512.webp 512w" alt="" width="256" height="256"></picture><div><span>DB // 01</span><h3>Weapons</h3><p>Progression, stats, effects, ammo, and configuration evidence.</p><strong>120 records <i>→</i></strong></div></a>
+        <a class="landing-category armor" href="#database" data-search="armor gear sets helmet mask gloves pants boots"><picture><source type="image/avif" srcset="assets/database-icons/armor-sets-256.avif 256w, assets/database-icons/armor-sets-512.avif 512w"><img src="assets/database-icons/armor-sets-256.webp" srcset="assets/database-icons/armor-sets-256.webp 256w, assets/database-icons/armor-sets-512.webp 512w" alt="" width="256" height="256"></picture><div><span>DB // 02</span><h3>Armor & Sets</h3><p>Gear pieces, key armor, set membership, and activation.</p><strong>173 pieces · 23 sets <i>→</i></strong></div></a>
+        <a class="landing-category mods" href="#database" data-search="mods mod 2.0 attributes suffix shiny"><picture><source type="image/avif" srcset="assets/database-icons/mods-256.avif 256w, assets/database-icons/mods-512.avif 512w"><img src="assets/database-icons/mods-256.webp" srcset="assets/database-icons/mods-256.webp 256w, assets/database-icons/mods-512.webp 512w" alt="" width="256" height="256"></picture><div><span>DB // 03</span><h3>Mods</h3><p>Current families, main attributes, and fixed sub-attributes.</p><strong>105 families <i>→</i></strong></div></a>
+        <a class="landing-category calibrations" href="#database" data-search="calibrations blueprints styles weapon damage rng secondary"><picture><source type="image/avif" srcset="assets/database-icons/calibrations-256.avif 256w, assets/database-icons/calibrations-512.avif 512w"><img src="assets/database-icons/calibrations-256.webp" srcset="assets/database-icons/calibrations-256.webp 256w, assets/database-icons/calibrations-512.webp 512w" alt="" width="256" height="256"></picture><div><span>DB // 04</span><h3>Calibrations</h3><p>Style effects, rarity records, and legal roll ranges.</p><strong>94 records <i>→</i></strong></div></a>
+        <a class="landing-category deviations" href="#database" data-search="deviations combat companions powers"><picture><source type="image/avif" srcset="assets/database-icons/deviations-butterfly-emissary-256.avif 256w, assets/database-icons/deviations-butterfly-emissary-512.avif 512w"><img src="assets/database-icons/deviations-butterfly-emissary-256.webp" srcset="assets/database-icons/deviations-butterfly-emissary-256.webp 256w, assets/database-icons/deviations-butterfly-emissary-512.webp 512w" alt="" width="256" height="256"></picture><div><span>DB // 05</span><h3>Deviations</h3><p>Player-facing companions and their build-relevant roles.</p><strong>97 records <i>→</i></strong></div></a>
+        <a class="landing-category cradle" href="#database" data-search="cradle overrides perks seasonal build systems"><picture><source type="image/avif" srcset="assets/database-icons/cradle-overrides-256.avif 256w, assets/database-icons/cradle-overrides-512.avif 512w"><img src="assets/database-icons/cradle-overrides-256.webp" srcset="assets/database-icons/cradle-overrides-256.webp 256w, assets/database-icons/cradle-overrides-512.webp 512w" alt="" width="256" height="256"></picture><div><span>DB // 06</span><h3>Cradle Overrides</h3><p>Build-system options organized across all eight slots.</p><strong>120 options <i>→</i></strong></div></a>
       </div>
-      <div class="database-search">
-        <label for="databaseQuery">SEARCH DEAD SIGNAL</label>
-        <div><span aria-hidden="true">⌕</span><input id="databaseQuery" type="search" placeholder="Search weapons, armor, mods, effects..." autocomplete="off"><kbd>/</kbd></div>
-        <p id="searchStatus" aria-live="polite">Search across the current player-facing database.</p>
-      </div>
-      <div class="category-grid" id="categoryGrid">
-        <a class="category category-weapons" href="database/weapons/" data-search="weapons guns melee attack firearm"><span class="category-code">DB // 01</span><picture class="category-art"><source type="image/avif" srcset="assets/database-icons/weapons-v2-256.avif 256w, assets/database-icons/weapons-v2-512.avif 512w"><img src="assets/database-icons/weapons-v2-256.webp" srcset="assets/database-icons/weapons-v2-256.webp 256w, assets/database-icons/weapons-v2-512.webp 512w" sizes="150px" width="256" height="256" alt="" loading="lazy" decoding="async"><span class="category-glyph">⌁</span></picture><h3>Weapons</h3><p>Ranged and melee weapons with Tier progression, Blueprint Stars, and player-facing stats.</p><strong>120 records <i>→</i></strong></a>
-        <a class="category category-armor" href="#database" data-search="armor gear sets helmet mask gloves pants boots"><span class="category-code">DB // 02</span><picture class="category-art"><source type="image/avif" srcset="assets/database-icons/armor-sets-256.avif 256w, assets/database-icons/armor-sets-512.avif 512w"><img src="assets/database-icons/armor-sets-256.webp" srcset="assets/database-icons/armor-sets-256.webp 256w, assets/database-icons/armor-sets-512.webp 512w" sizes="150px" width="256" height="256" alt="" loading="lazy" decoding="async"><span class="category-glyph">⬡</span></picture><h3>Armor & Sets</h3><p>Six gear slots, key armor, set membership, activation requirements, and base values.</p><strong>173 pieces · 23 sets <i>→</i></strong></a>
-        <a class="category category-mods" href="#database" data-search="mods mod 2.0 attributes suffix shiny"><span class="category-code">DB // 03</span><picture class="category-art"><source type="image/avif" srcset="assets/database-icons/mods-256.avif 256w, assets/database-icons/mods-512.avif 512w"><img src="assets/database-icons/mods-256.webp" srcset="assets/database-icons/mods-256.webp 256w, assets/database-icons/mods-512.webp 512w" sizes="150px" width="256" height="256" alt="" loading="lazy" decoding="async"><span class="category-glyph">✣</span></picture><h3>Mods</h3><p>Current Mod 2.0 families, main attributes, fixed sub-attributes, and special variants.</p><strong>105 families <i>→</i></strong></a>
-        <a class="category category-calibrations" href="#database" data-search="calibrations blueprints styles weapon damage rng secondary"><span class="category-code">DB // 04</span><picture class="category-art"><source type="image/avif" srcset="assets/database-icons/calibrations-256.avif 256w, assets/database-icons/calibrations-512.avif 512w"><img src="assets/database-icons/calibrations-256.webp" srcset="assets/database-icons/calibrations-256.webp 256w, assets/database-icons/calibrations-512.webp 512w" sizes="150px" width="256" height="256" alt="" loading="lazy" decoding="async"><span class="category-glyph">⌖</span></picture><h3>Calibrations</h3><p>Style effects, rarity-native records, Weapon DMG ranges, and legal secondary rolls.</p><strong>94 current records <i>→</i></strong></a>
-        <a class="category category-deviations" href="#database" data-search="deviations combat companions powers"><span class="category-code">DB // 05</span><picture class="category-art"><source type="image/avif" srcset="assets/database-icons/deviations-butterfly-emissary-256.avif 256w, assets/database-icons/deviations-butterfly-emissary-512.avif 512w"><img src="assets/database-icons/deviations-butterfly-emissary-256.webp" srcset="assets/database-icons/deviations-butterfly-emissary-256.webp 256w, assets/database-icons/deviations-butterfly-emissary-512.webp 512w" sizes="150px" width="256" height="256" alt="" loading="lazy" decoding="async"><span class="category-glyph">◉</span></picture><h3>Deviations</h3><p>Unique player-facing deviations and their build-relevant combat roles.</p><strong>97 unique records <i>→</i></strong></a>
-        <a class="category category-cradle" href="#database" data-search="cradle overrides perks seasonal build systems"><span class="category-code">DB // 06</span><picture class="category-art"><source type="image/avif" srcset="assets/database-icons/cradle-overrides-256.avif 256w, assets/database-icons/cradle-overrides-512.avif 512w"><img src="assets/database-icons/cradle-overrides-256.webp" srcset="assets/database-icons/cradle-overrides-256.webp 256w, assets/database-icons/cradle-overrides-512.webp 512w" sizes="150px" width="256" height="256" alt="" loading="lazy" decoding="async"><span class="category-glyph">⌬</span></picture><h3>Cradle Overrides</h3><p>Build-system options organized for all eight Cradle Override slots.</p><strong>120 options <i>→</i></strong></a>
-      </div>
-      <div class="no-results" id="noResults" hidden><b>NO SIGNAL FOUND</b><span>Try a system name such as “armor,” “RNG,” or “Cradle.”</span></div>
-    </section>
-
-    <section class="capabilities" id="capabilities">
-      <div class="section-intro"><p class="eyebrow"><span></span> Database to Build Lab</p><h2>Research it. Equip it. Understand it.</h2><p>The database is not a separate wiki bolted onto the planner. It is the same trusted data, organized for discovery and ready to use in a build.</p></div>
-      <div class="feature-grid">
-        <article><span class="feature-number">01</span><div class="feature-icon">⌁</div><h3>Weapon configuration</h3><p>Model Gear Tier, Blueprint Stars, current Calibration Blueprints, exact RNG rolls, ammo, mods, and attachments.</p><b>Verified progression logic →</b></article>
-        <article><span class="feature-number">02</span><div class="feature-icon">◇</div><h3>Complete loadouts</h3><p>Plan six armor slots, set activation, mods, deviations, consumables, and all eight Cradle Overrides.</p><b>Everything in one flow →</b></article>
-        <article><span class="feature-number">03</span><div class="feature-icon">▥</div><h3>Readable results</h3><p>Review a clear loadout report built on transparent inputs—without pretending uncertain mechanics are proven.</p><b>Trustworthy by design →</b></article>
-      </div>
-    </section>
-
-    <section class="final-cta">
-      <div><p class="eyebrow"><span></span> Signal acquired</p><h2>Your next build starts here.</h2><p>Open the Build Lab and turn a theory into a complete, reviewable loadout.</p></div>
-      <a class="button primary" href="https://deadsignaldb.com/build-planner/">Launch Build Planner <span aria-hidden="true">→</span></a>
+      <div class="no-results" id="noResults" hidden><b>No signal found</b><span>Try “armor,” “RNG,” or “Cradle.”</span></div>
     </section>
   </main>
-
-  <footer><a class="wordmark" href="#top"><span class="signal-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>DEAD <b>SIGNAL</b></span></a><p>Independent Once Human build-planning project. Not affiliated with Starry Studio or NetEase Games.</p><span>© <span id="year">2026</span> Dead Signal</span></footer>
+  <footer class="landing-footer"><b>DEAD SIGNAL</b><p>Independent Once Human build-planning project. Not affiliated with Starry Studio or NetEase Games.</p><span>© <span id="year">2026</span></span></footer>
 </body>
 </html>

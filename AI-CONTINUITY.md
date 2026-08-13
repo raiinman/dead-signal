@@ -541,6 +541,10 @@ Desktop browser checks passed for the landing, Weapons, and planner routes: exac
 
 The planner's former stacked masthead and decorative hero were subsequently replaced by one compact command bar. It owns route identity, system state, and grouped Start/Build/Transfer/Share actions in a single header, using cyan for system state and red for primary/destructive emphasis. Preserve the existing action element IDs because planner modules bind to them.
 
+The production landing page was then rebuilt from the approved 4K direction study. It now establishes the product flow before catalogue detail: understand Dead Signal, choose Database or Build Lab, search the signal, then choose one of six database systems. The existing responsive hero art and all six existing category-art families are reused; generated mockup placeholders were not shipped. `landing-workstation.css` owns the new homepage presentation.
+
+The shared sidebar now has an explicit Collapse/Expand control whose desktop state persists under `dead-signal-nav-collapsed`. Do not return to hover-only expansion: the explicit control keeps workspace width predictable and remains keyboard accessible. Mobile continues to use the existing modal drawer behavior.
+
 ## 17. Immediate priorities
 
 1. Migrate Armor from the remaining compatibility corpus to the normalized Miner snapshot using the same canonical-data pattern established for Weapons.
