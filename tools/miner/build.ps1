@@ -30,7 +30,8 @@ $HiddenImports = @(
     'npk_extract', 'export_bindict', 'export_marshaled_bindict',
     'normalize_armor', 'normalize_weapons', 'normalize_extended',
     'link_published_images', 'combat_resolver', 'weapon_progression',
-    'publish_web_data', 'reference_images', 'update_manager'
+    'publish_web_data', 'publish_extended_web_data', 'publish_current_calibrations',
+    'reference_images', 'update_manager'
 )
 $MainArguments = @(
     '--noconfirm', '--clean', '--onedir', '--windowed',
@@ -52,7 +53,7 @@ $MainArguments = @(
 foreach ($Module in $HiddenImports) {
     $MainArguments += @('--hidden-import', $Module)
 }
-$MainArguments += (Join-Path $Source 'dead_signal_miner.py')
+$MainArguments += (Join-Path $Source 'miner_entry.py')
 
 & $Python -m PyInstaller @MainArguments
 if ($LASTEXITCODE -ne 0) { throw 'Miner build failed.' }
@@ -61,4 +62,3 @@ $AppDirectory = Join-Path $Dist 'Dead Signal Miner'
 Copy-Item -LiteralPath (Join-Path $Dist 'updater\Dead Signal Miner Updater.exe') -Destination $AppDirectory -Force
 
 Write-Host "Built: $(Join-Path $AppDirectory 'Dead Signal Miner.exe')"
-
