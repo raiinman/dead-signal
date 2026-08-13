@@ -9,7 +9,7 @@
   const romanTier = (tier) => ['I', 'II', 'III', 'IV', 'V'][Number(tier) - 1] || String(tier || '—');
 
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
-  const finite = (value) => Number.isFinite(Number(value));
+  const finite = (value) => value !== null && value !== undefined && value !== '' && typeof value !== 'boolean' && Number.isFinite(Number(value));
   const number = (value, fallback = '—') => finite(value) ? Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 }) : fallback;
   const percentage = (value, fallback = '—') => {
     if (!finite(value)) return fallback;
