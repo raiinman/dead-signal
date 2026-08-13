@@ -121,6 +121,7 @@ deployment:
     - /bin/cp -f database/attachments/attachments-data.js $DEPLOYPATH/attachments-data.js
     - /bin/cp -f database/deviations/deviations-data.js $DEPLOYPATH/deviations-data.js
     - /bin/cp -f database/cradles/cradles-data.js $DEPLOYPATH/cradles-data.js
+    - /bin/cp -f preview/build-lab/canonical-category-variant-guard.js $DEPLOYPATH/canonical-category-variant-guard.js
     - /bin/cp -f preview/build-lab/canonical-category-bridge.js $DEPLOYPATH/canonical-category-bridge.js
     - /bin/cp -f shared/readability.css $DEPLOYPATH/readability.css
     - /bin/cp -f shared/readability.js $DEPLOYPATH/readability.js
