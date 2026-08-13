@@ -23,7 +23,18 @@
   const name = (row) => text(row.name) || text(variants(row)[0]?.name) || 'Unnamed record';
   const rarities = (row) => [...new Set(variants(row).map((item) => text(item.rarity)).filter(Boolean))];
 
-  if (!data || data.schema !== schema || !Array.isArray(data[collection])) {
+  function verifiedContract() {
+    if (!data || data.schema !== schema || !Array.isArray(data[collection])) return false;
+    if (category !== 'calibrations') return true;
+    return data.schema_version === 2
+      && data.publication_status === 'ready-current-system'
+      && data.expected_current_families === 94
+      && data[collection].length === 94
+      && !(data.ambiguous_family_ids || []).length
+      && data[collection].every((row) => Array.isArray(row.variants) && row.variants.length === 1);
+  }
+
+  if (!verifiedContract()) {
     grid.hidden = true;
     unavailable.hidden = false;
     status.textContent = `${label} route prepared · verified compact contract not materialized.`;
@@ -32,10 +43,21 @@
   const records = data[collection];
   count.textContent = records.length.toLocaleString();
 
+  function calibrationSummary(row, item) {
+    const roll = item?.roll_range || {};
+    const range = Number.isFinite(Number(roll.minimum_percent)) && Number.isFinite(Number(roll.maximum_percent))
+      ? `${Number(roll.minimum_percent)}–${Number(roll.maximum_percent)}% Weapon DMG roll`
+      : 'Weapon DMG roll range unresolved';
+    const compatibility = (item?.weapon_type_codes || []).length
+      ? `Weapon types ${item.weapon_type_codes.join(', ')}`
+      : 'Weapon compatibility unresolved';
+    return [`Style ${item?.style_code ?? '—'}`, text(item?.description), `${range} · ${compatibility}`];
+  }
+
   function summary(row) {
     const list = variants(row);
     if (category === 'attachments') return [text(row.attachment_type) || 'Weapon attachment', text(row.effects || row.description), `Accessory ${row.accessory_code ?? '—'} · Affix ${row.affix_code ?? '—'}`];
-    if (category === 'calibrations') return [list.length > 1 ? `${list.length} source variants` : `Style ${list[0]?.style_code ?? '—'}`, list.length > 1 ? 'Current and legacy source variants are preserved until provenance selects the current record.' : text(list[0]?.description), `Group ${row.family_key ?? '—'} · ${rarities(row).join(', ') || 'rarity unresolved'}`];
+    if (category === 'calibrations') return calibrationSummary(row, list[0]);
     if (category === 'mods') return [`Mod code ${row.family_key ?? '—'}`, list.length > 1 ? 'All mined variants for this proven mod family are preserved.' : text(list[0]?.description), `${list.length} variant${list.length === 1 ? '' : 's'} · ${rarities(row).join(', ') || 'rarity unresolved'}`];
     if (category === 'deviations') return [list.length > 1 ? `${list.length} source variants` : 'Player-facing Deviation', text(list[0]?.skills?.[0]?.description || list[0]?.skill_catalog?.[0]?.description), `Source IDs ${list.map((item) => item.id).filter((value) => value != null).join(', ') || '—'}`];
     return [list.length > 1 ? `${list.length} source variants` : 'Cradle Override', text(list[0]?.description), `Source IDs ${list.map((item) => item.id).filter((value) => value != null).join(', ') || '—'}`];
