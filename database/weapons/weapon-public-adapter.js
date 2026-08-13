@@ -2,7 +2,23 @@
   'use strict';
 
   const published = window.DS_WEAPONS_WEB;
-  if (!published || published.schema !== 'dead-signal-weapons' || !Array.isArray(published.weapons) || !published.weapons.length) return;
+  const validContract = !!published
+    && published.schema === 'dead-signal-weapons'
+    && published.schema_version === 1
+    && Array.isArray(published.weapons)
+    && published.weapons.length > 0;
+  if (!validContract) return;
+
+  const canonicalIds = published.weapons.map((weapon) => String(weapon?.canonical_id || '').trim());
+  const uniqueIds = canonicalIds.length === new Set(canonicalIds).size && canonicalIds.every(Boolean);
+  const validProgression = published.weapons.every((weapon) => (
+    weapon
+    && weapon.progression?.formula_status === 'proven-static-base-attack'
+    && Array.isArray(weapon.progression?.tier_star_matrix)
+    && weapon.progression.tier_star_matrix.length === 5
+    && !(weapon.progression?.validation_issues || []).length
+  ));
+  if (!uniqueIds || !validProgression) return;
 
   const weapons = published.weapons.map((weapon) => ({
     canonical_id: weapon.canonical_id,
