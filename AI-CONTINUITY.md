@@ -2,7 +2,7 @@
 
 > **Purpose:** Canonical current-state handoff for ChatGPT/Codex sessions working on Dead Signal. Read this file and `PROJECT-RULES.md` before changing anything.
 >
-> Last updated: **2026-08-12 (production landing + live official X feed milestone)**
+> Last updated: **2026-08-12 (production landing, live official X feed, header-polish checkpoint)**
 
 ## 1. Project identity
 
@@ -115,22 +115,25 @@ Recent feed commits:
 - `50514256` — add video poster and conservative thread detection;
 - `ab31f62` — responsive breathing room around hero/feed.
 
-## 6. Current landing/header work lane
+## 6. Landing command/header checkpoint
 
-The hero/feed is now considered stable enough to freeze.
+The hero/feed is stable enough to freeze.
 
-**Current next task:** polish the landing command/header itself without changing the X feed pipeline.
+First command/header polish is implemented on `main` at **`ce2836ae` (`Polish landing command header`)** and is awaiting the user's live cPanel deployment/review.
 
-Focus areas:
+That pass intentionally does not touch the feed pipeline. It adds:
 
-- clearer hierarchy between route identity, search, verified-state badge, and Build Lab CTA;
-- smoother/stickier workstation behavior where appropriate;
-- better spacing at desktop/tablet/mobile widths;
-- avoid duplicate visual noise with the global sidebar;
-- preserve the current search behavior and Build Lab route;
-- keep accessibility/readability intact.
+- desktop sticky command strip at widths above the mobile-shell breakpoint;
+- more compact 66 px desktop height;
+- clearer DS route-identity chip;
+- search icon + `/` keyboard hint inside the command search field;
+- stronger focus treatment;
+- verified-data state as a compact cyan pill instead of loose text;
+- tighter Build Lab CTA proportions;
+- medium-width priority change: hide redundant route identity before hiding verified state;
+- mobile/tablet spacing that avoids collision with the fixed workstation menu.
 
-Do not redesign Weapons catalogue or Build Lab in parallel while doing this header pass.
+If the user accepts this live, freeze the commandbar too and continue deeper into the database experience. If feedback is negative, adjust **header only** before touching Weapons or Build Lab.
 
 ## 7. Weapons database / canonical data state
 
@@ -249,8 +252,8 @@ Readability is a product requirement.
 
 ## 13. Immediate priorities
 
-1. Finish the **landing command/header polish** now that hero/feed is accepted.
-2. After the landing/header is accepted, continue layer-by-layer into the next database category experience.
+1. Have the user deploy/review **`ce2836ae`** header polish live.
+2. If accepted, freeze the landing hero/feed/header and continue layer-by-layer into the next database category experience.
 3. Migrate Armor from the compatibility corpus to the normalized Miner snapshot using the same canonical-data pattern as Weapons.
 4. Make public-data projections reproducible from Miner outputs for each migrated category.
 5. Preserve the Build Planner persistence torture test as an open production gate.
