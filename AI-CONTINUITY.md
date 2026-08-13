@@ -2,20 +2,29 @@
 
 > Canonical current-state handoff. Read this file and `PROJECT-RULES.md` before changing anything.
 >
-> Updated **2026-08-13 immediately before the 2:00 PM America/Phoenix Day Shift run**.
+> Updated **2026-08-13 immediately before the 2:00 PM America/Phoenix Day Shift run — fresh Miner v1.5.12.3 data is now uploaded to `main` as `data.7z`**.
 
 ## 2:00 PM transition — READ THIS FIRST
 
-The user has **Miner v1.5.12.3 running right now against the real Once Human install**. Do not ask them to rerun it unless the current run actually fails. The next high-value action is to consume the fresh `published/` artifact as soon as it becomes available.
+The user's real installed-game Miner v1.5.12.3 run has **completed**. The newly mined data is already in this repository on `main`:
+
+- canonical fresh archive: **`data.7z`** at repo root
+- GitHub path: `https://github.com/raiinman/dead-signal/blob/main/data.7z`
+- upload commit: **`ab78f62e34294a0fda4fadd3aa8d35d81ee59c13`** — `Miner v1.5.12.3 data`
+- Git blob SHA observed for `data.7z`: **`586c0fea94c59c640859786c9ac900168a3e509c`**
+
+**Treat `data.7z` as the fresh v1.5.12.3 installed-game evidence source. Do not wait for another `published/` upload and do not ask the user to rerun the Miner unless this archive itself proves incomplete/corrupt.**
 
 Do not individually copy category JSON into website files. The repository now has a controlled inspection + transactional ingestion workflow.
 
-### First command when the fresh `published/` folder is available
+### First action on the fresh data
 
-Run the read-only inspection first:
+1. Extract `data.7z` into a temporary working directory using an available 7z-compatible extractor. Do not commit the fully expanded bulk mine back to Git unless a specific normalized/public artifact is intentionally required.
+2. Locate the extracted fresh `published/` directory (and its `data/` + `web/` contents).
+3. Run the read-only snapshot inspection before changing any browser payload:
 
 ```text
-python tools/site/inspect-published-snapshot.py <fresh-published-dir> --output <inspection-receipt.json>
+python tools/site/inspect-published-snapshot.py <extracted-fresh-published-dir> --output <inspection-receipt.json>
 ```
 
 This combines:
@@ -28,7 +37,7 @@ This combines:
 If strict validation says `may_materialize=true`, run a transactional dry-run receipt:
 
 ```text
-python tools/site/materialize-published-snapshot.py <fresh-published-dir> --dry-run --report <materialize-receipt.json>
+python tools/site/materialize-published-snapshot.py <extracted-fresh-published-dir> --dry-run --report <materialize-receipt.json>
 ```
 
 Only after the receipts are reviewed should the same materializer be run without `--dry-run`.
@@ -38,10 +47,10 @@ Only after the receipts are reviewed should the same materializer be run without
 A new observational audit landed at code commit `95feef4de36ef75dd2d82042808a91a2561be7db`:
 
 ```text
-python tools/site/audit-mod-level-progression.py <fresh-published-dir> --output <mod-level-audit.json>
+python tools/site/audit-mod-level-progression.py <extracted-fresh-published-dir> --output <mod-level-audit.json>
 ```
 
-Why it exists: v1.5.12.3 already emits normalized `data/progression.json`, including the `mod_level` track sourced from `new_mod_level_data.json`. The audit compares numeric tokens in those rows with compact Mod `mod_code` / `main_entry_code` values **only as correlation evidence**. A numeric overlap is a research lead, never proof of a relationship.
+Why it exists: v1.5.12.3 emits normalized `data/progression.json`, including the `mod_level` track sourced from `new_mod_level_data.json`. The audit compares numeric tokens in those rows with compact Mod `mod_code` / `main_entry_code` values **only as correlation evidence**. A numeric overlap is a research lead, never proof of a relationship.
 
 The audit source is landed, but its dedicated unit-test file was not yet committed before this handoff. **Test it before relying on its results.** Do not change the public Mod contract based only on untested numeric overlap.
 
@@ -58,9 +67,13 @@ The audit source is landed, but its dedicated unit-test file was not yet committ
 - Do not touch DNS/SSL/cPanel hosting configuration unless explicitly asked in that context.
 - Missing recipe evidence is never automatically classified as non-craftable.
 
-## Current code checkpoint before this handoff commit
+## Current code/data checkpoint before this handoff commit
 
-Latest code HEAD immediately before this continuity update:
+Latest repository HEAD immediately before this continuity update:
+
+`ab78f62e34294a0fda4fadd3aa8d35d81ee59c13` — **Miner v1.5.12.3 data** (`data.7z`).
+
+Latest functional code before the data upload:
 
 `95feef4de36ef75dd2d82042808a91a2561be7db` — **Add Mod level progression correlation audit**.
 
@@ -76,6 +89,7 @@ Recent important commits:
 - `8c782b132b2bf2a65a4335b8c797441ddadd3b1d` — combined fresh-snapshot inspection receipt.
 - `f06fa9b18135874d3637568e2f8d7d2915dd3ae1` — combined inspection tests.
 - `95feef4de36ef75dd2d82042808a91a2561be7db` — Mod-level progression correlation audit.
+- `ab78f62e34294a0fda4fadd3aa8d35d81ee59c13` — newly mined v1.5.12.3 `data.7z` uploaded to `main`.
 
 Verified CI:
 
@@ -85,7 +99,7 @@ Verified CI:
 
 The `95feef4...` Mod-level audit still needs its own targeted test before being treated as proven tooling.
 
-## Miner v1.5.12.3 — RELEASED AND NOW RUNNING LOCALLY
+## Miner v1.5.12.3 — RELEASED, RUN COMPLETED, FRESH DATA AVAILABLE
 
 Canonical updater manifest:
 
@@ -97,7 +111,7 @@ Canonical updater manifest:
 
 Release pipeline `31733912979` completed **SUCCESS** with source tests, Windows packaging, packaged self-test, public release verification, SHA/size verification, and updater-manifest publication last.
 
-The user has started this released Miner on the actual game install. The fresh artifact is now the critical evidence source.
+The user ran this released Miner against the actual Once Human install. The result is now committed to `main` as **`data.7z`** at commit `ab78f62e34294a0fda4fadd3aa8d35d81ee59c13`. This archive supersedes the previous "waiting for fresh artifact" boundary.
 
 ## Fresh snapshot tooling
 
@@ -155,18 +169,18 @@ Current player-facing Weapons have catalogue, detail, Compare, legal Gear Tier �
 
 Strict materializer + browser adapter independently enforce Tier I–V, legal rarity-capped stars, numeric Tier-base/ratio evidence, exact `int(tier_base * ratio)` Base Attack, unique IDs, and no upstream progression validation issues.
 
-Old unresolved queue to re-check against the fresh snapshot:
+Old unresolved queue to re-check against the fresh snapshot in `data.7z`:
 
 - 76/120 effects resolved; 44 unresolved/absent, 29 Common;
 - unresolved Legendary examples: G17 — Cash Only, DBSG — Format, HAMR — Hannya, MPS7 — Chaos Domain;
 - 14 missing Tier recipes, all melee;
 - `short_description` still intentionally withheld because of observed Kukri/fish-text cross-wire.
 
-Do not carry those counts forward if fresh v1.5.12.3 proves they changed.
+Do not carry those counts forward if the new `data.7z` snapshot proves they changed.
 
 ## Armor & Sets
 
-Armor stays `SOON` until the fresh v1.5.12.3 snapshot passes identity and integrity gates.
+Armor stays `SOON` until the fresh v1.5.12.3 snapshot in `data.7z` passes identity and integrity gates.
 
 Canonical set-piece identity is variant-aware:
 
@@ -204,11 +218,11 @@ It exposes mined Mod evidence already in the compact contract: Mod code, all var
 
 Multi-variant families remain visibly ambiguous and are not silently promoted to Build Lab.
 
-Next Mod research once fresh output is available:
+Next Mod research using the new `data.7z` snapshot:
 
 1. run the extended audit;
-2. run the new Mod-level progression correlation audit;
-3. inspect `data/progression.json` `mod_level` rows from `new_mod_level_data.json`;
+2. test and run the Mod-level progression correlation audit;
+3. inspect extracted `published/data/progression.json` `mod_level` rows from `new_mod_level_data.json`;
 4. prove key relationships before changing the compact contract to represent Lv1–17/fixed-subattribute semantics.
 
 ## Attachments
@@ -220,7 +234,7 @@ Compact publisher target is only player weapon slots:
 - Tactical
 - Magazine
 
-Previous verified target was 119 player-facing records = 30 / 36 / 36 / 17; raw 202 was not the picker target. Re-check against fresh v1.5.12.3 instead of freezing the old count.
+Previous verified target was 119 player-facing records = 30 / 36 / 36 / 17; raw 202 was not the picker target. Re-check against fresh `data.7z` instead of freezing the old count.
 
 Materialization already rejects unsupported publisher status, duplicate IDs, missing/extra slot classes, and non-player slot records.
 
@@ -230,7 +244,7 @@ A richer dedicated Attachment renderer for static effect + compatibility is stil
 
 Source variants stay preserved. Materialization requires the variant-preserving publisher status. Build Lab separately blocks promotion when families remain ambiguous.
 
-Fresh extended audit output should drive the next work; do not arbitrarily select source variant #1.
+Fresh extended audit output from `data.7z` should drive the next work; do not arbitrarily select source variant #1.
 
 ## Production website / Build Lab
 
@@ -248,23 +262,25 @@ Do not delete compatibility pools until canonical end-to-end behavior is proven.
 ## Exact next sequence for the 2:00 PM Day Shift
 
 1. Read `PROJECT-RULES.md` and this file, then inspect latest `main` so concurrent work is not overwritten.
-2. **First check whether the user's currently running Miner v1.5.12.3 has completed and whether the fresh `published/` artifact is accessible.**
-3. If accessible, run `inspect-published-snapshot.py` first and preserve the receipt.
-4. Test `audit-mod-level-progression.py` before relying on it; then run it on the fresh artifact.
-5. Review strict validation + all research queues. Do not promote failing/ambiguous categories.
-6. If strict all-seven validation passes, run transactional materializer dry-run, review receipt, then materialize all seven together.
-7. Re-audit Weapons using fresh counts/evidence; attack non-Common unresolved effects, description resolver, and melee recipe gaps only from the fresh corpus.
-8. Verify Armor identity/integrity; materialize it only if the fresh contract passes.
-9. Verify current 94-family Calibrations end-to-end.
-10. Use fresh Mod + progression evidence to determine current Mod 2.0 identity and Lv1–17/fixed-subattribute structure without guessing.
-11. Reconcile Attachments from fresh player-slot corpus; then improve player-facing effect/compatibility UI.
-12. Resolve Deviation/Cradle variant semantics before planner promotion.
-13. Continue Build Lab canonical migration category by category; keep the legacy hosting pools until replacement is proven.
-14. Only after core data/database functionality is broadly complete: live competitor UX audit against current Wikily / OnceHumanDB and implement evidence-backed differentiators.
+2. **Use repo-root `data.7z` from commit `ab78f62e34294a0fda4fadd3aa8d35d81ee59c13` as the newly mined v1.5.12.3 artifact. Do not wait for another upload.**
+3. Extract `data.7z` to a temporary working directory and locate its fresh `published/` directory.
+4. Run `inspect-published-snapshot.py` first and preserve the receipt.
+5. Test `audit-mod-level-progression.py` before relying on it; then run it on the extracted fresh artifact.
+6. Review strict validation + all research queues. Do not promote failing/ambiguous categories.
+7. If strict all-seven validation passes, run transactional materializer dry-run, review receipt, then materialize all seven together.
+8. Re-audit Weapons using fresh counts/evidence; attack non-Common unresolved effects, description resolver, and melee recipe gaps only from this new corpus.
+9. Verify Armor identity/integrity; materialize it only if the fresh contract passes.
+10. Verify current 94-family Calibrations end-to-end.
+11. Use fresh Mod + progression evidence to determine current Mod 2.0 identity and Lv1–17/fixed-subattribute structure without guessing.
+12. Reconcile Attachments from fresh player-slot corpus; then improve player-facing effect/compatibility UI.
+13. Resolve Deviation/Cradle variant semantics before planner promotion.
+14. Continue Build Lab canonical migration category by category; keep the legacy hosting pools until replacement is proven.
+15. Only after core data/database functionality is broadly complete: live competitor UX audit against current Wikily / OnceHumanDB and implement evidence-backed differentiators.
 
 ## Read first / high-value files
 
 - `PROJECT-RULES.md`
+- `data.7z` — **fresh v1.5.12.3 installed-game mine; canonical new evidence source**
 - `tools/miner/release/latest.json`
 - `tools/miner/VERSION`
 - `tools/miner/src/miner_entry.py`
