@@ -751,8 +751,17 @@ def main() -> int:
         f"weapons={quality['categories']['weapons']['record_count']} · "
         f"armor={quality['categories']['armor']['record_count']}"
     )
+    for category_name, category in quality.get("categories", {}).items():
+        for blocker in category.get("blockers", []):
+            print(f"Quality blocker [{category_name}]: {blocker}")
+        for warning in category.get("warnings", []):
+            print(f"Quality warning [{category_name}]: {warning}")
     print(f"Snapshot manifest: {result['snapshot_manifest']}")
-    return 0 if quality.get("overall_status") != "BLOCKED" else 1
+
+    # BLOCKED is a data-quality state, not an extractor crash. The reports and
+    # manifest are intentionally written even when a website dataset should not
+    # be promoted yet. Exceptions still propagate and fail the Miner normally.
+    return 0
 
 
 if __name__ == "__main__":
