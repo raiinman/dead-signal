@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 EXPECTED_SCHEMA = "dead-signal-armor"
+EXPECTED_SCHEMA_VERSION = 1
 
 
 def resolve_source(path: Path) -> Path:
@@ -28,29 +29,96 @@ def resolve_source(path: Path) -> Path:
     raise FileNotFoundError(f"Could not find published Armor JSON under: {path}")
 
 
+def _required_id(value: Any, label: str) -> str:
+    if value is None or value == "":
+        raise ValueError(f"{label} is required")
+    return str(value)
+
+
 def load_and_validate(path: Path) -> dict[str, Any]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict) or payload.get("schema") != EXPECTED_SCHEMA:
-        raise ValueError(f"Expected schema {EXPECTED_SCHEMA!r}, found {payload.get('schema')!r}")
+        found = payload.get("schema") if isinstance(payload, dict) else None
+        raise ValueError(f"Expected schema {EXPECTED_SCHEMA!r}, found {found!r}")
+    if payload.get("schema_version") != EXPECTED_SCHEMA_VERSION:
+        raise ValueError(
+            f"Expected schema_version {EXPECTED_SCHEMA_VERSION}, found {payload.get('schema_version')!r}"
+        )
+
     sets = payload.get("armor_sets")
     key_armor = payload.get("key_armor")
     if not isinstance(sets, list) or not isinstance(key_armor, list):
         raise ValueError("Armor contract must contain armor_sets and key_armor arrays")
-    pieces = [piece for armor_set in sets if isinstance(armor_set, dict) for piece in armor_set.get("pieces", []) if isinstance(piece, dict)] + [piece for piece in key_armor if isinstance(piece, dict)]
-    ids = [piece.get("canonical_id") for piece in pieces]
-    if any(not value for value in ids):
-        raise ValueError("Every public Armor piece must have a canonical_id")
+    if any(not isinstance(row, dict) for row in sets) or any(not isinstance(row, dict) for row in key_armor):
+        raise ValueError("Every Armor Set and Key Armor record must be a JSON object")
+
+    set_ids: list[str] = []
+    pieces: list[dict[str, Any]] = []
+    set_piece_count = 0
+    for armor_set in sets:
+        suit_id = _required_id(armor_set.get("suit_id"), "Armor Set suit_id")
+        expected_set_id = f"ds-as-{suit_id}"
+        canonical_set_id = _required_id(armor_set.get("canonical_id"), f"Armor Set {suit_id} canonical_id")
+        if canonical_set_id != expected_set_id:
+            raise ValueError(
+                f"Armor Set {suit_id} canonical_id {canonical_set_id!r} does not match {expected_set_id!r}"
+            )
+        if not str(armor_set.get("name") or "").strip():
+            raise ValueError(f"Armor Set {canonical_set_id} is missing a player-facing name")
+        set_ids.append(canonical_set_id)
+
+        set_pieces = armor_set.get("pieces")
+        if not isinstance(set_pieces, list):
+            raise ValueError(f"Armor Set {canonical_set_id} must contain a pieces array")
+        if any(not isinstance(piece, dict) for piece in set_pieces):
+            raise ValueError(f"Armor Set {canonical_set_id} contains a non-object piece record")
+        for piece in set_pieces:
+            piece_suit_id = _required_id(piece.get("suit_id"), f"Armor piece in {canonical_set_id} suit_id")
+            blueprint_id = _required_id(piece.get("blueprint_id"), f"Armor piece in {canonical_set_id} blueprint_id")
+            if piece_suit_id != suit_id:
+                raise ValueError(
+                    f"Armor piece blueprint {blueprint_id} suit_id {piece_suit_id!r} does not match parent suit_id {suit_id!r}"
+                )
+            expected_piece_id = f"ds-a-{suit_id}-{blueprint_id}"
+            canonical_piece_id = _required_id(piece.get("canonical_id"), f"Armor piece {blueprint_id} canonical_id")
+            if canonical_piece_id != expected_piece_id:
+                raise ValueError(
+                    f"Armor piece {canonical_piece_id!r} does not match variant-aware identity {expected_piece_id!r}"
+                )
+            if not str(piece.get("name") or "").strip():
+                raise ValueError(f"Armor piece {canonical_piece_id} is missing a player-facing name")
+            pieces.append(piece)
+            set_piece_count += 1
+
+    for piece in key_armor:
+        blueprint_id = _required_id(piece.get("blueprint_id"), "Key Armor blueprint_id")
+        expected_piece_id = f"ds-ka-{blueprint_id}"
+        canonical_piece_id = _required_id(piece.get("canonical_id"), f"Key Armor {blueprint_id} canonical_id")
+        if canonical_piece_id != expected_piece_id:
+            raise ValueError(
+                f"Key Armor {canonical_piece_id!r} does not match identity {expected_piece_id!r}"
+            )
+        if not str(piece.get("name") or "").strip():
+            raise ValueError(f"Key Armor {canonical_piece_id} is missing a player-facing name")
+        pieces.append(piece)
+
+    if len(set_ids) != len(set(set_ids)):
+        raise ValueError("Armor Sets must have unique canonical_id values")
+    ids = [str(piece.get("canonical_id")) for piece in pieces]
     if len(ids) != len(set(ids)):
         duplicates = sorted({value for value in ids if ids.count(value) > 1})
         raise ValueError(f"Armor contract contains duplicate canonical IDs: {duplicates}")
-    set_ids = [row.get("canonical_id") for row in sets if isinstance(row, dict)]
-    if any(not value for value in set_ids) or len(set_ids) != len(set(set_ids)):
-        raise ValueError("Armor Sets must have unique canonical_id values")
+
     declared = payload.get("record_counts") or {}
-    if declared.get("armor_sets") is not None and int(declared["armor_sets"]) != len(sets):
-        raise ValueError("record_counts.armor_sets does not match armor_sets array")
-    if declared.get("armor_pieces") is not None and int(declared["armor_pieces"]) != len(pieces):
-        raise ValueError("record_counts.armor_pieces does not match published pieces")
+    expected_counts = {
+        "armor_sets": len(sets),
+        "set_pieces": set_piece_count,
+        "key_armor": len(key_armor),
+        "armor_pieces": len(pieces),
+    }
+    for key, actual in expected_counts.items():
+        if declared.get(key) is not None and int(declared[key]) != actual:
+            raise ValueError(f"record_counts.{key}={declared[key]} but payload contains {actual}")
     return payload
 
 
