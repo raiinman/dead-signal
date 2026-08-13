@@ -4,6 +4,8 @@ declare(strict_types=1);
 const DS_X_HANDLE = 'OnceHuman_';
 const DS_X_CACHE_TTL = 600;
 const DS_X_MAX_ITEMS = 8;
+const DS_X_CANDIDATE_LIMIT = 500;
+const DS_X_CACHE_VERSION = 2;
 
 $cacheFile = __DIR__ . '/timeline-cache.json';
 $lockFile = __DIR__ . '/timeline-cache.lock';
@@ -54,7 +56,7 @@ function ds_fetch(string $url): ?string {
 }
 
 function ds_find_tweets(mixed $node, array &$tweets): void {
-    if (!is_array($node) || count($tweets) >= DS_X_MAX_ITEMS * 4) return;
+    if (!is_array($node) || count($tweets) >= DS_X_CANDIDATE_LIMIT) return;
 
     if (isset($node['tweet']) && is_array($node['tweet'])) {
         $tweets[] = $node['tweet'];
@@ -62,6 +64,7 @@ function ds_find_tweets(mixed $node, array &$tweets): void {
 
     foreach ($node as $value) {
         if (is_array($value)) ds_find_tweets($value, $tweets);
+        if (count($tweets) >= DS_X_CANDIDATE_LIMIT) break;
     }
 }
 
@@ -121,6 +124,10 @@ function ds_normalize_tweets(array $rawTweets): array {
         $text = ds_first_string($legacy, ['full_text', 'text']);
         if ($text === '') continue;
 
+        $user = ds_user_from_tweet($tweet);
+        $screen = $user['screen_name'] ?: DS_X_HANDLE;
+        if (strcasecmp($screen, DS_X_HANDLE) !== 0) continue;
+
         $id = ds_first_string($legacy, ['id_str']);
         if ($id === '' && isset($tweet['rest_id'])) $id = (string) $tweet['rest_id'];
         if ($id === '' && isset($tweet['id_str'])) $id = (string) $tweet['id_str'];
@@ -128,14 +135,14 @@ function ds_normalize_tweets(array $rawTweets): array {
         if (isset($seen[$id])) continue;
         $seen[$id] = true;
 
-        $user = ds_user_from_tweet($tweet);
-        $screen = $user['screen_name'] ?: DS_X_HANDLE;
+        $createdAt = ds_first_string($legacy, ['created_at']);
+        $sortTs = $createdAt !== '' ? strtotime($createdAt) : false;
         $url = ctype_digit($id) ? 'https://x.com/' . rawurlencode($screen) . '/status/' . $id : 'https://x.com/' . rawurlencode($screen);
 
         $out[] = [
             'id' => $id,
             'text' => $text,
-            'created_at' => ds_first_string($legacy, ['created_at']),
+            'created_at' => $createdAt,
             'name' => $user['name'],
             'screen_name' => $screen,
             'avatar' => $user['avatar'],
@@ -144,10 +151,19 @@ function ds_normalize_tweets(array $rawTweets): array {
             'reply_count' => (int)($legacy['reply_count'] ?? 0),
             'retweet_count' => (int)($legacy['retweet_count'] ?? 0),
             'favorite_count' => (int)($legacy['favorite_count'] ?? 0),
+            '_sort_ts' => $sortTs === false ? 0 : $sortTs,
         ];
-
-        if (count($out) >= DS_X_MAX_ITEMS) break;
     }
+
+    usort($out, static function (array $a, array $b): int {
+        $timeCompare = ((int)$b['_sort_ts']) <=> ((int)$a['_sort_ts']);
+        if ($timeCompare !== 0) return $timeCompare;
+        return strcmp((string)$b['id'], (string)$a['id']);
+    });
+
+    $out = array_slice($out, 0, DS_X_MAX_ITEMS);
+    foreach ($out as &$tweet) unset($tweet['_sort_ts']);
+    unset($tweet);
     return $out;
 }
 
@@ -161,10 +177,17 @@ function ds_parse_syndication(string $html): array {
     return ds_normalize_tweets($tweets);
 }
 
+function ds_cache_is_fresh(?array $cache): bool {
+    return is_array($cache)
+        && (int)($cache['version'] ?? 0) === DS_X_CACHE_VERSION
+        && isset($cache['fetched_at'])
+        && (time() - (int)$cache['fetched_at'] < DS_X_CACHE_TTL)
+        && !empty($cache['tweets']);
+}
+
 function ds_refresh_cache(string $sourceUrl, string $cacheFile, string $lockFile): ?array {
     $cache = ds_read_cache($cacheFile);
-    $fresh = $cache && isset($cache['fetched_at']) && (time() - (int)$cache['fetched_at'] < DS_X_CACHE_TTL) && !empty($cache['tweets']);
-    if ($fresh) return $cache;
+    if (ds_cache_is_fresh($cache)) return $cache;
 
     $lock = @fopen($lockFile, 'c');
     if (!$lock) return $cache;
@@ -175,12 +198,16 @@ function ds_refresh_cache(string $sourceUrl, string $cacheFile, string $lockFile
     }
 
     $cache = ds_read_cache($cacheFile);
-    $fresh = $cache && isset($cache['fetched_at']) && (time() - (int)$cache['fetched_at'] < DS_X_CACHE_TTL) && !empty($cache['tweets']);
-    if (!$fresh) {
+    if (!ds_cache_is_fresh($cache)) {
         $html = ds_fetch($sourceUrl);
         $tweets = $html ? ds_parse_syndication($html) : [];
         if ($tweets) {
-            $cache = ['fetched_at' => time(), 'handle' => DS_X_HANDLE, 'tweets' => $tweets];
+            $cache = [
+                'version' => DS_X_CACHE_VERSION,
+                'fetched_at' => time(),
+                'handle' => DS_X_HANDLE,
+                'tweets' => $tweets,
+            ];
             ds_write_cache($cacheFile, $cache);
         }
     }
