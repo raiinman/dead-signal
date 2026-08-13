@@ -1,0 +1,117 @@
+name: Publish Miner v1.5.12 Windows update
+
+on:
+  push:
+    paths:
+      - '.github/workflows/release-miner-v1512.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: tools/miner/requirements-build.txt
+
+      - name: Verify release version
+        shell: pwsh
+        run: |
+          $version = (Get-Content 'tools/miner/VERSION' -Raw).Trim()
+          if ($version -ne '1.5.12.0') { throw "Expected Miner 1.5.12.0, found $version" }
+
+      - name: Prepare Windows build environment
+        shell: pwsh
+        run: ./tools/miner/setup-build.ps1
+
+      - name: Compile and run source tests
+        shell: pwsh
+        run: |
+          $env:PYTHONPATH = 'tools/miner/src;tools/miner/src/extractor;tools/miner/src/neoxtractor'
+          python -m compileall -q tools/miner/src tools/miner/tests
+          python -m unittest discover -s tools/miner/tests -v
+          python tools/miner/src/dead_signal_miner.py --self-test
+
+      - name: Build packaged Miner and updater
+        shell: pwsh
+        run: ./tools/miner/build.ps1
+
+      - name: Run packaged self-test
+        shell: pwsh
+        run: |
+          & 'tools/miner/dist/Dead Signal Miner/Dead Signal Miner.exe' --self-test
+          if ($LASTEXITCODE -ne 0) { throw "Packaged Miner self-test failed with exit code $LASTEXITCODE" }
+          if (-not (Test-Path 'tools/miner/dist/Dead Signal Miner/Dead Signal Miner Updater.exe')) { throw 'Packaged updater helper is missing.' }
+
+      - name: Package release
+        shell: pwsh
+        run: ./tools/miner/package-release.ps1
+
+      - name: Publish GitHub release asset
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = (Get-Content 'tools/miner/VERSION' -Raw).Trim()
+          $tag = "miner-v$version"
+          $archive = "tools/miner/release/artifacts/Dead-Signal-Miner-v$version-Windows.zip"
+          $checksum = "$archive.sha256"
+          gh release view $tag --repo '${{ github.repository }}' *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release delete $tag --repo '${{ github.repository }}' --yes --cleanup-tag
+            if ($LASTEXITCODE -ne 0) { throw 'Could not remove incomplete prior Miner release.' }
+          }
+          gh release create $tag $archive $checksum --repo '${{ github.repository }}' --target '${{ github.sha }}' --title "Dead Signal Miner v$version" --notes "Dead Signal Miner v$version — Publishing & Integrity. Adds website-ready publishing contracts, internal data-quality reporting, snapshot change reports, a hashed snapshot manifest, and the conservative relationship/evidence graph scaffold. This package was built and self-tested on GitHub Windows runners before publication."
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub release creation failed.' }
+
+      - name: Verify public release asset
+        shell: pwsh
+        run: |
+          $version = (Get-Content 'tools/miner/VERSION' -Raw).Trim()
+          $archive = "tools/miner/release/artifacts/Dead-Signal-Miner-v$version-Windows.zip"
+          $expectedHash = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          $expectedSize = (Get-Item $archive).Length
+          $url = "https://github.com/${{ github.repository }}/releases/download/miner-v$version/Dead-Signal-Miner-v$version-Windows.zip"
+          $verified = Join-Path $env:RUNNER_TEMP "Dead-Signal-Miner-v$version-Windows-verified.zip"
+          Invoke-WebRequest -Uri $url -OutFile $verified
+          $actualHash = (Get-FileHash $verified -Algorithm SHA256).Hash.ToLowerInvariant()
+          $actualSize = (Get-Item $verified).Length
+          if ($actualHash -ne $expectedHash) { throw "Public release SHA-256 mismatch: $actualHash" }
+          if ($actualSize -ne $expectedSize) { throw "Public release size mismatch: expected $expectedSize, got $actualSize" }
+          "MINER_RELEASE_URL=$url" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "MINER_RELEASE_SHA256=$expectedHash" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "MINER_RELEASE_SIZE=$expectedSize" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Publish updater manifest last
+        shell: pwsh
+        run: |
+          git pull --rebase origin main
+          $version = (Get-Content 'tools/miner/VERSION' -Raw).Trim()
+          if ($version -ne '1.5.12.0') { throw "Version changed during release: $version" }
+          $manifest = [ordered]@{
+            schema_version = 1
+            version = $version
+            channel = 'stable'
+            download_url = $env:MINER_RELEASE_URL
+            sha256 = $env:MINER_RELEASE_SHA256
+            size = [int64]$env:MINER_RELEASE_SIZE
+            notes_url = "https://github.com/${{ github.repository }}/releases/tag/miner-v$version"
+          }
+          $json = $manifest | ConvertTo-Json
+          [System.IO.File]::WriteAllText((Resolve-Path 'tools/miner/release/latest.json'), $json + "`n", [System.Text.UTF8Encoding]::new($false))
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tools/miner/release/latest.json
+          git commit -m "Publish Miner v$version updater release"
+          git push origin HEAD:main
