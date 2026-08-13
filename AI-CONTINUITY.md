@@ -2,7 +2,7 @@
 
 > Canonical current-state handoff. Read this file and `PROJECT-RULES.md` before changing anything.
 >
-> Updated **2026-08-13 — Day Shift canonical Miner packaging proof**.
+> Updated **2026-08-13 — Day Shift Miner v1.5.12.3 release + Weapons integrity hardening**.
 
 ## Rules that must not drift
 
@@ -18,41 +18,96 @@
 
 ## Current HEAD / latest verified work
 
-Latest verified functional commits:
+Major commits in this Day Shift continuation:
 
-- `fc05b0f1669a003ab8846e188b13ba776f6f617f` — packages the Miner through `tools/miner/src/miner_entry.py` and explicitly includes `publish_extended_web_data` + `publish_current_calibrations` as PyInstaller hidden imports.
-- `3bf9334287ec74eab53e61ec0bc2a76f28ad1151` — adds `tools/miner/tests/test_packaging_entrypoint.py` to statically guard the canonical packaging contract.
-- `123df8575da5634c41ea2a7575855d9e7a7d1e75` — normal Windows Miner CI now source-self-tests `miner_entry.py`, builds the packaged app, and packaged-self-tests the executable/updater.
-- `3a47e01c1ec1dc093fe7173c81c5924e762d76f3` — release workflow source self-test now also uses `miner_entry.py` before its existing package/release verification pipeline.
+- `123df8575da5634c41ea2a7575855d9e7a7d1e75` — normal Windows Miner CI now source-self-tests canonical `miner_entry.py`, builds the packaged app, and packaged-self-tests the executable/updater.
+- `3a47e01c1ec1dc093fe7173c81c5924e762d76f3` — release workflow source self-test now also uses `miner_entry.py` before packaging.
+- `f97f23f1d854bdd03fd051227d73b078002135f0` — intentional VERSION bump to Miner **v1.5.12.3**.
+- `a5a45af0dc737444516075cd0fb9746ac8dea77b` — release pipeline published the verified v1.5.12.3 updater manifest.
+- `e7b69c3262a10bd6c1a35dd0ca9b057240d1e4e0` — hardened Weapons materializer progression invariants.
+- `ee63207a02cb74bd3b94e9f51dc5913b8cad5168` — upgraded the Weapons materializer fixtures/tests for the strict invariants.
 
-Windows Miner CI run `31733538266` completed **SUCCESS**. It proved all of the following on a Windows runner:
+Windows Miner CI run `31733538266` completed **SUCCESS**.
 
-1. source compile succeeds;
-2. Miner unit tests succeed;
-3. canonical `miner_entry.py --self-test` succeeds;
-4. `build.ps1` packages the Miner successfully;
-5. packaged `Dead Signal Miner.exe --self-test` succeeds;
-6. packaged updater helper exists.
+Release run `31733912979` completed **SUCCESS**, including source tests, Windows packaging, packaged self-test, release packaging, GitHub release publication, public re-download verification, SHA-256/size verification, and updater-manifest publication last.
 
-The prior workflow-write tooling blocker is therefore resolved.
+Site CI run `31734057972` completed **SUCCESS** after the Weapons materializer + tests were upgraded together.
 
-## Miner release boundary — exact current state
+## Miner v1.5.12.3 — RELEASED
 
-Released Miner remains **v1.5.12.2**.
+Canonical updater manifest now publishes:
 
-Current `tools/miner/VERSION` is still `1.5.12.2`.
+- Version: **1.5.12.3**
+- Channel: `stable`
+- SHA-256: `a8da5c1bad02d1cb688a44d66438d2a24f33feebc3c06b7ae541998f9edbabd9`
+- Size: `30,703,410` bytes
+- Asset: `Dead-Signal-Miner-v1.5.12.3-Windows.zip`
 
-The repository is now technically ready for the intentional **v1.5.12.3** bump: canonical source and packaged Windows gates both pass and the release workflow uses the same canonical entrypoint.
+The canonical packaging path is now proven end-to-end:
 
-However, this automation session's connector refused the `tools/miner/VERSION` write itself with a safety/tooling block. This is **not** a code or CI failure. Do not claim v1.5.12.3 was released until the VERSION bump actually lands and the release workflow finishes successfully.
+1. `tools/miner/src/miner_entry.py` is the source self-test entrypoint;
+2. `tools/miner/build.ps1` packages `miner_entry.py`;
+3. `publish_extended_web_data` and `publish_current_calibrations` are explicit hidden imports;
+4. normal Miner CI builds and packaged-self-tests the Windows app;
+5. release CI repeats source + packaged gates before publication;
+6. updater manifest is written only after public asset hash/size verification.
 
-Once the VERSION bump can be written, let the existing release pipeline build, self-test, publish, re-download/hash/size-verify the public asset, and publish `tools/miner/release/latest.json` last. Do not bypass that sequence.
+Do not weaken this pipeline.
+
+## Fresh-artifact boundary — next human step
+
+The repository session still cannot run the Miner against the user's installed Once Human files.
+
+The **next evidence-producing step is for the user to run Miner v1.5.12.3 locally against the real Once Human install** and make the resulting fresh published artifact available to the repository workflow/session.
+
+Do not pretend fresh v1.5.12.3 Armor/Mod/Attachment/Deviation/Cradle evidence exists before that run.
+
+Continue every repository-side task that does not require inventing the artifact.
+
+## Weapons — gold-standard vertical
+
+Last complete accessible snapshot proved:
+
+- 120 weapons = 95 ranged + 25 melee;
+- 600 Gear Tier rows;
+- 545 Blueprint-Star rows;
+- 2,725 legal Tier × Star combinations;
+- 120/120 artwork;
+- 95/95 firearm profiles resolved.
+
+Player-facing Weapons currently provide catalogue, detail UX, Compare, legal Gear Tier × Blueprint Stars, Base Attack trace, proven static stats, acquisition/crafting evidence, provenance, unresolved-effect fallback messaging, and Build Lab handoff.
+
+### Strict materializer invariants now shipped
+
+`tools/site/materialize-weapons-web.py` now fails closed unless each weapon proves:
+
+- exactly five unique Gear Tier rows, I–V;
+- exactly five unique Tier × Star matrix rows, I–V;
+- a supported rarity with the exact legal Blueprint Star set `1..rarity_cap` on every Tier row;
+- numeric `tier_base_attack_at_1_star`;
+- numeric `preset_attack_ratio` for every star row;
+- integral published Base Attack;
+- `base_attack == int(tier_base_attack_at_1_star * preset_attack_ratio)` exactly;
+- no upstream progression validation issues.
+
+`tools/site/tests/test_materialize_weapons_web.py` now explicitly covers missing stars, unknown rarity, missing Tier-base evidence, missing ratio evidence, Base Attack mismatch, fractional published Base Attack, duplicate IDs, count mismatches, Tier identity, and unresolved validation issues.
+
+Site CI confirms the strict materializer and the rest of the database browser modules remain green.
+
+### Remaining Weapons evidence queue
+
+- 76/120 effects resolved; 44 unresolved/absent, including 29 Common;
+- unresolved Legendary examples include G17 — Cash Only, DBSG — Format, HAMR — Hannya, MPS7 — Chaos Domain;
+- 14 missing Tier recipes, all melee; missing recipe evidence is **not** proof of non-craftable;
+- normalized `short_description` remains intentionally withheld publicly because of the observed Kukri/fish-text cross-wire.
+
+`normalize_weapons.py` currently obtains `short_description` from translated `item.short_desc`; the compact publisher outputs blank `description` with `withheld-until-short-description-resolver-is-verified`. Do not expose those descriptions until fresh v1.5.12.3 evidence resolves the translation/reference identity problem.
 
 ## Production website / Build Lab state
 
 Current `main` already includes:
 
-- Weapons compact integrity/progression guards, acquisition/crafting evidence, catalogue/detail/Compare upgrades, unresolved-effect fallback, provenance, and Build Lab handoff.
+- Weapons compact integrity/progression guards, catalogue/detail/Compare, acquisition/crafting evidence, unresolved-effect fallback, provenance, and Build Lab handoff.
 - Variant-aware Armor identity using `ds-a-{suit_id}-{blueprint_id}`, plus set-centric route, audit, materializer, and tests.
 - Current Calibration v2 projector and dedicated standalone renderer.
 - Prepared fail-closed routes for Mods, Attachments, Deviations, and Cradle Overrides.
@@ -68,46 +123,9 @@ Two old Build Lab compatibility files remain hosting-installed only and are not 
 
 Do not remove those compatibility pools until canonical end-to-end browser behavior is verified.
 
-## Weapons — gold-standard vertical
-
-Last complete accessible snapshot proved:
-
-- 120 weapons = 95 ranged + 25 melee;
-- 600 Gear Tier rows;
-- 545 Blueprint-Star rows;
-- 2,725 legal Tier × Star combinations;
-- 120/120 artwork;
-- 95/95 firearm profiles resolved.
-
-Player-facing Weapons currently provide catalogue, detail UX, Compare, legal Gear Tier × Blueprint Stars, Base Attack trace, proven static stats, acquisition/crafting evidence, provenance, unresolved-effect fallback messaging, and Build Lab handoff.
-
-`database/weapons/weapon-public-adapter.js` fails closed on malformed compact Weapons contracts. `tools/site/audit-weapons-contract.py` independently validates Gear Tier I–V and recomputes published Base Attack from the proven Tier-base × Blueprint-Star ratio rule.
-
-Remaining evidence queue:
-
-- 76/120 effects resolved; 44 unresolved/absent, including 29 Common;
-- unresolved Legendary examples include G17 — Cash Only, DBSG — Format, HAMR — Hannya, MPS7 — Chaos Domain;
-- 14 missing Tier recipes, all melee; missing recipe evidence is **not** proof of non-craftable;
-- normalized `short_description` is intentionally withheld publicly because of an observed Kukri/fish-text cross-wire.
-
-`normalize_weapons.py` obtains `short_description` from translated `item.short_desc`; the compact publisher deliberately outputs blank `description` with `withheld-until-short-description-resolver-is-verified`. Do not expose those descriptions until fresh evidence resolves the translation/reference identity problem.
-
-### Weapons materializer hardening
-
-A prior half-change at `6ee1784aaee6bbbab7bb3da1e59b7aa4f08c7176` tried to make `materialize-weapons-web.py` enforce exact rarity star sets and recompute Base Attack, but stale fixtures made site CI fail. `6511987a67d814a530734167177ab98de9be2c88` restored the verified materializer.
-
-The correct next repository-side improvement is an **atomic** materializer + fixture/test change that enforces:
-
-- exact Blueprint Star set `1..rarity_cap` for every Tier row;
-- numeric `tier_base_attack_at_1_star`;
-- numeric `preset_attack_ratio` per star;
-- `base_attack == int(tier_base_attack_at_1_star * preset_attack_ratio)` exactly.
-
-This automation session attempted an atomic Git-object write for that change, but the connector safety layer rejected blob creation. Do not repeat a one-file half-change; either land implementation + tests atomically or leave the existing green implementation in place.
-
 ## Armor & Sets
 
-Armor stays `SOON` until a fresh v1.5.12.3+ real snapshot proves collision-free variant identity and current recipe/effect invariants. Set-centric route, audit, materializer, and identity tests are ready.
+Armor stays `SOON` until a fresh v1.5.12.3 real snapshot proves collision-free variant identity and current recipe/effect invariants. Set-centric route, audit, materializer, and identity tests are ready.
 
 Never classify missing forge data as non-craftable without direct game evidence.
 
@@ -130,26 +148,17 @@ Do not reintroduce obsolete schema `dead-signal-calibrations-current` or route c
 - Attachments: player weapon slots only — Sight, Muzzle, Tactical, Magazine. Last verified player-facing count was 119 = 30 / 36 / 36 / 17; raw 202 is not the picker target.
 - Deviations / Cradles: preserve source variants. Build Lab blocks promotion when canonical families remain ambiguous or contracts are unready.
 
-## Fresh-artifact boundary
-
-The repository session cannot run the Miner against the user's installed Once Human files. A fresh v1.5.12.3+ mined artifact exists only after the verified release is published and the user runs it locally.
-
-Do not pretend fresh Armor/Mod/Attachment/Deviation/Cradle evidence exists before that run. Continue every repository-side task that does not require inventing the artifact.
-
 ## Next exact sequence
 
-1. Land the intentional `tools/miner/VERSION` bump from `1.5.12.2` to `1.5.12.3` when tooling permits.
-2. Verify the release workflow completes end-to-end and `tools/miner/release/latest.json` is updated only after public asset verification.
-3. User runs v1.5.12.3 against the real Once Human install.
-4. Audit/materialize Weapons from fresh output; investigate unresolved non-Common effects, unsafe descriptions, and missing melee recipes.
-5. Upgrade Weapons materializer + tests atomically to exact star-set and Base Attack recomputation invariants if not already landed.
-6. Verify/materialize Armor and integrate only after real-output invariants pass.
-7. Materialize/test the 94-family current Calibration contract end-to-end.
-8. Prove current Mod 2.0 variant identity and migrate it.
-9. Reconcile/materialize the 119 player-selectable Attachments and compatibility.
-10. Resolve Deviation/Cradle variant semantics or provide explicit variant choice before planner promotion.
-11. Remove old Build Lab compatibility pools only after canonical end-to-end verification.
-12. After core functionality is broadly complete, audit current Wikily / OnceHumanDB UX/features and implement evidence-backed differentiators.
+1. User runs released Miner **v1.5.12.3** against the real Once Human install and provides/makes available the fresh published artifact.
+2. Audit/materialize Weapons from that output; investigate unresolved non-Common effects, unsafe short descriptions, and missing melee recipes.
+3. Verify Armor variant identity, recipe/effect invariants, materialize Armor & Sets, then integrate only if the contract passes.
+4. Materialize/test the 94-family current Calibration contract end-to-end.
+5. Prove current Mod 2.0 variant identity and migrate it.
+6. Reconcile/materialize the 119 player-selectable Attachments and compatibility.
+7. Resolve Deviation/Cradle variant semantics or provide explicit variant choice before planner promotion.
+8. Finish Build Lab canonical migration and remove old compatibility pools only after end-to-end verification.
+9. After core functionality is broadly complete, audit current Wikily / OnceHumanDB UX/features and implement evidence-backed differentiators without using their corpus counts as completeness targets.
 
 ## Read first next session
 
