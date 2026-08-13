@@ -541,7 +541,7 @@ Desktop browser checks passed for the landing, Weapons, and planner routes: exac
 
 The planner's former stacked masthead and decorative hero were subsequently replaced by one compact command bar. It owns route identity, system state, and grouped Start/Build/Transfer/Share actions in a single header, using cyan for system state and red for primary/destructive emphasis. Preserve the existing action element IDs because planner modules bind to them.
 
-The production landing page was then rebuilt from the approved 4K direction study. It now establishes the product flow before catalogue detail: understand Dead Signal, choose Database or Build Lab, search the signal, then choose one of six database systems. The existing responsive hero art and all six existing category-art families are reused; generated mockup placeholders were not shipped. `landing-workstation.css` owns the new homepage presentation.
+The production landing page was then rebuilt from the approved 4K direction study. It now establishes the product flow before catalogue detail: understand Dead Signal, choose Database or Build Lab, search the signal, then choose one of six database systems. All six existing category-art families are reused; generated card placeholders were not shipped. `landing-workstation.css` owns the new homepage presentation.
 
 The shared sidebar now has an explicit Collapse/Expand control whose desktop state persists under `dead-signal-nav-collapsed`. Do not return to hover-only expansion: the explicit control keeps workspace width predictable and remains keyboard accessible. Mobile continues to use the existing modal drawer behavior.
 
@@ -620,3 +620,93 @@ Start with the canonical GitHub `tools/miner/` source/migration state. If an exe
 - Gold/amber structural accents are forbidden because they collide with Legendary rarity semantics.
 - **ChatGPT does not own Miner EXE packaging/updating. Codex does.**
 - **GitHub `tools/miner/` is the canonical Miner development source; EXEs/ZIPs are build/release artifacts.**
+
+## 20. Current production handoff — 2026-08-12
+
+### Repository and deployment state
+
+- Repository: `raiinman/dead-signal`, branch `main`.
+- Current pushed HEAD: `e11d294` (`Replace character-led landing hero`).
+- The latest changes are pushed and **ready for the normal cPanel Git Version Control deployment**. This file does not claim that `e11d294` has already been deployed; verify the live site after the user runs Deploy HEAD Commit.
+- Recent workstation sequence:
+  - `c9dce70` unified the public routes under the shared workstation shell;
+  - `e5763d9` introduced the space-saving navigation treatment;
+  - `641772f` rebuilt the planner header as a compact command bar;
+  - `4cf95fa` rebuilt the main landing page around the approved product flow;
+  - `e11d294` replaced the character-led hero with neutral environment-only artwork.
+
+### Approved site architecture
+
+Dead Signal is one cohesive workstation, not a collection of wiki pages with unrelated headers.
+
+- Use exactly **one global sidebar**.
+- Desktop sidebar collapse is explicit and remembered via `dead-signal-nav-collapsed`; do not use hover-only expansion.
+- Mobile uses the existing menu button, scrim, Escape handling, and off-canvas drawer.
+- The global shell owns brand, primary route navigation, active route state, text-size controls, and Miner/status context.
+- Each route owns only its local tools and content. Do not add a second global sidebar, duplicate masthead, or decorative page hero above functional content.
+- The intended site build order is: landing page → shared shell → category landing → catalogue → detail → Build Lab integration.
+
+### Approved landing-page flow
+
+The main homepage is the visual and navigational source of truth. Its intended sequence is:
+
+1. Understand what Dead Signal is.
+2. Choose **Open Build Lab** or **Explore Database**.
+3. Search the signal.
+4. Choose one of six database systems.
+
+Production files:
+
+- `index.html` — concise landing-page structure;
+- `landing-workstation.css` — landing presentation and responsive behavior;
+- `site.js` — synchronized command-bar/category search and keyboard `/` focus;
+- `shared/workstation-shell.css` / `.js` — shared route shell and explicit collapse behavior;
+- `.cpanel.yml` — copy-only deployment for all new files/assets.
+
+The landing page deliberately reuses the repository's existing responsive card artwork:
+
+- `assets/database-icons/weapons-v2-*`
+- `assets/database-icons/armor-sets-*`
+- `assets/database-icons/mods-*`
+- `assets/database-icons/calibrations-*`
+- `assets/database-icons/deviations-butterfly-emissary-*`
+- `assets/database-icons/cradle-overrides-*`
+
+Do not replace these with generic generated card graphics. The existing artwork is part of the approved Dead Signal identity.
+
+### Hero-art identity rule
+
+The active landing hero is `assets/hero/dead-signal-environment-hero-v2.png`. It depicts a neutral fractured landscape and red signal rift with left-side negative space for the headline.
+
+Hero imagery must not contain people, player avatars, humanoid silhouettes, weapons, creatures, factions, classes, flags, or emblems. Dead Signal must not visually imply that it represents an in-game identity, lore faction, or player archetype. Abstract signal/environment imagery is approved.
+
+### Color and density rules
+
+- Near-black/graphite form the structural canvas.
+- Signal red is reserved for the brand, active navigation, selection, and primary actions.
+- Cyan means verified/trusted data or positive system state.
+- Violet, teal, slate blue, rose, and green may distinguish category cards.
+- Gold/amber remains forbidden as structural UI because it conflicts with Legendary rarity semantics.
+- Prefer fewer, larger, purposeful regions. Do not expose every tool simultaneously.
+- Preserve the simple interaction story: browse → inspect → configure/build.
+- Avoid two sidebars, three-column dashboards by default, stacked mastheads, multiple filter rows above the fold, tiny metadata, excessive card counts, and large decorative dead space.
+
+### Verification already completed
+
+Local real-browser checks passed for the current landing implementation:
+
+- exactly one workstation sidebar;
+- six existing category graphics loaded successfully;
+- category search correctly reduced `armor` to `Armor & Sets`;
+- explicit collapse changed the desktop workspace from 244 px to 76 px and persisted across reloads;
+- landing, Weapons, and Build Planner preserved correct active-route state;
+- no horizontal overflow on landing, Weapons, or Build Planner at the default desktop viewport;
+- 390 x 844 mobile rendered one-column category cards, hid the large preview, exposed the mobile menu, and opened the drawer correctly;
+- the environment-only hero loaded at 1672 x 941 with no horizontal overflow.
+
+### Exact next step
+
+1. Have the user deploy current `main` through cPanel.
+2. Verify `https://deadsignaldb.com/` in the live browser at desktop and mobile widths, including cache freshness for `landing-workstation.css`, `shared/workstation-shell.*`, and `dead-signal-environment-hero-v2.png`.
+3. Collect feedback on the **landing page only** before translating this visual system deeper into category/catalogue routes.
+4. Once the landing direction is accepted live, continue layer-by-layer with the database category experience; do not redesign the Weapons catalogue or Build Lab in parallel.
