@@ -6,6 +6,7 @@ import importlib
 
 import miner_core
 import armor_tier_completion
+import mod_frame_enrichment
 
 
 _original_link_published_images = miner_core.link_published_images
@@ -13,22 +14,28 @@ _original_run_module_main = miner_core.run_module_main
 _original_self_test = miner_core.self_test
 
 
-def run_module_main_with_armor_completion(module_name, arguments, log):
+def run_module_main_with_completion(module_name, arguments, log):
     arguments = list(arguments)
     result = _original_run_module_main(module_name, arguments, log)
-    if module_name != "normalize_armor":
-        return result
 
     def argument(name):
         index = arguments.index(name)
         return arguments[index + 1]
 
-    armor_tier_completion.complete_file(
-        argument("--base"),
-        argument("--current"),
-        argument("--output"),
-        log,
-    )
+    if module_name == "normalize_armor":
+        armor_tier_completion.complete_file(
+            argument("--base"),
+            argument("--current"),
+            argument("--output"),
+            log,
+        )
+    elif module_name == "normalize_extended":
+        mod_frame_enrichment.enrich_file(
+            argument("--base"),
+            argument("--current"),
+            importlib.import_module("pathlib").Path(argument("--output-dir")) / "mods.json",
+            log,
+        )
     return result
 
 
@@ -54,6 +61,7 @@ def self_test_with_extended_publisher():
         miner_core.EXTRACTOR_ROOT / "publish_current_calibrations.py",
         miner_core.EXTRACTOR_ROOT / "armor_tier_normalization.py",
         miner_core.EXTRACTOR_ROOT / "armor_tier_completion.py",
+        miner_core.EXTRACTOR_ROOT / "mod_frame_enrichment.py",
     )
     for resource in resources:
         checks.setdefault("resources", {})[str(resource)] = resource.is_file()
@@ -62,6 +70,7 @@ def self_test_with_extended_publisher():
         "publish_current_calibrations",
         "armor_tier_normalization",
         "armor_tier_completion",
+        "mod_frame_enrichment",
     ):
         try:
             module = importlib.import_module(module_name)
@@ -81,7 +90,7 @@ def self_test_with_extended_publisher():
     return checks
 
 
-miner_core.run_module_main = run_module_main_with_armor_completion
+miner_core.run_module_main = run_module_main_with_completion
 miner_core.link_published_images = link_images_and_publish_extended
 miner_core.self_test = self_test_with_extended_publisher
 
