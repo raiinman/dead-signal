@@ -49,9 +49,11 @@ The read-only Miner Research Console is implemented and verified on canonical `m
 
 Safety boundaries are enforced in code and tests: game files and snapshot inputs are read-only, research paths cannot traverse outside the selected Miner data folder, the SQLite tracer is opened read-only, no game bytecode is executed, IDs are never fuzzy-promoted, Related Search cannot create authoritative evidence, graph edges retain source provenance, and suspect/shared/conflicting translations remain withheld from publication. `reference-tracer.sqlite`, snapshots, research notes, exports, builds, and packaged runtimes remain local/generated and are not committed.
 
+Evidence-transfer decision (2026-08-14): keep extracted Miner evidence private and continue passing compact evidence exports/relevant reports directly when needed. Do not create a GitHub evidence repository, upload snapshot bundles as release assets, or add automatic evidence uploading. Prefer the smallest relevant export; do not transfer or publish raw snapshots, `reference-tracer.sqlite`, oversized raw PYC reports, personal research notes, or machine-specific paths unless the user explicitly changes this decision.
+
 Current Research Console blockers / follow-up:
 
-1. The existing local published snapshot was produced by released Miner v1.5.12.8. After updating to v1.5.13.0, run one complete snapshot before relying on the newly projected Weapon effect/translation classifications in the console; existing snapshot evidence still correctly exposes 14 missing recipe series, 9 unresolved attachment compatibilities, 92 ambiguous Deviation/Cradle families, and the Mod consumer-semantics blocker.
+1. The existing local published snapshot was produced by released Miner v1.5.12.8. After updating to v1.5.13.2, run one complete snapshot before relying on the newly projected Weapon effect/translation classifications in the console; existing snapshot evidence still correctly exposes 14 missing recipe series, 9 unresolved attachment compatibilities, 92 ambiguous Deviation/Cradle families, and the Mod consumer-semantics blocker.
 2. Mod frame positional consumer semantics remain unproven and fail-closed.
 3. Deviation/Cradle multi-variant player-selection semantics remain unproven and fail-closed.
 4. Miner v1.5.13.2 is released through `release/latest.json`. Installed older clients must run Check for Updates to receive the visual investigator and resolver suite.
