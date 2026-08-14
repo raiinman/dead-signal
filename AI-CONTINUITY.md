@@ -56,7 +56,20 @@ Fresh compact facts:
 - Deviations: **98 display-name families / 160 source variants / 60 multi-variant families**.
 - Cradles: **120 display-name families / 170 source variants / 32 multi-variant families**.
 
-After the repository fixes below, **all seven fresh compact contracts pass the strict transaction semantics**. The remaining materialization blocker is transport only: the large uploaded payload bytes are available in the current assistant sandbox but are not directly available as repository files to the GitHub connector.
+After the repository fixes below, **all seven fresh compact contracts pass the strict transaction semantics**. The verified local v1.5.12.8 `published/` snapshot was transactionally materialized into all seven production browser payloads and committed together at `857f11f16e3912dea3745d363d1bfcf3f310ed8f` (`Materialize verified v1.5.12.8 database snapshot`).
+
+## 2026-08-13 transactional materialization complete
+
+- Canonical `main` was fast-forwarded to `3e147ca97b773cbede1700fe615dea75c743551c` before repository writes.
+- Source snapshot: `C:\Users\mikea\Documents\Dead Signal Miner\published`, produced by Miner v1.5.12.8 at `2026-08-14T00:49:29.620138+00:00`.
+- All seven source contract hashes exactly matched `docs/evidence/installed-client-v1.5.12.8-2026-08-13.md`.
+- Dry-run validation passed before replacement; the live transaction then replaced Weapons, Armor, Calibrations, Mods, Attachments, Deviations, and Cradles together.
+- Production payload commit: `857f11f16e3912dea3745d363d1bfcf3f310ed8f`.
+- Validation after materialization: 83 Python site tests PASS; `test-weapon-public-adapter.js` PASS; `git diff --check` PASS.
+- Current HEAD before this continuity-only follow-up commit: `857f11f16e3912dea3745d363d1bfcf3f310ed8f`.
+- No SSL, DNS, redirect, domain, cPanel hosting configuration, accepted landing-page, Official Once Human X feed, or copy-only deployment changes were made.
+- Remaining blockers: exact Armor-to-Build-Lab mapping still needs the legacy runtime pool shape; Mod 2.0 positional consumer semantics remain unproven; Deviation/Cradle multi-variant families remain fail-closed for player selection.
+- Database navigation/routes remain `SOON` until each route is genuinely player-ready; materialization alone does not authorize readiness promotion.
 
 ## Transaction / ingestion path
 
@@ -74,7 +87,7 @@ New helper:
 
 This helper is developer-side only. It does not run on cPanel and does not change copy-only deployment.
 
-Do not claim the seven production JS payloads have been materialized until this tool (or the existing directory materializer) actually writes all seven together into the repository.
+The seven production JS payloads are now materially present in the repository together at `857f11f16e3912dea3745d363d1bfcf3f310ed8f`. Future refreshes must continue to use the same all-seven transaction rather than hand-copying categories independently.
 
 ## Weapons — gold-standard vertical
 
@@ -141,7 +154,7 @@ Route UX:
 - The renderer flags recipe output/stat-row ID mismatch rather than silently treating it as exact.
 - Site CI `31762251084` SUCCESS.
 
-`database/armor/armor-data.js` remains a placeholder until all-seven materialization is actually committed. Armor remains `SOON` until then.
+`database/armor/armor-data.js` now contains the verified v1.5.12.8 contract. Armor remains `SOON` until the route and Build Lab integration are genuinely player-ready.
 
 ## Current Calibrations
 
@@ -222,16 +235,15 @@ Boundaries:
 ## Global shell / readiness
 
 - `3899e37b1109795728947864cb56c79f60af038d` — shell footer shows Miner 1.5.12.8.
-- Armor, Mods, Calibrations, Deviations, Cradles remain `SOON` until final payloads are transactionally materialized and routes are genuinely player-ready.
+- Armor, Mods, Calibrations, Deviations, Cradles remain `SOON` until their routes and integrations are genuinely player-ready; the final payloads are now transactionally materialized.
 
 ## Exact next sequence
 
-1. Verify CI for `332a550...` ZIP-helper tests; fix any failure.
-2. Materialize the supplied v1.5.12.8 ZIP through the all-seven transaction on a filesystem that can access both the archive and the repository. Preferred command: `python tools/site/materialize-miner-zip.py <fresh-zip> --repository-root .`.
-3. Review the seven generated JS diffs, commit them together to `main`, run site CI, and only then consider promoting database nav routes from `SOON`.
-4. Finish exact Armor → Build Lab mapping once the legacy runtime pool shape is accessible.
-5. Continue Mod frame consumer investigation; frame-library join is proven, positional semantics are not.
-6. Resolve Deviation/Cradle player-selectable variant semantics only from evidence.
-7. Finish canonical Build Lab migration away from stale compatibility pools.
-8. Minor Weapons catalogue clarity cleanup: `Base Attack` → `Tier V · 1★ Base Attack`.
-9. Only after core functionality is broadly complete, perform a fresh Wikily/OnceHumanDB UX/features audit; never copy their corpus counts.
+1. Push materialization commit `857f11f16e3912dea3745d363d1bfcf3f310ed8f` and this continuity follow-up to canonical `origin/main`, then verify site CI.
+2. Finish exact Armor → Build Lab mapping once the legacy runtime pool shape is accessible.
+3. Continue Mod frame consumer investigation; frame-library join is proven, positional semantics are not.
+4. Resolve Deviation/Cradle player-selectable variant semantics only from evidence.
+5. Finish canonical Build Lab migration away from stale compatibility pools.
+6. Keep database navigation/routes `SOON` until each is genuinely player-ready.
+7. Minor Weapons catalogue clarity cleanup: `Base Attack` → `Tier V · 1★ Base Attack`.
+8. Only after core functionality is broadly complete, perform a fresh Wikily/OnceHumanDB UX/features audit; never copy their corpus counts.
