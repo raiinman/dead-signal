@@ -66,9 +66,16 @@ class ExtendedRouteWiringTests(unittest.TestCase):
             self.assertIn(f'src="/database/{category}/{category}-data.js', route)
         self.assertNotIn('src="app.js', route)
         self.assertNotIn('data/community-data.js', route)
-        self.assertIn("window.DS_WEAPON_MATH", route)
-        self.assertIn("window.DS_ARMOR_WEB", route)
-        self.assertIn("window.DS_MODS_WEB", route)
+        for variable in (
+            "DS_WEAPON_MATH",
+            "DS_ARMOR_WEB",
+            "DS_MODS_WEB",
+            "DS_CALIBRATIONS_WEB",
+            "DS_ATTACHMENTS_WEB",
+            "DS_DEVIATIONS_WEB",
+            "DS_CRADLES_WEB",
+        ):
+            self.assertIn(variable, route)
         self.assertIn("family.variants", (ROOT / "preview" / "build-lab" / "canonical-category-variant-guard.js").read_text(encoding="utf-8"))
         self.assertIn("multiple-source-variants-preserved", route)
 
