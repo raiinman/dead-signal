@@ -19,18 +19,19 @@ Landed and pushed to canonical `main` as `9debce2929ee217302c0c38a56c1890372895b
 - Verification: 68 Miner tests PASS; 90 site tests PASS; Weapon public adapter PASS; JavaScript syntax PASS; `git diff --check` PASS; local browser confirms `32×5`, recipe evidence, and Acquisition filter.
 - GitHub CI for `39804be01068bbf1faf987a2be56cd741891e6da`: database website run `31818497633` SUCCESS; Miner source/build/packaged-self-test run `31818497565` SUCCESS.
 
-## Perplexity research trial
+## Perplexity coding-agent handoff
 
-The user would like to try **Perplexity.ai** for selected Dead Signal research. Treat it as an external lead/source-discovery assistant, not as a canonical data source.
+The user would like to try **Perplexity.ai as a working coding/computer agent**, not merely as a web researcher. It may inspect, implement, test, commit, push, and check CI within an explicitly assigned repository task. Web research is an optional supporting capability, not its primary role.
 
-Dedicated operating brief: `docs/PERPLEXITY-RESEARCH-HANDOFF.md`. Give Perplexity that document plus exactly one assignment wrapper; do not rely on the broader continuity file alone.
+Dedicated operating brief: `docs/PERPLEXITY-RESEARCH-HANDOFF.md` (the historical filename is retained so the previously shared GitHub URL remains stable). Give Perplexity that document plus one concrete coding assignment.
 
-Good uses:
+Good uses include:
 
-- locate official Once Human pages, patch notes, announcements, and other primary sources;
-- collect dated URLs and screenshots that may corroborate acquisition paths, availability, terminology, or visible in-game UI;
-- identify promising table names, exact IDs, symbols, or reverse-reference leads for subsequent local Miner/Research Console verification;
-- summarize community claims into an explicit research queue, clearly labeled unverified.
+- implement scoped repository changes and regression tests;
+- run the Miner/site validation suites and local browser checks;
+- transactionally materialize all seven payloads when fresh Miner data is in scope;
+- commit/push canonical `main`, inspect CI, and update continuity;
+- perform source research only when it supports an assigned implementation/evidence task.
 
 Evidence rules:
 

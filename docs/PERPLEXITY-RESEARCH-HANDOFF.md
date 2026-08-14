@@ -1,179 +1,209 @@
-# Dead Signal — Perplexity Research Handoff
+# Dead Signal — Perplexity Coding-Agent Handoff
 
-> Purpose: a strict operating brief for Perplexity.ai when it assists the Dead Signal Once Human database project.
+> This document is for a Perplexity coding/computer agent that will actively work on the Dead Signal repository.
 >
-> Last updated: 2026-08-14.
+> It is not limited to web research. Research is only an optional supporting activity.
 >
-> Repository: `raiinman/dead-signal`.
+> Repository: `https://github.com/raiinman/dead-signal`
+>
+> Canonical branch: `main`
+>
+> Prepared: 2026-08-14
 
-## 1. Your role
+## 1. Mission
 
-You are an **external research assistant**. Your job is to locate, preserve, and organize inspectable source evidence for a narrowly assigned question.
+Work directly on the Dead Signal codebase until the assigned task is implemented, validated, committed, pushed to canonical GitHub `main`, and handed off with exact evidence.
 
-You are not the database authority. You must not:
+Dead Signal is a Once Human workstation/database and build-planning project. Accuracy is more important than filling every field. Installed-game evidence, exact record identity, and fail-closed behavior are core architectural requirements.
 
-- redesign the project;
-- edit or generate repository code;
-- decide that an unresolved record is resolved;
-- invent or interpolate missing game data;
-- replace installed-client evidence with web consensus;
-- expand the assignment into unrelated weapons, systems, guides, rankings, builds, or recommendations;
-- present an AI synthesis as if it were a source.
+You are expected to:
 
-The Dead Signal team will independently validate your findings against installed-game data, the local Miner, the Research Console, or direct in-game captures before publication.
+- inspect the repository and current state;
+- diagnose problems from code and evidence;
+- implement in-scope changes;
+- add or update tests where appropriate;
+- run the required validation;
+- review the final diff;
+- commit intentionally;
+- push directly to canonical `main` when the assignment is complete and green;
+- check relevant GitHub Actions;
+- update `AI-CONTINUITY.md` with exact commits, outcomes, remaining blockers, and next steps.
 
-## 2. Required behavior before searching
+Do not merely return suggestions when the assigned work can safely be completed in the repository.
 
-For every assignment:
+## 2. Mandatory startup sequence
 
-1. Read this entire document.
-2. Restate the exact assigned scope in one short paragraph.
-3. List every exact name or ID you will search.
-4. State that similarly named records and numerically similar IDs will not be merged.
-5. Search only after completing steps 1–4.
-6. Stop when the requested evidence package is complete. Do not begin a second investigation unless explicitly asked.
+Before changing anything:
 
-If the assignment conflicts with this handoff, stop and report the conflict instead of silently choosing your own interpretation.
+1. Open the repository `raiinman/dead-signal`.
+2. Work on canonical branch `main` unless the user explicitly requests otherwise.
+3. Fetch `origin/main`.
+4. Verify the local branch and exact `HEAD`.
+5. Check whether local `main` is behind, ahead, or diverged from `origin/main`.
+6. Fast-forward from `origin/main` when safe.
+7. Run `git status --short` and preserve all pre-existing/unrelated changes.
+8. Read `PROJECT-RULES.md` completely.
+9. Read `AI-CONTINUITY.md` completely.
+10. Read this document completely.
+11. Inspect the files and tests relevant to the assigned task.
+12. Restate the exact scope and constraints before implementation.
 
-## 3. Evidence authority
+Never assume the commit recorded in this handoff is still current. GitHub `origin/main` is canonical. At the time this document was prepared, the last known pushed commit was `3baa6156e1395678bf008d3e91445e84eb8b5658`; verify it rather than trusting it.
 
-Dead Signal uses this authority order:
+If the worktree contains unrelated user files or edits, do not delete, reset, stage, commit, or overwrite them.
+
+Known local-only artifact from the originating workstation: `tools/miner.zip`. It is intentionally untracked and must not be committed or modified.
+
+## 3. Authority and evidence policy
+
+Use this evidence hierarchy:
 
 1. Exact installed-game data extracted by the Dead Signal Miner.
-2. Direct, dated in-game screenshots or video showing the exact record and relevant UI.
-3. Official Once Human sources, including official patch notes, announcements, help pages, and official social posts.
-4. Reliable third-party sources that expose inspectable evidence and preserve exact identity.
-5. Community wikis, guides, Reddit posts, videos without direct UI evidence, and other community claims.
-6. Search snippets, AI summaries, unattributed tables, and copied/aggregated text.
+2. Direct, dated in-game screenshots/video showing the exact record and claim.
+3. Official Once Human sources.
+4. Exact code paths, static consumer evidence, and exact reverse references.
+5. Reliable third-party sources with inspectable provenance.
+6. Community sources as research leads only.
+7. Search snippets and AI summaries as non-evidence.
 
-Levels 4–6 normally create leads, not publishable facts. Multiple low-authority sources repeating the same statement do not become primary evidence.
+Rules:
 
-Never use popularity, repetition, SEO rank, or agreement among copied pages as a substitute for provenance.
+- Never invent mechanics, values, formulas, recipes, compatibility, acquisition paths, IDs, descriptions, DPS, rankings, or variant relationships.
+- Never fuzzy-promote IDs.
+- Never substitute a similar record for a missing exact record.
+- `WS1301` is not `WS13101`, `WS130`, or any other similar token.
+- Missing recipe evidence does not prove non-craftable.
+- A source mentioning a base weapon does not automatically describe its named variants.
+- Conflicting, cross-wired, incomplete, or identity-unsafe data must remain visibly unresolved.
+- External web research can identify leads, but installed data or direct in-game evidence is required for database promotion unless the field is explicitly editorial/external.
 
-## 4. Identity rules
+## 4. Repository workflow
 
-Exact identity is mandatory.
+### Read and diagnose
 
-- Preserve punctuation, spaces, capitalization, suffixes, and complete internal IDs.
-- Treat every named weapon variant as a separate record.
-- Do not merge a base weapon with a named variant.
-- Do not merge `Old`, `Metal`, `Rusty`, `Rusted`, event, beta, regional, or legacy variants.
-- Do not map a source to a target merely because the images or names appear similar.
-- Never shorten an internal ID during research.
-- Never substitute a numerically similar ID.
+- Use fast exact search (`rg`, GitHub code search, or equivalent).
+- Inspect current implementations and tests before designing replacements.
+- Prefer the smallest change that solves the complete assigned problem.
+- Preserve existing architecture and established UI language unless the task requires a broader change.
+- Do not treat generated browser payloads as hand-editable source data.
 
-Example: `WS1301` is not `WS13101`, `WS130`, or any other similar token. A source mentioning only the similar token provides zero evidence for `WS1301`.
+### Edit
 
-If exact identity cannot be established, classify the result as `ambiguous-identity` or `unresolved`.
+- Modify source files, templates, tests, and documentation deliberately.
+- Keep generated files and their source pipeline consistent.
+- Do not hand-promote a single generated category when an all-seven Miner transaction is required.
+- Do not rewrite or reformat unrelated files.
+- Do not remove existing user changes.
+- Avoid machine-specific absolute paths in committed files.
 
-## 5. Claim-status vocabulary
+### Validate
 
-Use only these evidence statuses:
+Run tests in proportion to the change. For Weapon/site/Miner work, the expected baseline is:
 
-- `installed-data-verified`: already proven by exact installed-game extraction supplied by Dead Signal.
-- `in-game-verified`: a dated capture directly shows the exact record and claim.
-- `officially-corroborated`: an official source explicitly supports the exact claim and identity.
-- `secondary-lead`: a non-official source provides a promising but unverified lead.
-- `conflicting`: relevant sources disagree or appear version-dependent.
-- `ambiguous-identity`: the source may concern a different record or variant.
-- `unresolved`: no adequate evidence was found.
-- `rejected`: the source is irrelevant, inaccessible, circular, AI-generated, snippet-only, or fails the identity rules.
+```powershell
+python -m unittest discover -s tools/site/tests -p "test_*.py" -v
+node tools/site/tests/test-weapon-public-adapter.js
+node --check database/weapons/catalogue.js
+git diff --check
+git diff --stat
+```
 
-Do not use words such as `confirmed`, `verified`, `proven`, or `definitive` outside this vocabulary without explaining which authority level supports them.
+For Miner-source changes, configure the project Miner Python path and run:
 
-## 6. Source-capture requirements
+```powershell
+$env:PYTHONPATH = ((Resolve-Path 'tools\miner\src').Path + ';' + (Resolve-Path 'tools\miner\src\extractor').Path + ';' + (Resolve-Path 'tools\miner\src\neoxtractor').Path)
+.\.venv-miner\Scripts\python.exe -m unittest discover -s tools\miner\tests -v
+```
 
-Every reported source must include:
+If the required environment is unavailable, report exactly what was and was not run. Do not claim a test passed when it was skipped.
 
-- exact page/video/post title;
-- original URL, not a search-result or redirect URL;
-- publisher or channel;
-- publication/upload date when available;
-- access date;
-- source type: official page, official social post, direct game capture, wiki, guide, forum, Reddit, video, or other;
-- exact target name or ID visible in the source;
-- the precise claim supported;
-- a short quotation, screenshot description, or video timestamp;
-- game version, season, scenario, platform, region, beta/live status, and date risk when discoverable;
-- evidence status from Section 5;
-- a short explanation of what the source does **not** prove.
+For UI changes, perform a local browser smoke test when possible. Check the actual rendered text/state and browser console rather than relying only on static inspection.
 
-Do not cite a search snippet as the source. Open the underlying page. If the underlying source cannot be opened, record it as a rejected or inaccessible lead.
+### Commit and push
 
-Do not cite Perplexity itself. Perplexity is the researcher, not the evidence.
+When the assignment is implemented and green:
 
-## 7. Privacy and repository safety
+1. Review `git diff` and `git diff --stat`.
+2. Confirm only intended files are staged.
+3. Commit with a concise, accurate message.
+4. Push directly to `origin/main` unless the user explicitly requested a branch/PR.
+5. Check the relevant GitHub Actions runs.
+6. If CI fails, inspect the failure, fix it in scope, retest, commit, push, and recheck.
+7. Update `AI-CONTINUITY.md` with the exact implementation commit SHA, current HEAD, tests, CI run IDs/outcomes, findings, unresolved evidence, and next steps.
+8. Push the continuity follow-up.
 
-Never request, upload, reproduce, or expose:
+Do not rewrite published history, force-push, reset hard, or discard work to make the branch clean.
 
-- raw Miner snapshots;
-- `reference-tracer.sqlite`;
-- raw or bulk PYC reports;
-- unpublished snapshot or transaction bundles;
-- local research notes;
-- credentials, cookies, tokens, account data, or private links;
-- machine-specific filesystem paths;
-- personal data;
-- extracted game archives or copyrighted bulk game assets.
+## 5. Generated-data transaction rule
 
-Use only public repository documents and the smallest sanitized evidence excerpt supplied in the assignment.
+Dead Signal has seven browser payload categories:
 
-Do not tell the user to run destructive Git commands, change hosting, change DNS/SSL/redirects, alter cPanel, deploy files, or modify the accepted landing page.
+1. Weapons
+2. Armor
+3. Calibrations
+4. Mods
+5. Attachments
+6. Deviations
+7. Cradles
 
-## 8. Current installed-data boundaries
+When materializing a fresh Miner snapshot, validate and materialize all seven together transactionally. Never hand-copy or hand-promote one category around a failing category.
 
-These are established project facts and must not be reinterpreted:
+Preferred ZIP workflow:
 
-- Weapon catalogue: 120 records.
-- Weapon mechanics: 76 `resolved-player-facing-effect`.
-- Missing exact skill records: 14 weapon records covering 11 unique exact `WS...` IDs.
-- No fixed-skill reference: 30 weapon records.
-- Flavor descriptions: 106 have no short-description handle; 14 handles resolve consistently in translation but remain withheld because identity/cross-wire safety is not proven.
-- Acquisition: 106 weapons have exact Tier I–V recipe evidence; 9 have direct stronghold-exploration gain paths; 5 remain unresolved.
-- Multi-projectile formatting: 13 shotguns have exact `bullet_pattern_data.bullet_num` evidence.
-- Final magazine aggregation remains unresolved. The internal `weapon_magazine_size_affix_value` is not the final displayed magazine total.
+```powershell
+python tools/site/materialize-miner-zip.py "path\to\snapshot.zip" --repository-root .
+```
 
-Do not attempt to “improve” these counts from community pages. External research may only add clearly sourced corroboration or new leads for local verification.
+For a local Miner `published/` directory:
 
-## 9. Current exact research queues
+```powershell
+python tools/site/materialize-published-snapshot.py "path\to\published" --repository-root . --dry-run
+python tools/site/materialize-published-snapshot.py "path\to\published" --repository-root .
+```
 
-### Queue A — unresolved acquisition
+If any contract fails validation, stop before repository payload replacement, diagnose the source/pipeline problem, and fix it at the correct layer. Do not weaken a validator solely to make bad data pass.
 
-Research only these exact weapon names unless the user supplies a different list:
+Generated `database/*/*-data.js` files must come from the validated materializer. Do not hand-edit them.
 
-1. `Machete`
-2. `Metal Baseball Bat`
-3. `Old Baseball Bat`
-4. `Old Machete`
-5. `Rusted Blade`
+## 6. Miner safety
 
-The question is whether inspectable evidence explicitly documents how the exact weapon or exact blueprint is obtained.
+The Miner reads installed Once Human data. It must remain read-only toward game files and anti-cheat files.
 
-Allowed acquisition categories are descriptions of what a source directly shows, such as crafting, loot/drop, exploration, reward, vendor/purchase, event, unavailable/legacy, or unresolved.
+Never:
 
-Absence of a recipe does not prove non-craftable. Absence from a current guide does not prove removal. A source for `Baseball Bat` does not prove anything about `Metal Baseball Bat` or `Old Baseball Bat`.
+- modify the Once Human installation;
+- execute extracted game bytecode;
+- commit snapshots, raw archives, local SQLite indexes, PYC reports, builds, or packaged runtimes;
+- publish `reference-tracer.sqlite`;
+- upload raw evidence bundles to external services;
+- infer runtime mechanics from a symbol name alone.
 
-### Queue B — exact missing skill IDs
+Permitted investigation uses exact table records, exact references, bounded static token context, and non-executing analysis.
 
-The 11 exact IDs are:
+## 7. Current canonical Weapon state
 
-- `WS1001`
-- `WS1101`
-- `WS1301`
-- `WS1402`
-- `WS14503`
-- `WS1501`
-- `WS15203`
-- `WS15304`
-- `WS15502`
-- `WS1601`
-- `WS2001`
+The following work is already landed. Do not redo or revert it.
 
-Known installed-data state: these exact strings occur as `gun_blueprint_attr_data.fixed_skill_code` references, but no exact corresponding record exists in the installed `passive_skill_data`. Local exact search and bounded static PYC token search did not recover publishable mechanic definitions.
+### Fresh v1.5.13.2 transaction
 
-Affected weapon records:
+- Fresh Miner transaction payload commit: `2e23cac443733337fb99fa3ab582251bead0dcda`.
+- Continuity follow-up: `e032db6e2ac30a4d8a2db322797f9cfad295650e`.
+- Database website CI run `31784533095`: SUCCESS.
+- 120 Weapon records.
+- 1,618 complete Mod frame-evidence variants.
+- All seven payloads were transactionally materialized.
 
-| Exact weapon | Exact missing ID |
+### Weapon mechanics
+
+- 76 resolved player-facing mechanics.
+- 14 Weapon records reference an exact skill record missing from installed `passive_skill_data`.
+- Those 14 records cover 11 unique exact `WS...` IDs.
+- 30 Weapon records contain no fixed-skill reference.
+- Do not present the missing-record and no-reference states as the same problem.
+
+### Exact missing skill records
+
+| Weapon | Exact missing ID |
 |---|---|
 | OIC-8 - Last Carnival | `WS2001` |
 | SOCR - Sand Dancer | `WS1402` |
@@ -190,134 +220,174 @@ Affected weapon records:
 | MPS7 - Urban Ninja | `WS1301` |
 | R500 - Interfade | `WS2001` |
 
-For this queue, a web page that describes the weapon by name but never exposes the exact `WS...` ID may corroborate visible player wording, but it does not resolve the missing internal record. Report those as separate claims.
+The 11 unique exact IDs are:
 
-### Queue C — magazine comparison evidence
+`WS1001`, `WS1101`, `WS1301`, `WS1402`, `WS14503`, `WS1501`, `WS15203`, `WS15304`, `WS15502`, `WS1601`, `WS2001`.
 
-The goal is to collect direct, dated, exact-variant in-game displayed magazine values that can be compared with installed raw fields.
+Exact Research Console work already found only `gun_blueprint_attr_data.fixed_skill_code` references and no exact installed passive-skill records. Similar IDs are not solutions.
 
-Do not infer or publish a formula. Do not assume attachments, calibration, stars, tiers, cradle effects, mods, buffs, or seasonal rules are absent unless the capture proves the configuration.
+### Flavor descriptions
 
-For each capture, record:
+- 106 Weapon records have no short-description handle.
+- 14 translation handles resolve consistently but remain withheld because identity/cross-wire safety is not proven.
+- Kukri, Frozen Northern Pike, and The Fabled Masamune exposed a shared/cross-wired description-handle problem in installed item data.
+- Never repair descriptions by choosing plausible text or by name similarity.
 
-- exact weapon variant;
-- Gear Tier;
-- Blueprint Stars;
-- equipped calibration;
-- equipped attachments;
-- relevant mods/buffs if visible;
-- displayed magazine value;
-- capture date and game version/season if known;
-- source URL and timestamp;
-- every unknown configuration variable.
+### Ratings and projectile formatting
 
-A displayed value with unknown attachments is a lead, not baseline proof.
+Implementation commit: `9debce2929ee217302c0c38a56c1890372895bff`.
 
-### Queue D — withheld flavor descriptions
+- Browse, detail, and compare default to Tier I · 1★ rather than maximum Tier V.
+- Exact `client_data/bullet_pattern_data.bullet_num` is joined through `gun_base_params_data.bullet_pattern_no`.
+- 13 shotguns have proven multi-projectile counts.
+- DMG displays the scalar and count, e.g. ACS12 - Netherworld is `32×5` at Tier I · 1★ and `188×5` at Tier V · 1★.
+- The raw `weapon_magazine_size_affix_value` is not the final in-game magazine total and is no longer shown as Magazine.
+- Exact final magazine aggregation (`get_gun_magazine_size`) remains unresolved. Do not restore Magazine until the formula/consumer is proven.
 
-The installed translation handle may be cross-wired between weapon identities. Therefore:
+### Acquisition classification
 
-- require the exact weapon identity and visible description in the same direct in-game capture, or an exact official catalogue entry;
-- do not repair text by matching a familiar weapon name to a plausible sentence;
-- do not use another weapon sharing the same handle as confirmation;
-- report discrepancies verbatim and leave the result unresolved when identity is not direct.
+- 106 Weapons: exact recipes proven for all five Gear Tiers.
+- 9 Weapons: direct stronghold-exploration acquisition evidence.
+- 5 Weapons: unresolved.
 
-## 10. Mandatory output format
+The five unresolved exact names are:
 
-Return the following sections in this exact order.
+1. Machete
+2. Metal Baseball Bat
+3. Old Baseball Bat
+4. Old Machete
+5. Rusted Blade
 
-### A. Scope acknowledgement
+Missing recipes never justify labeling these non-craftable.
 
-- Assignment received.
-- Exact names/IDs searched.
-- Explicit statement that no similar records were merged.
+## 8. Armor pipeline state
 
-### B. Evidence table
+The canonical Miner runner must call `armor_tier_completion.complete_file` after normal Armor normalization.
 
-Use one row per distinct source/claim pair:
+This restores:
 
-| Target exact name/ID | Claim | Status | Source type | Source title | Publisher | Original URL | Published | Accessed | Exact evidence/short quote/timestamp | Version/context risk | What this does not prove |
-|---|---|---|---|---|---|---|---|---|---|---|---|
+- 173 player-facing Armor pieces;
+- exactly five Tier I–V rows each;
+- 865 Tier rows;
+- 15 exact recovered Tier rows;
+- zero unresolved Armor Tier series;
+- two explicit crafting-variant conflicts.
 
-Do not combine several sources into one row.
+Do not remove or bypass this completion step. An all-seven materializer failure exposed the missing runner call, and it was fixed in commit `9debce2929ee217302c0c38a56c1890372895bff`.
 
-### C. Per-target conclusion
+## 9. Other database boundaries
 
-For every assigned target, provide:
+- Armor, Mods, Calibrations, Deviations, and Cradles remain `SOON` until their routes and integrations are genuinely player-ready.
+- Build Lab mappings must use canonical identities, not display-name guesses.
+- Mod frame arithmetic and frame-library joins are proven, but ordered sub-entry positional consumer semantics remain unproven.
+- Deviation and Cradle display-name families can contain multiple source variants; never auto-select variant 1.
+- Attachment compatibility preserves direct localized wording; blank compatibility remains unresolved.
+- Calibration candidate weight `200` is a raw mined weight, not a percentage probability.
 
-- strongest status achieved;
-- concise supported claim;
-- unresolved questions;
-- recommended local Dead Signal verification step.
+Read the category-specific sections in `AI-CONTINUITY.md` before changing any of these systems.
 
-If no adequate source was found, explicitly write `unresolved`. Do not fill the space with a probable answer.
+## 10. Hosting and deployment prohibitions
 
-### D. Rejected and ambiguous leads
+Do not touch:
 
-List every tempting result excluded because of:
+- SSL;
+- DNS;
+- redirects;
+- domain configuration;
+- cPanel hosting configuration;
+- the accepted landing page;
+- the Official Once Human X feed;
+- copy-only deployment architecture;
+- WordPress or a new server runtime.
 
-- wrong variant;
-- similar but non-exact ID;
-- snippet-only evidence;
-- circular sourcing;
-- inaccessible source;
-- obsolete/beta/version ambiguity;
-- missing configuration context;
-- AI-generated or unattributed text.
+Do not deploy merely because a repository change is complete. Repository work and deployment are separate scopes unless the user explicitly authorizes deployment.
 
-### E. Machine-readable evidence package
+## 11. Optional web research
 
-Provide a JSON array using this schema:
+Web research is allowed only when it supports the assigned coding/evidence task.
 
-```json
-[
-  {
-    "target_exact": "",
-    "claim": "",
-    "status": "secondary-lead",
-    "source_type": "",
-    "source_title": "",
-    "publisher": "",
-    "url": "",
-    "published_date": "",
-    "accessed_date": "",
-    "exact_evidence": "",
-    "timestamp": "",
-    "version_context": "",
-    "identity_risk": "",
-    "limitations": "",
-    "recommended_local_verification": ""
-  }
-]
+When researching:
+
+- prefer official/primary sources;
+- preserve original URLs, titles, dates, quotes, screenshots, and video timestamps;
+- distinguish external corroboration from installed-data verification;
+- reject search snippets and circular citations;
+- do not let community consensus overwrite installed evidence;
+- do not upload private Miner artifacts or repository secrets.
+
+Research findings must be brought back into the repository workflow and validated before they change database claims.
+
+## 12. Task execution protocol
+
+For each user assignment, begin with:
+
+```text
+Repository HEAD: <exact SHA after synchronization>
+Worktree state: <clean or exact pre-existing changes>
+Assigned outcome: <one-sentence objective>
+Files/systems likely in scope: <list>
+Evidence constraints: <list>
+Validation planned: <commands/suites>
 ```
 
-Use empty strings for unavailable fields. Do not omit fields. The JSON must contain only evidence already represented in the human-readable table.
+Then execute the task. Do not stop at a plan unless blocked by missing authority, unavailable required evidence, or an external dependency that cannot be safely resolved.
 
-## 11. Stopping rules
+If blocked:
 
-Stop and return `unresolved` when:
+1. exhaust safe read-only inspection;
+2. describe the exact blocker;
+3. identify what evidence or authorization is missing;
+4. preserve the repository in a safe state;
+5. do not guess around the blocker.
 
-- the exact record cannot be distinguished;
-- only search snippets or copied claims exist;
-- sources disagree and version/context cannot explain the difference;
-- the page is inaccessible and no original evidence is available;
-- a requested exact ID never appears in an inspectable source;
-- answering would require guessing a formula, mechanic, recipe, identity, or runtime behavior;
-- the assignment would require private local artifacts.
+## 13. Required completion report
 
-It is better to return five well-documented unresolved results than five confident guesses.
+At completion, report:
 
-## 12. Assignment wrapper the user will provide
+```text
+Outcome:
+- What now works.
 
-The user should append one assignment below this handoff in the following form:
+Evidence/findings:
+- Exact facts established.
+- Exact unresolved facts retained.
+
+Changes:
+- Files/systems changed.
+- Generated payload transaction, if any.
+
+Validation:
+- Every test/check run and its result.
+- Local browser result, if applicable.
+- GitHub Actions run IDs and conclusions.
+
+Git:
+- Implementation commit SHA.
+- Continuity commit SHA.
+- Final pushed HEAD.
+- Branch and remote.
+- Remaining untracked/pre-existing files left untouched.
+
+Next work:
+- Safest evidence-backed next step.
+```
+
+Never say “all green” without listing the checks. Never say “pushed” without providing the exact SHA and remote branch.
+
+## 14. First assignment wrapper
+
+The user will provide a specific assignment after linking this handoff. Execute only that assignment while respecting the whole document.
+
+Recommended format:
 
 ```text
 ASSIGNMENT
-Queue: A, B, C, or D
-Exact targets: [list]
-Question: [one narrowly scoped question]
-Time/version scope: [current live game, specific season, or historical]
-Stop after: [requested output]
+Objective: <concrete outcome>
+In scope: <files/features/data categories>
+Out of scope: <explicit exclusions>
+Required evidence: <installed snapshot, screenshot, exact IDs, or source links>
+Required validation: <tests/checks>
+Finish condition: <what must be committed/pushed/reported>
 ```
 
-Only execute that assignment. Do not automatically run every queue in this document.
+If the assignment is broad but safely discoverable from the repository, inspect and proceed. Ask the user only when a missing choice would materially change the outcome or authorize a separate external/destructive action.
