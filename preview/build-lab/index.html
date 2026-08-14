@@ -3,74 +3,191 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#06070a">
-<meta name="description" content="Dead Signal Ultimate Planner — player-facing Once Human loadout planning workstation.">
-<title>Dead Signal Ultimate Planner</title>
-<link rel="stylesheet" href="readability.css">
-<link rel="stylesheet" href="style.css?v=1.5.2.4">
-<link rel="stylesheet" href="build-mode.css?v=1.4.0">
-<link rel="stylesheet" href="weapon-model-ui.css?v=1.5.2.4">
-<link rel="stylesheet" href="weapon-layout.css?v=1.4.7">
-<link rel="stylesheet" href="calibration-details-ui.css?v=1.5.2.4">
-<link rel="stylesheet" href="calibration-style-picker.css?v=1.5.0">
-<link rel="stylesheet" href="calibration-style-display.css?v=1.5.1">
-<link rel="stylesheet" href="picker-card-polish.css?v=1.5.1.3">
-<link rel="stylesheet" href="planner-transition-reset.css?v=1.5.2.4">
-<link rel="stylesheet" href="planner-integrity-ui.css?v=1.5.2.5">
-<link rel="stylesheet" href="planner-report-tools.css?v=1.5.2.6">
-<link rel="stylesheet" href="weapon-compare.css?v=1.5.2.8">
-<script src="readability.js" defer></script>
+<meta name="theme-color" content="#07090b">
+<meta name="description" content="Dead Signal Build Lab — assemble a Once Human loadout from current player-facing mined data.">
+<title>Build Lab — Dead Signal</title>
+<link rel="stylesheet" href="/shared/readability.css">
+<link rel="stylesheet" href="/shared/workstation-shell.css">
+<link rel="stylesheet" href="build-lab.css?v=2.0.0">
+<script src="/shared/readability.js" defer></script>
+<script src="/shared/workstation-shell.js" defer></script>
+<script src="/database/weapons/weapons-data.js?v=20260814b"></script>
+<script src="/database/weapons/weapon-public-adapter.js?v=20260814b"></script>
+<script src="/database/armor/armor-data.js?v=20260814"></script>
+<script src="/database/mods/mods-data.js?v=20260814"></script>
+<script src="/database/calibrations/calibrations-data.js?v=20260814"></script>
+<script src="/database/attachments/attachments-data.js?v=20260814"></script>
+<script src="/database/deviations/deviations-data.js?v=20260814"></script>
+<script src="/database/cradles/cradles-data.js?v=20260814"></script>
 </head>
 <body>
-<a class="skip-link" href="#section-plan">Skip to planner</a>
-<div class="app-shell">
-<aside class="global-sidebar" id="globalSidebar"><div class="global-sidebar-top"><a class="brand" href="/"><span class="signal-mark" aria-hidden="true"><i></i><i></i><i></i></span><span class="brand-name">DEAD <b>SIGNAL</b></span></a><button id="sidebarToggle" class="sidebar-toggle" type="button" aria-label="Collapse navigation" aria-expanded="true"><span aria-hidden="true">‹</span></button></div><nav class="global-nav" aria-label="Dead Signal navigation"><a href="/"><span>⌂</span><b>Signal Home</b></a><a href="/database/weapons/"><span>⌁</span><b>Weapons</b></a><a class="active" href="/build-planner/"><span>◇</span><b>Build Planner</b></a></nav><div class="global-sidebar-bottom"><div class="sidebar-readability"><span>TEXT SIZE</span><div class="readability-controls" data-readability-controls role="group" aria-label="Text size"><button type="button" data-font-size="compact">A−</button><button type="button" data-font-size="default">A</button><button type="button" data-font-size="large">A+</button><button type="button" data-font-size="xlarge">A++</button></div></div><div class="system-status"><span></span><b>MINER CONNECTED</b></div></div></aside>
-<button class="mobile-menu" id="mobileMenu" type="button" aria-label="Open navigation" aria-expanded="false"><span></span><span></span><span></span></button><div class="mobile-scrim" id="mobileScrim" hidden></div>
-<div class="page-shell">
-<header class="planner-header"><div><small>BUILD LAB // ONCE HUMAN</small><h1>Ultimate Planner</h1><p>Plan the actual loadout first. Math only appears where the evidence is proven.</p></div><div class="header-actions"><div class="action-group"><span>BUILD</span><button id="newBtn">New</button><button id="cloneBtn">Clone</button><button id="saveBtn" class="primary-soft">Save</button><button id="savedBtn">My Builds</button><button id="templatesBtn">Templates</button></div><div class="action-group"><span>TRANSFER</span><button id="importBtn">Import</button><button id="exportBtn">Export</button></div><button id="shareBtn" class="primary">Copy Share Link</button><input id="importFile" type="file" accept="application/json,.json" hidden>
+<a class="skip-link" href="#planner">Skip to planner</a>
+<div class="bl-app">
+<header class="bl-command">
+  <div>
+    <p class="bl-command-kicker">Workspace // Once Human loadout system</p>
+    <div class="bl-command-title"><span class="bl-command-mark" aria-hidden="true">BL</span><div><h1>Build Lab</h1><p class="bl-command-copy">Assemble, verify, save, and share one complete loadout from Dead Signal's current player-facing data.</p></div></div>
+  </div>
+  <div class="bl-actions" aria-label="Build actions">
+    <div class="bl-action-group"><span>Start</span><button id="templatesBtn" type="button">Templates</button><button id="newBtn" class="danger" type="button">New</button></div>
+    <div class="bl-action-group build"><span>Build</span><button id="saveBtn" type="button">Save</button><button id="savedBtn" type="button">My Builds</button><button id="cloneBtn" type="button">Clone</button><button id="exportBtn" type="button">Export</button></div>
+    <div class="bl-action-group"><span>Transfer</span><button id="importBtn" type="button">Import</button><button id="shareBtn" class="primary" type="button">Copy Share Link</button></div>
+    <input id="importFile" type="file" accept="application/json,.json" hidden>
   </div>
 </header>
-<div id="catalogStrip" class="catalog-strip"></div>
-<main><section class="planner-shell"><div class="stack">
-<section class="panel hero-panel" id="section-plan"><div class="section-title"><span>00</span><div><small>BUILD IDENTITY</small><h2>Plan</h2></div></div><div class="meta-grid"><label><span>Build name</span><input id="buildName" placeholder="Name this build"></label><label><span>Author</span><input id="buildAuthor" placeholder="Your name / handle"></label><label><span>Build type</span><select id="buildType"><option>PvE</option><option>PvP</option><option>Hybrid</option><option>Boss</option><option>Farming / Utility</option><option>Experimental</option></select></label><label><span>Tags</span><input id="buildTags" placeholder="Power Surge, AR, Solo"></label></div><label class="wide-field"><span>Short description</span><input id="buildDescription" placeholder="What this build is trying to do"></label></section>
-<section class="panel" id="section-weapons"><div class="section-title"><span>01</span><div><small>WEAPONS</small><h2>Loadout</h2></div></div><div id="weapons" class="weapon-grid"></div></section>
-<section class="panel" id="section-armor"><div class="section-title"><span>02</span><div><small>ARMOR</small><h2>Gear + Mods</h2></div></div><div class="section-toolbar"><button data-pick="armorSet" class="primary-soft">Equip Armor Set</button><button id="clearArmorBtn">Clear Armor</button><span>Quick-equip fills every available piece in a set; key armor can still replace individual slots.</span></div><div id="armor" class="armor-grid"></div></section>
-<section class="panel" id="section-systems"><div class="section-title"><span>03</span><div><small>BUILD SYSTEMS</small><h2>Deviation, Cradles & Consumables</h2></div></div><div class="systems-grid"><div id="deviationSlot"></div><div id="foodSlot"></div><div id="drinkSlot"></div><div id="whimSlot"></div></div><div class="cradle-panel"><div class="subheading-row cradle-panel-head"><div><small>LOADOUT SYSTEM</small><h3>Cradle Overrides</h3></div><span id="cradleCount"></span></div><div class="cradle-scroll"><div id="cradles" class="cradles"></div></div></div></section>
-<section class="panel" id="section-notes"><div class="section-title"><span>04</span><div><small>BUILD NOTES</small><h2>Rotation, alternatives & farming notes</h2></div></div><textarea id="buildNotes" rows="7" placeholder="Rotation, alternate pieces, desired mod suffixes, farming notes, unresolved community information..."></textarea></section>
-</div><aside class="panel summary-panel" id="section-report"><div class="sticky"><div class="section-title"><span>DS</span><div><small>BUILD OVERVIEW</small><h2>Loadout Report</h2></div></div><div id="completion"></div><div id="summary"></div></div></aside></section></main>
-<footer class="site-footer"><div class="footer-inner"><div><b>DEAD SIGNAL</b><span>Independent Once Human community planner.</span></div><p><strong>Community &amp; reference resources:</strong> Once Human Official · OnceHumanDB · Wikily. Resource names are provided as plain-text attribution only. Dead Signal is not affiliated with or endorsed by these services.</p></div></footer>
+<div class="bl-statusbar" aria-label="Planner state">
+  <span class="bl-status-pill live">Miner contracts connected</span>
+  <span class="bl-status-pill"><strong id="dataStatus">Reading current data…</strong></span>
+  <span id="saveStatus">Unsaved build</span>
+  <span class="bl-status-spacer"></span>
+  <span>Build mode</span>
+  <div class="bl-mode" role="group" aria-label="Build mode"><button type="button" data-mode="gear" aria-pressed="true">MY GEAR</button><button type="button" data-mode="god" aria-pressed="false">GOD ROLL</button></div>
 </div>
-<dialog id="picker"><div class="dialog-head"><div><small id="pickerKicker">SELECT</small><h2 id="pickerTitle">Choose</h2></div><button id="pickerClose" aria-label="Close">×</button></div><div class="picker-tools"><input id="pickerSearch" placeholder="Search player-facing corpus..." autocomplete="off"><select id="pickerRarity" aria-label="Filter by rarity"><option value="All">All rarities</option></select><button id="pickerFavorites">★ Favorites</button><button id="pickerRecent">Recent</button><button id="pickerClear">Clear slot</button></div><div id="pickerFilters" class="filters"></div><div id="pickerList" class="picker-list"></div></dialog>
-<dialog id="savedDialog"><div class="dialog-head"><div><small>THIS BROWSER</small><h2>My Builds</h2></div><button id="savedClose" aria-label="Close">×</button></div><div id="savedList" class="saved-list"></div></dialog>
-<dialog id="presetDialog"><div class="dialog-head"><div><small>STARTING POINTS</small><h2>Templates</h2></div><button id="presetClose" aria-label="Close">×</button></div><div id="presetList" class="preset-list"></div></dialog>
-<div id="toast" class="toast" role="status" aria-live="polite"></div>
-<script src="data/community-data.js?v=1.3.4-armor-images"></script>
-<script src="weapons-data.js?v=20260813a"></script>
-<script src="weapon-math-data.js?v=1.5.9.0"></script>
-<script src="weapon-public-adapter.js?v=20260813a"></script>
-<script src="weapon-data-adapter.js?v=20260813a"></script>
-<script src="calibrations-data.js?v=20260813a"></script>
-<script src="attachments-data.js?v=20260813a"></script>
-<script src="deviations-data.js?v=20260813a"></script>
-<script src="cradles-data.js?v=20260813a"></script>
-<script src="canonical-category-variant-guard.js?v=20260813a"></script>
-<script src="canonical-category-bridge.js?v=20260813a"></script>
-<script src="app.js?v=1.3.4-armor-images"></script>
-<script src="armor-image-map.js?v=1.3.4-armor-images"></script>
-<script src="player-images.js?v=1.3.4-armor-images"></script>
-<script src="build-mode.js?v=1.4.0"></script>
-<script src="weapon-model-ui.js?v=1.5.2.4"></script>
-<script src="weapon-layout.js?v=1.4.7"></script>
-<script src="calibration-rules.js?v=1.4.4"></script>
-<script src="calibration-details-ui.js?v=1.5.2.4"></script>
-<script src="calibration-style-picker.js?v=1.5.0"></script>
-<script src="calibration-style-display.js?v=1.5.1"></script>
-<script src="picker-card-polish.js?v=1.5.1.3"></script>
-<script src="planner-transition-reset.js?v=1.5.2.4"></script>
-<script src="planner-state-bridge.js?v=1.5.2.3"></script>
-<script src="planner-integrity-ui.js?v=1.5.2.5"></script>
-<script src="planner-report-tools.js?v=1.5.2.6"></script>
-<script src="weapon-compare.js?v=1.5.2.8"></script>
-<script src="catalogue-handoff.js?v=1.0.0"></script>
+
+<main class="bl-main" id="planner">
+  <section class="bl-intro" aria-labelledby="planner-title">
+    <div class="bl-intro-card"><p class="bl-eyebrow">Database → Build intelligence</p><h2 id="planner-title">Build from the data.<br><em>Keep the evidence visible.</em></h2><p>The planner uses current Dead Signal browser contracts directly. It does not substitute community values for mined records, and unresolved identity or compatibility stays unresolved.</p></div>
+    <aside class="bl-health-card" aria-label="Current data coverage"><small>Current workstation feed</small><h3>Connected systems</h3><div class="bl-health-grid"><div><strong id="healthWeapons">—</strong><span>Weapons</span></div><div><strong id="healthArmor">—</strong><span>Armor pieces</span></div><div><strong id="healthMods">—</strong><span>Mod families</span></div><div><strong id="healthSystems">—</strong><span>Build-system families</span></div></div></aside>
+  </section>
+
+  <div class="bl-layout">
+    <div class="bl-stack">
+      <section class="bl-panel" id="section-plan">
+        <div class="bl-panel-title"><b>00</b><div><small>BUILD IDENTITY</small><h2>Plan</h2></div><span class="right">Saved locally in this browser</span></div>
+        <div class="bl-fields">
+          <label class="bl-field"><span>Build name</span><input id="buildName" placeholder="Name this build" autocomplete="off"></label>
+          <label class="bl-field"><span>Author</span><input id="buildAuthor" placeholder="Your name / handle" autocomplete="off"></label>
+          <label class="bl-field"><span>Build type</span><select id="buildType"><option>PvE</option><option>PvP</option><option>Hybrid</option><option>Boss</option><option>Farming / Utility</option><option>Experimental</option></select></label>
+          <label class="bl-field"><span>Tags</span><input id="buildTags" placeholder="Power Surge, AR, Solo" autocomplete="off"></label>
+          <label class="bl-field wide"><span>Short description</span><input id="buildDescription" placeholder="What this build is trying to do" autocomplete="off"></label>
+        </div>
+      </section>
+
+      <section class="bl-panel" id="section-weapons">
+        <div class="bl-panel-title"><b>01</b><div><small>WEAPONS</small><h2>Loadout</h2></div><span class="right">Tier I · 1★ catalogue identity by default</span></div>
+        <div class="bl-slots weapons" id="weaponSlots"></div>
+      </section>
+
+      <section class="bl-panel" id="section-armor">
+        <div class="bl-panel-title"><b>02</b><div><small>ARMOR + MODS</small><h2>Gear</h2></div><span class="right">Mod arithmetic remains fail-closed</span></div>
+        <div class="bl-slots armor" id="armorSlots"></div>
+      </section>
+
+      <section class="bl-panel" id="section-systems">
+        <div class="bl-panel-title"><b>03</b><div><small>BUILD SYSTEMS</small><h2>Deviation & Cradle Overrides</h2></div><span class="right">Multi-variant identity is withheld</span></div>
+        <div class="bl-systems">
+          <article class="bl-system-card"><small class="bl-slot-label">COMBAT DEVIATION</small><h3 id="deviationName">No deviation selected</h3><p id="deviationNote">Choose a single-source family. Multi-variant families remain unavailable until player-selection semantics are proven.</p><button id="pickDeviation" type="button">Choose Deviation</button></article>
+          <article class="bl-system-card"><small class="bl-slot-label">CRADLE LOADOUT</small><h3><span id="cradleSelectedCount">0</span> / 8 selected</h3><p>Only single-source Cradle families can be selected automatically. Preserved multi-variant families stay visible but blocked.</p><button id="pickCradle" type="button">Add Cradle Override</button></article>
+        </div>
+        <div class="bl-cradles" id="cradleSlots"></div>
+      </section>
+
+      <section class="bl-panel" id="section-notes">
+        <div class="bl-panel-title"><b>04</b><div><small>BUILD NOTES</small><h2>Rotation, alternatives & farming notes</h2></div></div>
+        <label class="bl-field"><span>Notes</span><textarea id="buildNotes" placeholder="Rotation, alternate pieces, desired mod suffixes, farming notes, unresolved information…"></textarea></label>
+      </section>
+    </div>
+
+    <aside class="bl-summary" id="section-report" aria-label="Loadout report">
+      <div class="bl-summary-title"><b>DS</b><div><small>BUILD OVERVIEW</small><h2>Loadout Report</h2></div><span id="summaryMode" class="bl-summary-mode">MY GEAR</span></div>
+      <section class="bl-summary-section"><span>Core loadout coverage</span><div class="bl-summary-row"><em>Required slots</em><strong id="summaryCoverage">0 / 10</strong></div><div class="bl-progress" aria-hidden="true"><i id="coverageBar"></i></div><p class="bl-summary-note">Coverage reflects weapon, armor, and Deviation identity only. It does not imply complete damage math.</p></section>
+      <section class="bl-summary-section"><span>Weapons</span><div id="summaryWeapons"></div></section>
+      <section class="bl-summary-section"><span>Armor</span><div id="summaryArmor"></div></section>
+      <section class="bl-summary-section"><span>Systems</span><div id="summarySystems"></div></section>
+    </aside>
+  </div>
+</main>
+<footer class="bl-footer"><strong>DEAD SIGNAL // BUILD LAB</strong> · Installed-game data first · unresolved mechanics remain unresolved</footer>
+</div>
+
+<dialog class="bl-picker" id="picker">
+  <div class="bl-picker-head"><div><small id="pickerKicker">SELECT</small><h2 id="pickerTitle">Choose</h2></div><button id="pickerClose" type="button" aria-label="Close">×</button></div>
+  <div class="bl-picker-tools"><input id="pickerSearch" type="search" placeholder="Search current player-facing records…" autocomplete="off"><select id="pickerFilter" aria-label="Filter"><option value="">All</option></select></div>
+  <div class="bl-picker-list" id="pickerList"></div>
+</dialog>
+<dialog class="bl-drawer" id="savedDialog"><div class="bl-picker-head"><div><small>THIS BROWSER</small><h2>My Builds</h2></div><button id="savedClose" type="button" aria-label="Close">×</button></div><div class="bl-picker-list" id="savedList"></div></dialog>
+<dialog class="bl-drawer" id="templatesDialog"><div class="bl-picker-head"><div><small>STARTING POINTS</small><h2>Templates</h2></div><button id="templatesClose" type="button" aria-label="Close">×</button></div><div class="bl-picker-list" id="templatesList"></div></dialog>
+<div class="bl-toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(()=>{'use strict';
+const SLOT_WEAPONS=[['primary','PRIMARY'],['secondary','SECONDARY'],['melee','MELEE']];
+const SLOT_ARMOR=['Helmet','Mask','Top','Gloves','Pants','Boots'];
+const ATTACHMENT_TYPES=['Magazine','Muzzle','Sight','Tactical'];
+const STORAGE_KEY='dead-signal-builds-v2';
+const MODE_KEY='dead-signal-build-mode';
+let pickerContext=null;
+let dirty=false;
+const $=id=>document.getElementById(id);
+const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const text=(...values)=>{for(const value of values){if(typeof value==='string'&&value.trim())return value.trim();if(typeof value==='number')return String(value)}return ''};
+const deepCopy=value=>JSON.parse(JSON.stringify(value));
+const freshState=()=>({schema:'dead-signal-build-v2',id:(crypto.randomUUID?crypto.randomUUID():String(Date.now())),updated:new Date().toISOString(),mode:'gear',meta:{name:'',author:'',type:'PvE',tags:'',description:''},weapons:{primary:null,secondary:null,melee:null},weaponConfig:{primary:{calibration:null,attachments:{}},secondary:{calibration:null,attachments:{}},melee:{calibration:null,attachments:{}}},armor:Object.fromEntries(SLOT_ARMOR.map(slot=>[slot,{item:null,mod:null}])),systems:{deviation:null,cradles:[]},notes:''});
+let state=freshState();
+
+function weaponSource(){return Array.isArray(window.DS_WEAPON_MATH?.weapons)?window.DS_WEAPON_MATH.weapons:Array.isArray(window.DS_WEAPONS_WEB?.weapons)?window.DS_WEAPONS_WEB.weapons:[]}
+function armorSource(){const payload=window.DS_ARMOR_WEB||{};const out=[];(payload.armor_sets||[]).forEach(set=>(set.pieces||[]).forEach(piece=>out.push({...piece,_setName:set.name||''})));(payload.key_armor||[]).forEach(piece=>out.push({...piece,_keyArmor:true}));return out}
+function familySource(globalName){const payload=window[globalName]||{};return Array.isArray(payload.families)?payload.families:[]}
+function attachmentSource(){return Array.isArray(window.DS_ATTACHMENTS_WEB?.attachments)?window.DS_ATTACHMENTS_WEB.attachments:[]}
+function displayName(row){return text(row?.name,row?.display_name,row?.family_name,row?.title,row?.mod_name,row?.canonical_id,'Unnamed record')}
+function canonicalId(row){return text(row?.canonical_id,row?.id,row?.blueprint_id,row?.item_id,displayName(row))}
+function compactRecord(row,kind){return {id:canonicalId(row),name:displayName(row),kind,category:text(row?.category,row?.slot,row?.attachment_type,row?.rarity),rarity:text(row?.rarity),note:recordNote(row),raw:row}}
+function recordNote(row){return text(row?.effect,row?.description,row?.short_description,row?.compatibility_evidence?.text,row?.acquisition_hint,row?.item_gain_path,row?.variant_status,row?._setName)}
+function isMultiVariant(row){return Number(row?.variant_count||0)>1||row?.variant_status==='multiple-source-variants-preserved'}
+function recordsFor(kind,ctx={}){
+  if(kind==='weapon'){return weaponSource().filter(row=>ctx.slot==='melee'?!!row?.static_inputs?.melee_stats:!!row?.static_inputs?.ranged_stats).map(row=>compactRecord(row,'weapon'))}
+  if(kind==='armor'){return armorSource().filter(row=>String(row?.slot||'').toLowerCase()===String(ctx.slot||'').toLowerCase()).map(row=>compactRecord(row,'armor'))}
+  if(kind==='mod'){return familySource('DS_MODS_WEB').map(row=>compactRecord(row,'mod'))}
+  if(kind==='calibration'){return familySource('DS_CALIBRATIONS_WEB').map(row=>compactRecord(row,'calibration'))}
+  if(kind==='attachment'){return attachmentSource().filter(row=>String(row?.attachment_type||'')===ctx.attachmentType).map(row=>compactRecord(row,'attachment'))}
+  if(kind==='deviation'){return familySource('DS_DEVIATIONS_WEB').map(row=>({...compactRecord(row,'deviation'),disabled:isMultiVariant(row),disabledNote:isMultiVariant(row)?'Multiple source variants preserved — player-selection identity withheld.':''}))}
+  if(kind==='cradle'){return familySource('DS_CRADLES_WEB').map(row=>({...compactRecord(row,'cradle'),disabled:isMultiVariant(row),disabledNote:isMultiVariant(row)?'Multiple source variants preserved — player-selection identity withheld.':''}))}
+  return [];
+}
+function rarityClass(value){return String(value||'').toLowerCase()}
+function formatWeaponEffect(item){const effect=item?.raw?.static_inputs?.weapon_effect;return typeof effect==='string'?effect:text(effect?.description,effect?.text,effect?.name)}
+function formatWeaponStats(item){const row=item?.raw?.static_inputs?.ranged_stats||item?.raw?.static_inputs?.melee_stats||{};const pairs=[['DMG',row.damage??row.attack??row.base_attack],['RPM',row.rpm??row.fire_rate],['Range',row.range],['Crit',row.crit_rate]];return pairs.filter(([,v])=>v!==undefined&&v!==null&&v!=='').slice(0,2).map(([k,v])=>`${k} ${v}`).join(' · ')}
+function toast(message){const el=$('toast');el.textContent=message;el.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove('show'),2200)}
+function markDirty(){dirty=true;$('saveStatus').textContent='Unsaved changes';renderSummary()}
+function setMode(mode,persist=true){state.mode=mode==='god'?'god':'gear';document.querySelectorAll('.bl-mode button').forEach(btn=>btn.setAttribute('aria-pressed',String(btn.dataset.mode===state.mode)));$('summaryMode').textContent=state.mode==='god'?'GOD ROLL':'MY GEAR';$('summaryMode').style.borderColor=state.mode==='god'?'#6d2930':'#2d5b52';$('summaryMode').style.color=state.mode==='god'?'#ef858c':'#78d6b1';if(persist)try{localStorage.setItem(MODE_KEY,state.mode)}catch(_){}markDirty()}
+
+function itemMarkup(item,slot){if(!item)return '<div class="bl-empty">No item selected.<br>Choose from current player-facing records.</div>';const effect=item.kind==='weapon'?formatWeaponEffect(item):'';const stats=item.kind==='weapon'?formatWeaponStats(item):'';return `<div class="bl-item"><div class="bl-item-art">${esc((item.name||'DS').slice(0,2).toUpperCase())}</div><div><h3>${esc(item.name)}</h3><div class="bl-item-meta">${item.rarity?`<span class="bl-chip red">${esc(item.rarity)}</span>`:''}${item.category?`<span class="bl-chip cyan">${esc(item.category)}</span>`:''}${stats?`<span class="bl-chip">${esc(stats)}</span>`:''}</div>${effect?`<p class="bl-item-note">${esc(effect)}</p>`:item.note?`<p class="bl-item-note">${esc(item.note)}</p>`:''}</div></div>`}
+function renderWeapons(){const host=$('weaponSlots');host.innerHTML=SLOT_WEAPONS.map(([slot,label])=>{const item=state.weapons[slot];const cfg=state.weaponConfig[slot]||{attachments:{}};const ranged=slot!=='melee';return `<article class="bl-slot ${item?'has-item':''}" data-slot="${slot}"><div class="bl-slot-head"><span class="bl-slot-label">${label}</span><div class="bl-slot-actions"><button type="button" data-pick="weapon" data-target="${slot}">${item?'Change':'Choose'}</button>${item?`<button type="button" data-clear="weapon" data-target="${slot}">Clear</button>`:''}</div></div>${itemMarkup(item,slot)}${item&&ranged?`<div class="bl-slot-footer"><label>Calibration<button type="button" class="bl-config-button" data-pick="calibration" data-target="${slot}">${esc(cfg.calibration?.name||'Choose')}</button></label>${ATTACHMENT_TYPES.map(type=>`<label>${type}<button type="button" class="bl-config-button" data-pick="attachment" data-target="${slot}" data-attachment="${type}">${esc(cfg.attachments?.[type]?.name||'Choose')}</button></label>`).join('')}</div>`:''}</article>`}).join('')}
+function renderArmor(){const host=$('armorSlots');host.innerHTML=SLOT_ARMOR.map(slot=>{const entry=state.armor[slot]||{};return `<article class="bl-slot ${entry.item?'has-item':''}"><div class="bl-slot-head"><span class="bl-slot-label">${esc(slot)}</span><div class="bl-slot-actions"><button type="button" data-pick="armor" data-target="${esc(slot)}">${entry.item?'Change':'Choose'}</button>${entry.item?`<button type="button" data-clear="armor" data-target="${esc(slot)}">Clear</button>`:''}</div></div>${itemMarkup(entry.item,slot)}${entry.item?`<div class="bl-slot-footer"><label>Armor Mod<button type="button" data-pick="mod" data-target="${esc(slot)}">${esc(entry.mod?.name||'Choose')}</button></label></div>`:''}</article>`}).join('')}
+function renderSystems(){const dev=state.systems.deviation;$('deviationName').textContent=dev?.name||'No deviation selected';$('deviationNote').textContent=dev?.note||'Choose a single-source family. Multi-variant families remain unavailable until player-selection semantics are proven.';$('cradleSelectedCount').textContent=state.systems.cradles.length;const host=$('cradleSlots');const rows=Array.from({length:8},(_,i)=>state.systems.cradles[i]||null);host.innerHTML=rows.map((item,i)=>`<article class="bl-cradle"><span>SLOT ${String(i+1).padStart(2,'0')}</span>${item?`<strong>${esc(item.name)}</strong><button type="button" data-remove-cradle="${i}" class="bl-chip">Remove</button>`:'<strong>Open</strong>'}</article>`).join('')}
+function summaryRow(label,value){return `<div class="bl-summary-row"><em>${esc(label)}</em><strong>${esc(value||'—')}</strong></div>`}
+function renderSummary(){const weaponValues=SLOT_WEAPONS.map(([slot,label])=>[label,state.weapons[slot]?.name]);$('summaryWeapons').innerHTML=weaponValues.map(([a,b])=>summaryRow(a,b)).join('');$('summaryArmor').innerHTML=SLOT_ARMOR.map(slot=>summaryRow(slot,state.armor[slot]?.item?.name)).join('');$('summarySystems').innerHTML=summaryRow('Deviation',state.systems.deviation?.name)+summaryRow('Cradles',`${state.systems.cradles.length} / 8`);const required=[...SLOT_WEAPONS.map(([slot])=>state.weapons[slot]),...SLOT_ARMOR.map(slot=>state.armor[slot]?.item),state.systems.deviation];const count=required.filter(Boolean).length;$('summaryCoverage').textContent=`${count} / ${required.length}`;$('coverageBar').style.width=`${Math.round(count/required.length*100)}%`}
+function renderAll(){renderWeapons();renderArmor();renderSystems();renderSummary()}
+
+function filterOptions(records){const values=[...new Set(records.map(row=>row.category||row.rarity).filter(Boolean))].sort((a,b)=>a.localeCompare(b));$('pickerFilter').innerHTML='<option value="">All</option>'+values.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('')}
+function openPicker(kind,target,extra={}){pickerContext={kind,target,...extra};const labels={weapon:'Weapon',armor:'Armor',mod:'Armor Mod',calibration:'Calibration Blueprint',attachment:extra.attachmentType||'Attachment',deviation:'Combat Deviation',cradle:'Cradle Override'};$('pickerKicker').textContent=kind==='cradle'?'ADD TO LOADOUT':'SELECT';$('pickerTitle').textContent=labels[kind]||'Choose';$('pickerSearch').value='';const records=recordsFor(kind,pickerContext);filterOptions(records);renderPicker();$('picker').showModal();setTimeout(()=>$('pickerSearch').focus(),0)}
+function renderPicker(){if(!pickerContext)return;const q=$('pickerSearch').value.trim().toLowerCase();const filter=$('pickerFilter').value;let records=recordsFor(pickerContext.kind,pickerContext);records=records.filter(row=>(!q||`${row.name} ${row.category} ${row.rarity} ${row.note}`.toLowerCase().includes(q))&&(!filter||row.category===filter||row.rarity===filter));const list=$('pickerList');if(!records.length){list.innerHTML='<div class="bl-empty-results">No current records match this search.</div>';return}list.innerHTML=records.slice(0,400).map((row,i)=>`<button class="bl-pick" type="button" data-pick-index="${i}" ${row.disabled?'disabled':''}><span class="bl-pick-icon">${esc((row.name||'DS').slice(0,2).toUpperCase())}</span><span><strong>${esc(row.name)}</strong><p>${esc(row.disabledNote||row.note||'Current player-facing record')}</p>${row.rarity?`<span class="bl-chip red">${esc(row.rarity)}</span>`:''}${row.category?`<span class="bl-chip cyan">${esc(row.category)}</span>`:''}${row.disabled?'<span class="bl-chip">WITHHELD</span>':''}</span></button>`).join('');list.querySelectorAll('[data-pick-index]').forEach((button,index)=>button.addEventListener('click',()=>{if(button.disabled)return;selectPickerRecord(records[index])}))}
+function selectPickerRecord(item){const {kind,target,attachmentType}=pickerContext;if(kind==='weapon')state.weapons[target]=item;else if(kind==='armor')state.armor[target].item=item;else if(kind==='mod')state.armor[target].mod=item;else if(kind==='calibration')state.weaponConfig[target].calibration=item;else if(kind==='attachment')state.weaponConfig[target].attachments[attachmentType]=item;else if(kind==='deviation')state.systems.deviation=item;else if(kind==='cradle'){if(state.systems.cradles.some(row=>row.id===item.id)){toast('That Cradle is already selected.');return}if(state.systems.cradles.length>=8){toast('All eight Cradle slots are filled.');return}state.systems.cradles.push(item)}$('picker').close();markDirty();renderAll()}
+function clearSlot(kind,target){if(kind==='weapon'){state.weapons[target]=null;state.weaponConfig[target]={calibration:null,attachments:{}}}else if(kind==='armor'){state.armor[target]={item:null,mod:null}}markDirty();renderAll()}
+
+function syncMetaFromDom(){state.meta={name:$('buildName').value.trim(),author:$('buildAuthor').value.trim(),type:$('buildType').value,tags:$('buildTags').value.trim(),description:$('buildDescription').value.trim()};state.notes=$('buildNotes').value}
+function syncDomFromState(){$('buildName').value=state.meta?.name||'';$('buildAuthor').value=state.meta?.author||'';$('buildType').value=state.meta?.type||'PvE';$('buildTags').value=state.meta?.tags||'';$('buildDescription').value=state.meta?.description||'';$('buildNotes').value=state.notes||'';setMode(state.mode||'gear',false);dirty=false;$('saveStatus').textContent='Loaded';renderAll()}
+function snapshot(){syncMetaFromDom();state.updated=new Date().toISOString();return deepCopy(state)}
+function readSaved(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]')}catch(_){return []}}
+function writeSaved(rows){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(rows));return true}catch(_){return false}}
+function saveBuild(){const build=snapshot();if(!build.meta.name)build.meta.name=`Untitled Build ${new Date().toLocaleDateString()}`;const rows=readSaved();const i=rows.findIndex(row=>row.id===build.id);if(i>=0)rows[i]=build;else rows.unshift(build);if(!writeSaved(rows)){toast('Browser storage is unavailable.');return}state=build;dirty=false;$('saveStatus').textContent=`Saved ${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;toast('Build saved locally.');renderSummary()}
+function newBuild(){if(dirty&&!confirm('Start a new build and discard unsaved changes?'))return;state=freshState();try{state.mode=localStorage.getItem(MODE_KEY)||'gear'}catch(_){}syncDomFromState();$('saveStatus').textContent='New build';toast('New build ready.')}
+function cloneBuild(){const build=snapshot();build.id=crypto.randomUUID?crypto.randomUUID():String(Date.now());build.meta.name=(build.meta.name||'Untitled Build')+' — Copy';state=build;syncDomFromState();markDirty();toast('Build cloned.')}
+function exportBuild(){const build=snapshot();const blob=new Blob([JSON.stringify(build,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=(build.meta.name||'dead-signal-build').replace(/[^a-z0-9-_]+/gi,'-').toLowerCase()+'.json';a.click();URL.revokeObjectURL(url);toast('Build exported.')}
+function encodeBuild(build){const bytes=new TextEncoder().encode(JSON.stringify(build));let binary='';bytes.forEach(b=>binary+=String.fromCharCode(b));return btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
+function decodeBuild(value){value=value.replace(/-/g,'+').replace(/_/g,'/');while(value.length%4)value+='=';const binary=atob(value);const bytes=Uint8Array.from(binary,c=>c.charCodeAt(0));return JSON.parse(new TextDecoder().decode(bytes))}
+async function shareBuild(){const build=snapshot();const url=new URL(location.href);url.hash='build='+encodeBuild(build);try{await navigator.clipboard.writeText(url.toString());toast('Share link copied.')}catch(_){prompt('Copy this share link:',url.toString())}}
+function importBuild(build){if(!build||typeof build!=='object')throw new Error('Invalid build file');const next=freshState();Object.assign(next,build);next.meta={...freshState().meta,...(build.meta||{})};next.weapons={...freshState().weapons,...(build.weapons||{})};next.weaponConfig={...freshState().weaponConfig,...(build.weaponConfig||{})};next.armor={...freshState().armor,...(build.armor||{})};next.systems={...freshState().systems,...(build.systems||{})};state=next;syncDomFromState();markDirty();toast('Build imported.')}
+
+function renderSaved(){const rows=readSaved();const list=$('savedList');list.innerHTML=rows.length?rows.map((row,i)=>`<button class="bl-pick" type="button" data-saved-index="${i}"><span class="bl-pick-icon">BL</span><span><strong>${esc(row.meta?.name||'Untitled Build')}</strong><p>${esc(row.meta?.author||'Unknown author')} · ${esc(row.meta?.type||'PvE')} · ${new Date(row.updated||Date.now()).toLocaleString()}</p></span></button>`).join(''):'<div class="bl-empty-results">No saved builds in this browser yet.</div>';list.querySelectorAll('[data-saved-index]').forEach(btn=>btn.addEventListener('click',()=>{state=deepCopy(rows[Number(btn.dataset.savedIndex)]);$('savedDialog').close();syncDomFromState();toast('Saved build loaded.')}))}
+function renderTemplates(){const templates=[{name:'Clean PvE Build',copy:'Empty MY GEAR workspace for a current PvE loadout.',mode:'gear',type:'PvE'},{name:'Theorycraft Workspace',copy:'Empty GOD ROLL workspace for theoretical legal maximums.',mode:'god',type:'Experimental'}];$('templatesList').innerHTML=templates.map((row,i)=>`<button class="bl-pick" type="button" data-template="${i}"><span class="bl-pick-icon">${row.mode==='god'?'GR':'PvE'}</span><span><strong>${row.name}</strong><p>${row.copy}</p></span></button>`).join('');$('templatesList').querySelectorAll('[data-template]').forEach(btn=>btn.addEventListener('click',()=>{const row=templates[Number(btn.dataset.template)];state=freshState();state.mode=row.mode;state.meta.type=row.type;state.meta.name=row.name;$('templatesDialog').close();syncDomFromState();markDirty();toast('Template loaded.')}))}
+function updateHealth(){const weapons=weaponSource().length,armor=armorSource().length,mods=familySource('DS_MODS_WEB').length,deviations=familySource('DS_DEVIATIONS_WEB').length,cradles=familySource('DS_CRADLES_WEB').length;$('healthWeapons').textContent=weapons||'—';$('healthArmor').textContent=armor||'—';$('healthMods').textContent=mods||'—';$('healthSystems').textContent=(deviations+cradles)||'—';$('dataStatus').textContent=`${weapons} weapons · ${armor} armor · ${mods} mod families`;}
+
+function bind(){document.addEventListener('click',event=>{const pick=event.target.closest('[data-pick]');if(pick){openPicker(pick.dataset.pick,pick.dataset.target,{slot:pick.dataset.target,attachmentType:pick.dataset.attachment});return}const clear=event.target.closest('[data-clear]');if(clear){clearSlot(clear.dataset.clear,clear.dataset.target);return}const cradle=event.target.closest('[data-remove-cradle]');if(cradle){state.systems.cradles.splice(Number(cradle.dataset.removeCradle),1);markDirty();renderSystems();renderSummary();return}});['buildName','buildAuthor','buildType','buildTags','buildDescription','buildNotes'].forEach(id=>$(id).addEventListener('input',markDirty));document.querySelectorAll('.bl-mode button').forEach(btn=>btn.addEventListener('click',()=>{if(btn.dataset.mode==='god'&&state.mode!=='god'&&!confirm('Switch to GOD ROLL mode? This build may represent theoretical maximum RNG values you do not own.'))return;setMode(btn.dataset.mode)}));$('pickerClose').onclick=()=>$('picker').close();$('pickerSearch').oninput=renderPicker;$('pickerFilter').onchange=renderPicker;$('pickDeviation').onclick=()=>openPicker('deviation','deviation');$('pickCradle').onclick=()=>openPicker('cradle','cradle');$('saveBtn').onclick=saveBuild;$('newBtn').onclick=newBuild;$('cloneBtn').onclick=cloneBuild;$('exportBtn').onclick=exportBuild;$('shareBtn').onclick=shareBuild;$('savedBtn').onclick=()=>{renderSaved();$('savedDialog').showModal()};$('savedClose').onclick=()=>$('savedDialog').close();$('templatesBtn').onclick=()=>{renderTemplates();$('templatesDialog').showModal()};$('templatesClose').onclick=()=>$('templatesDialog').close();$('importBtn').onclick=()=>$('importFile').click();$('importFile').addEventListener('change',async event=>{const file=event.target.files?.[0];if(!file)return;try{importBuild(JSON.parse(await file.text()))}catch(err){toast('Import failed: '+err.message)}event.target.value=''})}
+function loadShare(){if(!location.hash.startsWith('#build='))return false;try{importBuild(decodeBuild(location.hash.slice(7)));dirty=false;$('saveStatus').textContent='Loaded from share link';return true}catch(_){toast('Share link could not be read.');return false}}
+function init(){updateHealth();bind();try{state.mode=localStorage.getItem(MODE_KEY)||'gear'}catch(_){}syncDomFromState();loadShare();renderAll()}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+})();
+</script>
 </body>
 </html>
