@@ -101,7 +101,7 @@
     if (canonicalIds.some((value) => !value) || new Set(canonicalIds).size !== canonicalIds.length) return false;
 
     return data.families.every((family) => {
-      if (family?.variant_count !== 1 || family?.variant_status !== 'current-system-selected-from-proven-main-roll-and-secondary-pool') return false;
+      if (family?.variant_count !== 1 || family?.variant_status !== 'current-system-selected-from-shared-buff-identity-and-proven-main-plus-secondary-rolls') return false;
       if (!Array.isArray(family?.variants) || family.variants.length !== 1) return false;
       const variant = family.variants[0];
       const expected = calibrationRanges[String(variant?.rarity || '').trim()];
