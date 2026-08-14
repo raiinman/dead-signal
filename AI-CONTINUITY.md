@@ -19,6 +19,15 @@ Landed and pushed to canonical `main` as `9debce2929ee217302c0c38a56c1890372895b
 - Verification: 68 Miner tests PASS; 90 site tests PASS; Weapon public adapter PASS; JavaScript syntax PASS; `git diff --check` PASS; local browser confirms `32×5`, recipe evidence, and Acquisition filter.
 - GitHub CI for `39804be01068bbf1faf987a2be56cd741891e6da`: database website run `31818497633` SUCCESS; Miner source/build/packaged-self-test run `31818497565` SUCCESS.
 
+### Magazine reconstruction follow-up — 2026-08-14
+
+- The in-game ACS12 - Netherworld blueprint example shows Magazine `18`, while the exact `gun_base_params_data` record for `gun_no=10230331` exposes `weapon_magazine_size_affix=Q1100` and `weapon_magazine_size_affix_value=8`. The screenshot is example evidence, not permission to apply a catalogue-wide constant.
+- Static inspection of installed `ui/data_tools/ItemDataTools.pyc` proves `get_gun_magazine_size(item_no, all_affix_add)` reads the aggregated absolute `Q1100` bucket and returns its local `magazine`; it does not read a gun table directly.
+- `get_gun_magazine_affix_add` delegates `Q1100` through the normal weapon-affix aggregator. That normal path accepts intrinsic/base, accessory, random, +7/+10 option, calibration-level, and Calibration Blueprint/correct-affix dictionaries.
+- Runtime `dcs_extend/component/shoot/SubCompGunAttr.pyc` independently proves `_add_weapon_magazine_size_affix_and_value` adds the current gun parameter's named Magazine affix/value to the weapon's affix set.
+- Exact ACS12 checks found no additional `Q1100=10` contribution in its Tier recipes, `equip_origin_data`, blueprint-star attributes, bullet-base record, or fixed-skill logic tree. `char_property_data.weapon_magazine_size` has `init_val=0.0`; it does not prove a hidden +10 baseline.
+- Therefore the remaining `18 = 8 + 10` source is unresolved. Do not publish `8`, infer a universal `+10`, or restore Magazine until the extra contribution and any `Q1101` rate ordering/rounding are proven through an exact client path or sufficient in-game cross-checks.
+
 ## External-agent trial closed
 
 The Perplexity coding-agent trial was abandoned on 2026-08-14 after consuming the user's agent credits without producing useful implementation work. Do not route Dead Signal tasks to Perplexity or recreate a Perplexity-specific handoff unless the user explicitly reverses this decision.
