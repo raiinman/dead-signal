@@ -45,6 +45,17 @@ def run_module_main_with_completion(module_name, arguments, log):
             Path(argument("--output-dir")) / "mods.json",
             log,
         )
+    elif module_name == "publish_web_data":
+        projector = importlib.import_module("project_weapon_evidence")
+        published = Path(argument("--published"))
+        projected = projector.project_file(
+            Path(argument("--data-dir")) / "weapons.json",
+            published / "web" / "weapons.json",
+        )
+        log(
+            "Projected Weapon verification evidence: "
+            f"{projected.get('record_counts', {}).get('effect_resolution_statuses', {})}."
+        )
     return result
 
 
@@ -79,6 +90,7 @@ def self_test_with_extended_publisher():
         miner_core.EXTRACTOR_ROOT / "mod_frame_enrichment.py",
         miner_core.EXTRACTOR_ROOT / "project_mod_frame_evidence.py",
         miner_core.EXTRACTOR_ROOT / "weapon_evidence_enrichment.py",
+        miner_core.EXTRACTOR_ROOT / "project_weapon_evidence.py",
     )
     for resource in resources:
         checks.setdefault("resources", {})[str(resource)] = resource.is_file()
@@ -90,6 +102,7 @@ def self_test_with_extended_publisher():
         "mod_frame_enrichment",
         "project_mod_frame_evidence",
         "weapon_evidence_enrichment",
+        "project_weapon_evidence",
     ):
         try:
             module = importlib.import_module(module_name)
