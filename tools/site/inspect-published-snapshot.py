@@ -2,9 +2,9 @@
 """Produce one read-only inspection receipt for a fresh Dead Signal Miner snapshot.
 
 The receipt combines strict all-seven contract validation with observational
-Weapons, Armor, Mod, Attachment, Deviation, and Cradle research audits. Audits
-still run when strict materialization validation fails, so a bad snapshot yields
-an actionable report instead of only an exception.
+Weapons, Weapon evidence, Armor, Mod, Attachment, Deviation, and Cradle audits.
+Audits still run when strict materialization validation fails, so a bad snapshot
+yields an actionable report instead of only an exception.
 """
 
 from __future__ import annotations
@@ -30,6 +30,7 @@ def _dependencies(site_dir: Path) -> dict[str, ModuleType]:
     return {
         "materializer": _load_module(site_dir / "materialize-published-snapshot.py", "dead_signal_snapshot_materializer"),
         "weapons": _load_module(site_dir / "audit-weapons-contract.py", "dead_signal_weapons_audit"),
+        "weapon_evidence": _load_module(site_dir / "audit-weapon-evidence.py", "dead_signal_weapon_evidence_audit"),
         "armor": _load_module(site_dir / "audit-armor-contract.py", "dead_signal_armor_audit"),
         "extended": _load_module(site_dir / "audit-extended-contracts.py", "dead_signal_extended_audit"),
     }
@@ -54,13 +55,19 @@ def inspect_snapshot(published: Path, *, site_dir: Path | None = None) -> dict[s
     site_dir = site_dir or Path(__file__).resolve().parent
     deps = _dependencies(site_dir)
     weapons = deps["weapons"]
+    weapon_evidence = deps["weapon_evidence"]
     armor = deps["armor"]
     extended = deps["extended"]
     materializer = deps["materializer"]
 
+    weapon_source = weapons.resolve_source(published)
     weapon_audit = _safe_audit(
         "weapons",
-        lambda: weapons.audit(weapons.load_contract(weapons.resolve_source(published))),
+        lambda: weapons.audit(weapons.load_contract(weapon_source)),
+    )
+    weapon_evidence_audit = _safe_audit(
+        "weapon_evidence",
+        lambda: weapon_evidence.audit(weapon_evidence.load_contract(weapon_source)),
     )
     armor_audit = _safe_audit(
         "armor",
@@ -82,11 +89,13 @@ def inspect_snapshot(published: Path, *, site_dir: Path | None = None) -> dict[s
             "error": f"{type(error).__name__}: {error}",
         }
 
-    audit_errors = [
-        name
-        for name, section in (("weapons", weapon_audit), ("armor", armor_audit), ("extended", extended_audit))
-        if section.get("status") != "OK"
-    ]
+    sections = (
+        ("weapons", weapon_audit),
+        ("weapon_evidence", weapon_evidence_audit),
+        ("armor", armor_audit),
+        ("extended", extended_audit),
+    )
+    audit_errors = [name for name, section in sections if section.get("status") != "OK"]
 
     result = {
         "schema": "dead-signal-published-snapshot-inspection",
@@ -95,6 +104,7 @@ def inspect_snapshot(published: Path, *, site_dir: Path | None = None) -> dict[s
         "strict_validation": validation,
         "audits": {
             "weapons": weapon_audit,
+            "weapon_evidence": weapon_evidence_audit,
             "armor": armor_audit,
             "extended": extended_audit,
         },
