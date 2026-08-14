@@ -15,7 +15,7 @@ class ExtendedRouteWiringTests(unittest.TestCase):
     }
     DEDICATED_CATEGORIES = ("calibrations", "mods")
     SHARED_CATEGORIES = ("attachments", "deviations", "cradles")
-    BUILD_LAB_CATEGORIES = ("calibrations", "attachments", "deviations", "cradles")
+    BUILD_LAB_CATEGORIES = ("calibrations", "mods", "attachments", "deviations", "cradles")
 
     def test_routes_load_own_contract_and_expected_renderer(self):
         for category, variable in self.CATEGORIES.items():
@@ -53,16 +53,24 @@ class ExtendedRouteWiringTests(unittest.TestCase):
         self.assertIn("mod-code-family-projection-variants-preserved", mods)
         self.assertIn("main_entry_effects", mods)
 
-    def test_build_lab_loads_canonical_contracts_guard_and_bridge_before_legacy_app(self):
+    def test_build_lab_v2_loads_current_contracts_and_shared_workstation_shell(self):
         route = (ROOT / "preview" / "build-lab" / "index.html").read_text(encoding="utf-8")
-        app_index = route.index('src="app.js')
-        guard_index = route.index('src="canonical-category-variant-guard.js')
-        bridge_index = route.index('src="canonical-category-bridge.js')
-        self.assertLess(guard_index, bridge_index)
-        self.assertLess(bridge_index, app_index)
+        self.assertIn('href="/shared/readability.css"', route)
+        self.assertIn('href="/shared/workstation-shell.css"', route)
+        self.assertIn('src="/shared/readability.js"', route)
+        self.assertIn('src="/shared/workstation-shell.js"', route)
+        self.assertIn('src="/database/weapons/weapons-data.js', route)
+        self.assertIn('src="/database/weapons/weapon-public-adapter.js', route)
+        self.assertIn('src="/database/armor/armor-data.js', route)
         for category in self.BUILD_LAB_CATEGORIES:
-            contract_index = route.index(f'src="{category}-data.js')
-            self.assertLess(contract_index, guard_index)
+            self.assertIn(f'src="/database/{category}/{category}-data.js', route)
+        self.assertNotIn('src="app.js', route)
+        self.assertNotIn('data/community-data.js', route)
+        self.assertIn("window.DS_WEAPON_MATH", route)
+        self.assertIn("window.DS_ARMOR_WEB", route)
+        self.assertIn("window.DS_MODS_WEB", route)
+        self.assertIn("family.variants", (ROOT / "preview" / "build-lab" / "canonical-category-variant-guard.js").read_text(encoding="utf-8"))
+        self.assertIn("multiple-source-variants-preserved", route)
 
     def test_variant_guard_blocks_ambiguous_families_and_accepts_attachment_v2(self):
         source = (ROOT / "preview" / "build-lab" / "canonical-category-variant-guard.js").read_text(encoding="utf-8")
@@ -86,7 +94,7 @@ class ExtendedRouteWiringTests(unittest.TestCase):
             self.assertIn(f"database/{category}", manifest)
         self.assertIn("database/extended-catalogue.js", manifest)
         self.assertIn("database/extended-catalogue.css", manifest)
-        for category in self.BUILD_LAB_CATEGORIES:
+        for category in ("calibrations", "attachments", "deviations", "cradles"):
             self.assertIn(
                 f"database/{category}/{category}-data.js $DEPLOYPATH/{category}-data.js",
                 manifest,
