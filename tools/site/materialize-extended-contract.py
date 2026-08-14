@@ -44,6 +44,7 @@ CALIBRATION_RANGES = {
     "Epic": (26.0, 33.0),
     "Legendary": (34.0, 50.0),
 }
+CALIBRATION_VARIANT_STATUS = "current-system-selected-from-shared-buff-identity-and-proven-main-plus-secondary-rolls"
 
 
 def resolve_source(path: Path, filename: str) -> Path:
@@ -104,7 +105,7 @@ def _validate_calibrations(payload: dict[str, Any], records: list[dict[str, Any]
         canonical_id = _text(family.get("canonical_id"))
         if family.get("variant_count") != 1:
             raise ValueError(f"Calibration family {canonical_id} variant_count must be 1")
-        if family.get("variant_status") != "current-system-selected-from-proven-main-roll-and-secondary-pool":
+        if family.get("variant_status") != CALIBRATION_VARIANT_STATUS:
             raise ValueError(f"Calibration family {canonical_id} lacks proven current-system variant status")
         variants = family.get("variants")
         if not isinstance(variants, list) or len(variants) != 1 or not isinstance(variants[0], dict):
