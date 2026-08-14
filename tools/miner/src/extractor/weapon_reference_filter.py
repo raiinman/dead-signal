@@ -16,9 +16,10 @@ from typing import Any
 
 STRICT_MECHANIC_FIELD = re.compile(
     r"(?:"
-    r"(?:^|_)(?:buff|skill|status|keyword)(?:_?(?:id|ids|no|code|ref))?(?:$|_)"
+    r"^(?:buff|skill|status|keyword|logic|behavior|ability|passive)$"
+    r"|(?:^|_)(?:buff|skill|status|keyword)_?(?:id|ids|no|code|ref)(?:$|_)"
     r"|(?:^|_)(?:logic(?:_tree)?|behavior|ability|passive(?:_skill)?)"
-    r"(?:_?(?:id|ids|no|code|ref|name|data))?(?:$|_)"
+    r"_?(?:id|ids|no|code|ref|name|data)(?:$|_)"
     r"|(?:^|_)(?:effect|trigger)_?(?:id|ids|no|code|ref)(?:$|_)"
     r")",
     re.IGNORECASE,
