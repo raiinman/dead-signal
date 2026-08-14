@@ -28,6 +28,10 @@ class SnapshotInspectionTests(unittest.TestCase):
             load_contract=lambda _path: {"schema": "dead-signal-weapons"},
             audit=lambda _payload: {"schema": "weapons-audit", "counts": {"weapons": 120}},
         )
+        weapon_evidence = types.SimpleNamespace(
+            load_contract=lambda _path: {"schema": "dead-signal-weapons"},
+            audit=lambda _payload: {"schema": "weapon-evidence-audit", "status": "pass"},
+        )
         armor = types.SimpleNamespace(
             resolve_source=lambda root: root / "web" / "armor.json",
             load_contract=lambda _path: {"schema": "dead-signal-armor"},
@@ -45,7 +49,13 @@ class SnapshotInspectionTests(unittest.TestCase):
             return ({}, {"status": "validated", "published_root": str(root), "contracts": {}}, ())
 
         materializer = types.SimpleNamespace(validate_snapshot=validate_snapshot)
-        return {"weapons": weapons, "armor": armor, "extended": extended, "materializer": materializer}
+        return {
+            "weapons": weapons,
+            "weapon_evidence": weapon_evidence,
+            "armor": armor,
+            "extended": extended,
+            "materializer": materializer,
+        }
 
     def test_valid_snapshot_receipt_allows_next_step_and_keeps_audits(self):
         temporary, published = self._published()
@@ -56,6 +66,7 @@ class SnapshotInspectionTests(unittest.TestCase):
         self.assertEqual("PASS", report["strict_validation"]["status"])
         self.assertTrue(report["decision"]["may_materialize"])
         self.assertEqual("OK", report["audits"]["weapons"]["status"])
+        self.assertEqual("OK", report["audits"]["weapon_evidence"]["status"])
         self.assertEqual("OK", report["audits"]["armor"]["status"])
         self.assertEqual("OK", report["audits"]["extended"]["status"])
         self.assertEqual([], report["decision"]["audit_sections_with_errors"])
@@ -70,6 +81,7 @@ class SnapshotInspectionTests(unittest.TestCase):
         self.assertFalse(report["decision"]["may_materialize"])
         self.assertIn("bad attachments", report["strict_validation"]["error"])
         self.assertEqual("OK", report["audits"]["weapons"]["status"])
+        self.assertEqual("OK", report["audits"]["weapon_evidence"]["status"])
         self.assertEqual("OK", report["audits"]["armor"]["status"])
         self.assertEqual("OK", report["audits"]["extended"]["status"])
 
