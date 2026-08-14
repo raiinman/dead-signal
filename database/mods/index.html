@@ -11,7 +11,7 @@
 <script src="../../shared/workstation-shell.js" defer></script>
 <script src="mods-data.js?v=20260813b"></script>
 <style>
-.mod-variant{margin-top:12px;padding:12px;border:1px solid #303941;background:#0a0e11}.mod-variant-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.mod-variant-head h3{margin:0;font-size:1rem}.mod-badges{display:flex;flex-wrap:wrap;gap:6px}.mod-badge{padding:3px 7px;border:1px solid #354149;border-radius:999px;color:#9eabb2;font-size:.68rem}.mod-badge.shiny{border-color:#51656a;color:#9ee9ec}.mod-code-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px}.mod-code-grid div{padding:8px;border:1px solid #242c31;background:#080b0d}.mod-code-grid span{display:block;color:#738089;font-size:.64rem;text-transform:uppercase;letter-spacing:.08em}.mod-code-grid b{display:block;margin-top:3px;color:#dfe5e8;font-size:.8rem;overflow-wrap:anywhere}.mod-effect-list{margin-top:10px}.mod-effect-list summary{cursor:pointer;color:#86d9dd;font-weight:800}.mod-effect-row{margin-top:8px;padding:9px;border-left:2px solid #36434a;background:#0b1013}.mod-effect-row strong{display:block;color:#edf1f3}.mod-effect-row p{margin:4px 0 0;color:#9eabb2}.mod-effect-row small{display:block;margin-top:5px;color:#6f7d84}.mod-warning{margin-top:10px;padding:9px;border-left:2px solid #86533b;background:#130f0d;color:#b8a89d}@media(max-width:760px){.mod-code-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:440px){.mod-code-grid{grid-template-columns:1fr}.mod-variant-head{display:block}.mod-badges{margin-top:7px}}
+.mod-variant{margin-top:12px;padding:12px;border:1px solid #303941;background:#0a0e11}.mod-variant-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.mod-variant-head h3{margin:0;font-size:1rem}.mod-badges{display:flex;flex-wrap:wrap;gap:6px}.mod-badge{padding:3px 7px;border:1px solid #354149;border-radius:999px;color:#9eabb2;font-size:.68rem}.mod-badge.shiny{border-color:#51656a;color:#9ee9ec}.mod-code-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px}.mod-code-grid div{padding:8px;border:1px solid #242c31;background:#080b0d}.mod-code-grid span{display:block;color:#738089;font-size:.64rem;text-transform:uppercase;letter-spacing:.08em}.mod-code-grid b{display:block;margin-top:3px;color:#dfe5e8;font-size:.8rem;overflow-wrap:anywhere}.mod-effect-list,.mod-frame-list{margin-top:10px}.mod-effect-list summary,.mod-frame-list summary{cursor:pointer;color:#86d9dd;font-weight:800}.mod-effect-row,.mod-frame-row{margin-top:8px;padding:9px;border-left:2px solid #36434a;background:#0b1013}.mod-effect-row strong,.mod-frame-row strong{display:block;color:#edf1f3}.mod-effect-row p,.mod-frame-row p{margin:4px 0 0;color:#9eabb2}.mod-effect-row small,.mod-frame-row small{display:block;margin-top:5px;color:#6f7d84}.mod-frame-note{margin:8px 0 0;color:#8d9ba2;font-size:.75rem;line-height:1.5}.mod-warning{margin-top:10px;padding:9px;border-left:2px solid #86533b;background:#130f0d;color:#b8a89d}@media(max-width:760px){.mod-code-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:440px){.mod-code-grid{grid-template-columns:1fr}.mod-variant-head{display:block}.mod-badges{margin-top:7px}}
 </style>
 </head>
 <body data-category="mods">
@@ -28,6 +28,7 @@
   'use strict';
   const data = window.DS_MODS_WEB;
   const EXPECTED_STATUS = 'mod-code-family-projection-variants-preserved';
+  const PROVEN_FRAME_STATUS = 'proven-frame-and-sub-entry-family-identities';
   const grid = document.getElementById('dbGrid');
   const unavailable = document.getElementById('dbUnavailable');
   const status = document.getElementById('dbStatus');
@@ -75,8 +76,14 @@
     return `${text(effect.name)} ${text(effect.description)} ${list(effect.attribute_codes).join(' ')} ${list(effect.attribute_values).join(' ')} ${effect.buff_id ?? ''}`.trim();
   }
 
+  function frameText(variant) {
+    const evidence = variant.frame_sub_entry_evidence;
+    if (!evidence || typeof evidence !== 'object') return '';
+    return `${evidence.frame_code ?? ''} ${list(evidence.sub_entry_ids).join(' ')} ${list(evidence.sub_entry_families).map((family) => `${family.entry_id ?? ''} ${text(family.source_kind)} ${list(family.attribute_codes).join(' ')} ${list(family.buff_ids).join(' ')}`).join(' ')}`;
+  }
+
   function searchable(family) {
-    return `${familyName(family)} ${family.family_key ?? ''} ${list(family.name_variants).join(' ')} ${list(family.variants).map((variant) => `${text(variant.name)} ${text(variant.description)} ${text(variant.rarity)} ${variant.mod_code ?? ''} ${variant.main_entry_code ?? ''} ${variant.apply_range_code ?? ''} ${variant.genre_library_code ?? ''} ${variant.frame_code ?? ''} ${list(variant.main_entry_effects).map(effectText).join(' ')}`).join(' ')}`.toLowerCase();
+    return `${familyName(family)} ${family.family_key ?? ''} ${list(family.name_variants).join(' ')} ${list(family.variants).map((variant) => `${text(variant.name)} ${text(variant.description)} ${text(variant.rarity)} ${variant.mod_code ?? ''} ${variant.main_entry_code ?? ''} ${variant.apply_range_code ?? ''} ${variant.genre_library_code ?? ''} ${variant.frame_code ?? ''} ${list(variant.main_entry_effects).map(effectText).join(' ')} ${frameText(variant)}`).join(' ')}`.toLowerCase();
   }
 
   function codeCell(parent, label, value) {
@@ -108,6 +115,34 @@
     return details;
   }
 
+  function frameDetails(variant) {
+    const evidence = variant.frame_sub_entry_evidence;
+    if (!evidence || typeof evidence !== 'object') return null;
+    const families = list(evidence.sub_entry_families).filter((row) => row && typeof row === 'object');
+    const details = document.createElement('details');
+    details.className = 'mod-frame-list';
+    const summary = document.createElement('summary');
+    summary.textContent = evidence.status === PROVEN_FRAME_STATUS
+      ? `Proven frame sub-entry identities · ${families.length}`
+      : `Frame sub-entry evidence · ${text(evidence.status) || 'unresolved'}`;
+    details.append(summary);
+    families.forEach((family, index) => {
+      const row = document.createElement('div');
+      row.className = 'mod-frame-row';
+      add(row, 'strong', `Source position ${index + 1} · Entry ${family.entry_id ?? '—'}`);
+      const identity = family.source_kind === 'attribute'
+        ? `Attribute ${list(family.attribute_codes).join(', ') || 'unresolved'}`
+        : family.source_kind === 'buff'
+          ? `Buff ${list(family.buff_ids).join(', ') || 'unresolved'}`
+          : `Identity ${text(family.identity_status) || 'unresolved'}`;
+      add(row, 'p', identity);
+      add(row, 'small', `Regular levels ${list(family.regular_levels).join(', ') || 'unresolved'} · available ${list(family.available_levels).join(', ') || 'unresolved'}`);
+      details.append(row);
+    });
+    add(details, 'p', text(evidence.order_semantics) || 'Source order is preserved; positional level mapping is unresolved.', 'mod-frame-note');
+    return details;
+  }
+
   function variantCard(variant) {
     const section = document.createElement('section');
     section.className = 'mod-variant';
@@ -120,6 +155,8 @@
     badges.className = 'mod-badges';
     if (text(variant.rarity)) add(badges, 'span', text(variant.rarity), 'mod-badge');
     if (variant.is_shiny) add(badges, 'span', 'Shiny', 'mod-badge shiny');
+    const frameEvidence = variant.frame_sub_entry_evidence;
+    if (frameEvidence?.status === PROVEN_FRAME_STATUS) add(badges, 'span', 'Frame identities proven', 'mod-badge');
     head.append(title, badges);
     section.append(head);
 
@@ -134,6 +171,8 @@
     if (variant.shiny_buff_id) codeCell(codes, 'Shiny buff', variant.shiny_buff_id);
     if (variant.shiny_replacement_mod_code) codeCell(codes, 'Shiny replacement', variant.shiny_replacement_mod_code);
     section.append(codes, effectDetails(variant));
+    const frame = frameDetails(variant);
+    if (frame) section.append(frame);
     return section;
   }
 
@@ -167,7 +206,8 @@
       && (!rarityFilter.value || rarities(family).includes(rarityFilter.value)));
     grid.replaceChildren(...visible.map(familyCard));
     const ambiguous = families.filter((family) => family.variants.length !== 1).length;
-    status.textContent = `${visible.length} of ${families.length} Mod families shown · ${ambiguous} families preserve multiple source variants · ${data.publication_status}.`;
+    const frameStatus = text(data.mod_frame_evidence_status);
+    status.textContent = `${visible.length} of ${families.length} Mod families shown · ${ambiguous} families preserve multiple source variants${frameStatus ? ` · ${frameStatus}` : ''} · ${data.publication_status}.`;
   }
 
   search.addEventListener('input', render);
