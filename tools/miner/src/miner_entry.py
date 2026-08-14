@@ -91,8 +91,6 @@ def self_test_with_extended_publisher():
         miner_core.EXTRACTOR_ROOT / "project_mod_frame_evidence.py",
         miner_core.EXTRACTOR_ROOT / "weapon_evidence_enrichment.py",
         miner_core.EXTRACTOR_ROOT / "project_weapon_evidence.py",
-        miner_core.ROOT / "research_console.py",
-        miner_core.ROOT / "research_window.py",
     )
     for resource in resources:
         checks.setdefault("resources", {})[str(resource)] = resource.is_file()

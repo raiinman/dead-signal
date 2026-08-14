@@ -55,6 +55,11 @@ class ResearchWindow:
         style.configure("Research.TNotebook", background=BG, borderwidth=0)
         style.configure("Research.TNotebook.Tab", background=PANEL, foreground=TEXT, padding=(12, 7))
         style.map("Research.TNotebook.Tab", background=[("selected", RED)], foreground=[("selected", "white")])
+        style.configure("Research.Treeview", background=BG, fieldbackground=BG, foreground=TEXT,
+                        bordercolor=BORDER, rowheight=25)
+        style.configure("Research.Treeview.Heading", background="#d8d6d1", foreground="#15181b",
+                        font=("Segoe UI", 9, "bold"))
+        style.map("Research.Treeview", background=[("selected", RED)], foreground=[("selected", "white")])
         notebook = ttk.Notebook(self.window, style="Research.TNotebook")
         notebook.pack(fill="both", expand=True, padx=20, pady=(0, 20))
         self._build_search(notebook)
@@ -92,7 +97,7 @@ class ResearchWindow:
                            activebackground=PANEL, activeforeground=TEXT, selectcolor=BG).pack(side="left", padx=(0, 12))
         tk.Label(filters, text="Related mode never establishes identity.", bg=PANEL, fg=MUTED).pack(side="right")
         columns = ("mode", "category", "source", "field", "value")
-        self.results = ttk.Treeview(frame, columns=columns, show="headings")
+        self.results = ttk.Treeview(frame, columns=columns, show="headings", style="Research.Treeview")
         for name, width in (("mode", 90), ("category", 110), ("source", 260), ("field", 150), ("value", 420)):
             self.results.heading(name, text=name.upper())
             self.results.column(name, width=width, stretch=True)
@@ -233,4 +238,3 @@ class ResearchWindow:
 
 def open_research_console(parent: tk.Misc, output: Path) -> ResearchWindow:
     return ResearchWindow(parent, output)
-

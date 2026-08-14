@@ -10,6 +10,7 @@ class PackagingEntrypointTests(unittest.TestCase):
         self.assertNotIn("$MainArguments += (Join-Path $Source 'dead_signal_miner.py')", build_script)
         self.assertIn("publish_extended_web_data", build_script)
         self.assertIn("publish_current_calibrations", build_script)
+        self.assertIn("'research_console', 'research_window'", build_script)
 
     def test_canonical_entrypoint_installs_both_publishers(self) -> None:
         miner_root = Path(__file__).resolve().parents[1]
