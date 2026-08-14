@@ -11,21 +11,25 @@ const adapterSource = fs.readFileSync(
   'utf8',
 );
 
-function makeWeapon() {
+function makeWeapon(rarity = 'Legendary', starCount = 6) {
   const tiers = [1, 2, 3, 4, 5];
-  const ratios = [1, 1.05, 1.1, 1.15, 1.2, 1.25];
+  const ratios = Array.from({ length: starCount }, (_, index) => 1 + (index * 0.05));
   return {
     canonical_id: 'ds-w-test',
     blueprint_id: 100,
     item_id: 200,
     name: 'Test Weapon',
     category: 'Sniper Rifle',
-    rarity: 'Legendary',
+    rarity,
     baseline: { ranged: { rpm: 100 } },
     progression: {
       formula_status: 'proven-static-base-attack',
       validation_issues: [],
       gear_tiers: tiers.map((tier) => ({ tier })),
+      blueprint_stars: {
+        semantic_status: 'validated-source-axis',
+        stars: ratios.map((_ratio, index) => ({ blueprint_stars: index + 1 })),
+      },
       tier_star_matrix: tiers.map((gearTier) => {
         const tierBase = 100 * gearTier;
         return {
@@ -57,11 +61,18 @@ function runWith(weapon) {
 }
 
 assert.ok(runWith(makeWeapon()), 'valid proven progression should be promoted');
+assert.ok(runWith(makeWeapon('Rare', 3)), 'a mined contiguous star axis below the rarity cap should be promoted');
 
 {
   const weapon = makeWeapon();
   weapon.progression.tier_star_matrix[0].blueprint_star_values.pop();
-  assert.strictEqual(runWith(weapon), undefined, 'missing legal Blueprint Star must fail closed');
+  assert.strictEqual(runWith(weapon), undefined, 'matrix must exactly match the mined Blueprint Star axis');
+}
+
+{
+  const weapon = makeWeapon('Rare', 3);
+  weapon.progression.blueprint_stars.stars.push({ blueprint_stars: 5 });
+  assert.strictEqual(runWith(weapon), undefined, 'mined Blueprint Star axis exceeding rarity cap must fail closed');
 }
 
 {
