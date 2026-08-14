@@ -57,7 +57,7 @@
     });
 
     document.querySelectorAll('.weapon-card dl dt').forEach((label) => {
-      if (label.textContent.trim() === 'Base Attack') label.textContent = 'Tier V · 1★ Base Attack';
+      if (label.textContent.trim() === 'Base Attack') label.textContent = 'Tier I · 1★ DMG';
     });
   }
 

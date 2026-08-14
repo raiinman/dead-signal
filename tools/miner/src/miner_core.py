@@ -66,6 +66,7 @@ for import_root in (VENDOR_ROOT, EXTRACTOR_ROOT, NEOXTRACTOR_ROOT):
 # exports every script table in both layers.
 SITE_TABLES = (
     "buff_level_data",
+    "bullet_pattern_data",
     "bullet_scatter_data",
     "char_property_data",
     "equip_blueprint_attr_data",
@@ -984,6 +985,9 @@ def normalize_site_data(base: Path, current: Path, published: Path, log: LogCall
         ["--base", base, "--current", current, "--output", armor_output],
         log,
     )
+    log("Completing canonical Armor Tier I-V series from exact equipment identities...")
+    from armor_tier_completion import complete_file  # pylint: disable=import-outside-toplevel
+    complete_file(base, current, armor_output, log)
     log("Building the weapon database...")
     run_module_main(
         "normalize_weapons",

@@ -18,15 +18,18 @@ class GunProfileTests(unittest.TestCase):
             weapons = root / "weapons.json"
             weapons.write_text(json.dumps({"weapons": [{"item_id": 10, "blueprint_id": 20, "name": "Test", "category": "Pistol"}]}), encoding="utf-8")
             self.write_table(base, "game_common/data/item_to_gun_mapping_data.json", {"10": {"gun_no": 30}})
-            self.write_table(base, "game_common/data/gun_base_params_data.json", {"30": {"weapon_rpm": 600, "bullet_scatter_no": 40}})
+            self.write_table(base, "game_common/data/gun_base_params_data.json", {"30": {"weapon_rpm": 600, "bullet_scatter_no": 40, "bullet_pattern_no": "Pat30"}})
             self.write_table(base, "game_common/data/gun_stability_data.json", {"30": {"weapon_stability": 50}})
             self.write_table(base, "game_common/data/bullet_scatter_data.json", {"40": {"weapon_accuracy_affix_value": 60}})
+            self.write_table(base, "client_data/bullet_pattern_data.json", {"Pat30": {"bullet_num": 5}})
             self.write_table(base, "game_common/data/gun_accessory_slot_params_data.json", {"(30, 8)": {"gun_no": 30, "slot_type": 8}})
             result = build_profiles(base, current, weapons)
             profile = result["profiles"][0]
             self.assertEqual(profile["gun_no"], 30)
             self.assertEqual(profile["gun_base_parameters"]["weapon_rpm"], 600)
             self.assertEqual(profile["scatter_parameters"]["weapon_accuracy_affix_value"], 60)
+            self.assertEqual(profile["bullet_pattern"]["bullet_num"], 5)
+            self.assertEqual(profile["linked_ids"]["bullet_pattern_no"], "Pat30")
             self.assertEqual(len(profile["accessory_slots"]), 1)
             self.assertEqual(result["record_counts"]["resolved_gun_profiles"], 1)
 

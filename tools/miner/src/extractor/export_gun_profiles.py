@@ -38,6 +38,7 @@ def build_profiles(base: Path, current: Path, weapons_path: Path) -> dict:
     gun_base = merged(base, current, f"{GAME_DATA}/gun_base_params_data.json")
     stability = merged(base, current, f"{GAME_DATA}/gun_stability_data.json")
     scatter = merged(base, current, f"{GAME_DATA}/bullet_scatter_data.json")
+    bullet_patterns = merged(base, current, "client_data/bullet_pattern_data.json")
     slots = merged(base, current, f"{GAME_DATA}/gun_accessory_slot_params_data.json")
     range_templates = merged(base, current, f"{GAME_DATA}/gun_range_formula_template_data.json")
     reload_templates = merged(base, current, f"{GAME_DATA}/gun_reload_formula_template_data.json")
@@ -51,6 +52,7 @@ def build_profiles(base: Path, current: Path, weapons_path: Path) -> dict:
         base_row = gun_base.get(str(gun_no), {})
         stability_row = stability.get(str(gun_no), {}) or stability.get(str(base_row.get("viewkick_no") or ""), {})
         scatter_no = str(base_row.get("bullet_scatter_no") or "")
+        bullet_pattern_no = str(base_row.get("bullet_pattern_no") or "")
         slot_rows = [
             {"record_id": key, **row}
             for key, row in slots.items() if as_int(row.get("gun_no")) == gun_no
@@ -71,6 +73,7 @@ def build_profiles(base: Path, current: Path, weapons_path: Path) -> dict:
             "gun_base_parameters": base_row,
             "stability_parameters": stability_row,
             "scatter_parameters": scatter.get(scatter_no, {}),
+            "bullet_pattern": bullet_patterns.get(bullet_pattern_no, {}),
             "accessory_slots": sorted(slot_rows, key=lambda row: as_int(row.get("slot_type"))),
             "range_formula_template": range_templates.get(range_no, {}),
             "reload_formula_template": reload_templates.get(reload_no, {}),
@@ -78,6 +81,7 @@ def build_profiles(base: Path, current: Path, weapons_path: Path) -> dict:
                 "bullet_no": base_row.get("bullet_no"),
                 "bullet_base_no": base_row.get("bullet_base_no"),
                 "bullet_scatter_no": base_row.get("bullet_scatter_no"),
+                "bullet_pattern_no": base_row.get("bullet_pattern_no"),
                 "gun_skill_no": base_row.get("gun_skill_no"),
                 "viewkick_no": base_row.get("viewkick_no"),
                 "range_template_no": base_row.get("weapon_range_template_no"),
@@ -88,6 +92,7 @@ def build_profiles(base: Path, current: Path, weapons_path: Path) -> dict:
                 "base": {"table": f"{GAME_DATA}/gun_base_params_data.json", "record_id": str(gun_no)},
                 "stability": {"table": f"{GAME_DATA}/gun_stability_data.json", "record_id": str(gun_no)},
                 "scatter": {"table": f"{GAME_DATA}/bullet_scatter_data.json", "record_id": scatter_no},
+                "bullet_pattern": {"table": "client_data/bullet_pattern_data.json", "record_id": bullet_pattern_no},
                 "slots": {"table": f"{GAME_DATA}/gun_accessory_slot_params_data.json", "gun_no": gun_no},
             },
         })

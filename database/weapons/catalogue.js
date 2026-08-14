@@ -3,7 +3,7 @@
 
   const mathData = window.DS_WEAPON_MATH || {};
   const normalizeName = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-  const defaultTier = (math) => math?.tier_star_matrix?.at(-1) || null;
+  const defaultTier = (math) => math?.tier_star_matrix?.[0] || null;
   const defaultCell = (math) => defaultTier(math)?.blueprint_star_values?.[0] || null;
   const rarityRank = { Common: 1, Rare: 2, Epic: 3, Legendary: 4 };
   const romanTier = (tier) => ['I', 'II', 'III', 'IV', 'V'][Number(tier) - 1] || String(tier || '—');
@@ -11,6 +11,10 @@
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
   const finite = (value) => value !== null && value !== undefined && value !== '' && typeof value !== 'boolean' && Number.isFinite(Number(value));
   const number = (value, fallback = '—') => finite(value) ? Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 }) : fallback;
+  const damage = (value, projectileCount) => {
+    const scalar = number(value);
+    return finite(value) && finite(projectileCount) && Number(projectileCount) > 1 ? `${scalar}×${number(projectileCount)}` : scalar;
+  };
   const percentage = (value, fallback = '—') => {
     if (!finite(value)) return fallback;
     const numeric = Number(value);
@@ -18,6 +22,21 @@
     return `${scaled.toLocaleString(undefined, { maximumFractionDigits: 2 })}%`;
   };
   const rarityClass = (item) => `rarity-${String(item.rarity || 'unknown').toLowerCase()}`;
+
+  const acquisitionEvidence = (math) => {
+    const contract = math?.public_contract || {};
+    const tiers = contract.progression?.gear_tiers || [];
+    const recipeCount = tiers.filter((tier) => tier?.recipe).length;
+    const gainPath = String(contract.acquisition?.gain_path || math?.item_gain_path || '').trim();
+    const blueprintSource = String(contract.acquisition?.hint || math?.acquisition_hint || '').trim();
+    if (tiers.length && recipeCount === tiers.length) {
+      return { status: 'craftable', label: 'Recipes proven', detail: `${recipeCount}/${tiers.length} Gear Tier recipes found`, gainPath, blueprintSource };
+    }
+    if (/stronghold exploration/i.test(gainPath)) {
+      return { status: 'direct', label: 'Direct acquisition', detail: gainPath, gainPath, blueprintSource };
+    }
+    return { status: 'unresolved', label: 'Acquisition unresolved', detail: recipeCount ? `${recipeCount}/${tiers.length} Gear Tier recipes found` : 'No exact forge recipe found', gainPath, blueprintSource };
+  };
 
   const attributeRow = (cell, patterns) => {
     const rows = cell?.base_attributes || [];
@@ -37,6 +56,7 @@
     const ranged = math.static_inputs?.ranged_stats || {};
     const melee = math.static_inputs?.melee_stats || {};
     const cell = defaultCell(math);
+    const acquisition = acquisitionEvidence(math);
     return {
       id: math.canonical_id,
       plannerId: math.canonical_id,
@@ -47,7 +67,8 @@
       rarity: math.rarity,
       feature: math.static_inputs?.weapon_effect?.description || '',
       mechanicName: math.static_inputs?.weapon_effect?.name || '',
-      acquisition: math.acquisition_hint || math.item_gain_path || '',
+      acquisition: acquisition.blueprintSource || acquisition.gainPath || '',
+      acquisitionEvidence: acquisition,
       imageAsset: math.image_asset || '',
       damageProfile: {
         fullDamageDistance: ranged.full_damage_distance,
@@ -57,6 +78,7 @@
       ammoItemId: ranged.ammo_item_id,
       stats: {
         damage: cell?.base_attack,
+        projectileCount: ranged.projectile_count,
         rpm: ranged.rpm,
         magazine: ranged.magazine,
         reload: ranged.reload_seconds,
@@ -99,7 +121,8 @@
     return `<article class="weapon-card ${rarityClass(item)}" data-name="${esc(item.name)}">
       <a class="weapon-art" href="${detailUrl(item)}" aria-label="View ${esc(item.name)} details">${image ? `<img src="${esc(image)}" alt="${esc(item.name)}" loading="lazy" decoding="async">` : '<span>IMAGE PENDING</span>'}<i>${esc(item.rarity || 'Unverified')}</i></a>
       <div class="weapon-card-body"><p class="weapon-type">${esc(item.type || 'Type unverified')}</p><h2><a href="${detailUrl(item)}">${esc(item.name)}</a></h2>
-      <dl><div><dt>Base Attack</dt><dd>${number(stats.damage)}</dd></div><div><dt>Fire Rate</dt><dd>${number(stats.rpm)}</dd></div><div><dt>Magazine</dt><dd>${number(stats.magazine)}</dd></div></dl>
+      <dl><div><dt>Tier I · 1★ DMG</dt><dd>${damage(stats.damage, stats.projectileCount)}</dd></div><div><dt>Fire Rate</dt><dd>${number(stats.rpm)}</dd></div><div><dt>Acquisition</dt><dd>${esc(item.acquisitionEvidence.label)}</dd></div></dl>
+      <p class="acquisition-preview ${esc(item.acquisitionEvidence.status)}"><b>${esc(item.acquisitionEvidence.label)}</b><span>${esc(item.acquisitionEvidence.detail)}</span></p>
       <p class="effect-preview">${esc(effect(item) || 'Weapon mechanic unresolved or absent in the current Miner projection.')}</p>
       <p class="source-line">Source: ${esc(source)}</p>
       <div class="card-actions"><a href="${detailUrl(item)}">Inspect</a><button type="button" data-compare-id="${esc(item.id)}">Compare</button><a class="configure" href="${plannerUrl(item)}">Add to Build</a></div></div>
@@ -119,6 +142,7 @@
     const search = document.getElementById('weaponSearch');
     const type = document.getElementById('typeFilter');
     const rarity = document.getElementById('rarityFilter');
+    const acquisition = document.getElementById('acquisitionFilter');
     const sort = document.getElementById('weaponSort');
     const status = document.getElementById('resultStatus');
     const selected = new Set();
@@ -132,7 +156,9 @@
       const query = search.value.trim().toLowerCase();
       let items = weapons.filter((item) => (
         !query || `${item.name} ${item.type} ${item.rarity} ${effect(item)}`.toLowerCase().includes(query)
-      ) && (!type.value || item.type === type.value) && (!rarity.value || item.rarity === rarity.value));
+      ) && (!type.value || item.type === type.value)
+        && (!rarity.value || item.rarity === rarity.value)
+        && (!acquisition.value || item.acquisitionEvidence.status === acquisition.value));
       const [key, direction] = sort.value.split('-');
       items.sort((a, b) => {
         if (key === 'name') return a.name.localeCompare(b.name);
@@ -143,11 +169,12 @@
       status.textContent = `${items.length} of ${weapons.length} weapons shown${selected.size ? ` · ${selected.size}/2 selected to compare` : ''}.`;
     }
 
-    [search, type, rarity, sort].forEach((control) => control.addEventListener(control === search ? 'input' : 'change', render));
+    [search, type, rarity, acquisition, sort].forEach((control) => control.addEventListener(control === search ? 'input' : 'change', render));
     document.getElementById('clearFilters').addEventListener('click', () => {
       search.value = '';
       type.value = '';
       rarity.value = '';
+      acquisition.value = '';
       sort.value = 'name';
       render();
       search.focus();
@@ -225,13 +252,12 @@
     }
 
     const initial = items.map((item) => {
-      const tier = item.math?.tier_star_matrix?.at(-1);
+      const tier = item.math?.tier_star_matrix?.[0];
       return { tier: String(tier?.gear_tier || ''), stars: String(tier?.blueprint_star_values?.[0]?.blueprint_stars || '') };
     });
     const rows = [
-      { key: 'damage', label: 'Base Attack' },
+      { key: 'damage', label: 'DMG', format: 'damage' },
       { key: 'rpm', label: 'Fire Rate' },
-      { key: 'magazine', label: 'Magazine' },
       { key: 'reload', label: 'Reload', format: 'seconds' },
       { key: 'critRate', label: 'Crit Rate' },
       { key: 'critDamage', label: 'Crit DMG' },
@@ -249,7 +275,7 @@
       <p class="compare-note">Gear Tier and Blueprint Stars are applied to proven Base Attack and star attributes. Calibration, attachments, conditional effects, enemy defenses, and derived DPS are not applied.</p>
       <div class="math-config">${items.map((item, index) => {
         const tiers = item.math?.tier_star_matrix || [];
-        const selectedTier = tiers.find((row) => String(row.gear_tier) === initial[index].tier) || tiers.at(-1);
+        const selectedTier = tiers.find((row) => String(row.gear_tier) === initial[index].tier) || tiers[0];
         return `<label><span>${esc(item.name)} · Gear Tier</span><select data-compare-tier="${index}">${tiers.map((tier) => `<option value="${tier.gear_tier}"${String(tier.gear_tier) === initial[index].tier ? ' selected' : ''}>Tier ${romanTier(tier.gear_tier)}</option>`).join('')}</select></label><label><span>${esc(item.name)} · Blueprint Stars</span><select data-compare-stars="${index}">${(selectedTier?.blueprint_star_values || []).map((cell) => `<option value="${cell.blueprint_stars}"${String(cell.blueprint_stars) === initial[index].stars ? ' selected' : ''}>${cell.blueprint_stars}★</option>`).join('')}</select></label>`;
       }).join('')}</div>
       <div id="compareTable" class="compare-table"></div>`;
@@ -282,7 +308,9 @@
       }).filter(({ left, right }) => left !== '—' || right !== '—');
       dialog.querySelector('#compareTable').innerHTML = `<div class="compare-row headings"><b>${esc(items[0].name)}</b><span>STAT</span><b>${esc(items[1].name)}</b></div>${visibleRows.map(({ row, left, right }) => {
         const delta = deltaText(left, right);
-        return `<div class="compare-row"><b>${esc(displayCompareValue(row, left))}</b><span>${esc(row.label)}${delta ? `<small style="display:block;margin-top:.2rem">${esc(delta)}</small>` : ''}</span><b>${esc(displayCompareValue(row, right))}</b></div>`;
+        const leftDisplay = row.format === 'damage' ? damage(left, items[0].stats.projectileCount) : displayCompareValue(row, left);
+        const rightDisplay = row.format === 'damage' ? damage(right, items[1].stats.projectileCount) : displayCompareValue(row, right);
+        return `<div class="compare-row"><b>${esc(leftDisplay)}</b><span>${esc(row.label)}${delta ? `<small style="display:block;margin-top:.2rem">${esc(delta)}</small>` : ''}</span><b>${esc(rightDisplay)}</b></div>`;
       }).join('')}`;
     }
 
@@ -335,9 +363,8 @@
     shell.innerHTML = `<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="../../../">Database</a><span>/</span><a href="../">Weapons</a><span>/</span><b>${esc(item.name)}</b></nav>
       <section class="detail-hero ${rarityClass(item)}"><div class="detail-art">${image ? `<img src="${esc(image)}" alt="${esc(item.name)}">` : '<span>IMAGE PENDING</span>'}</div><div><p class="eyebrow"><span></span> ${esc(item.type)} // ${esc(item.rarity)}</p><h1>${esc(item.name)}</h1><p>${esc(item.acquisition || 'Acquisition information is not resolved in the current website projection.')}</p><div class="detail-actions"><a class="configure" id="plannerLink" href="${plannerUrl(item)}">Configure in Build Planner</a><a href="../">Compare with another weapon</a></div></div></section>
       <section class="detail-grid"><article><p class="section-code">01 // Combat</p><h2>Core combat stats</h2><dl class="detail-stats">${statBlock([
-        ['Tier V · 1★ Base Attack', 'number', stats.damage],
+        ['Tier I · 1★ DMG', 'text', damage(stats.damage, stats.projectileCount)],
         ['Fire Rate', 'number', stats.rpm],
-        ['Magazine', 'number', stats.magazine],
         ['Reload', 'seconds', stats.reload],
       ]) || '<div><dt>Combat data</dt><dd>—</dd></div>'}</dl></article>
       <article><p class="section-code">02 // Handling</p><h2>Weapon handling</h2><dl class="detail-stats">${statBlock([
@@ -348,7 +375,7 @@
       ]) || '<div><dt>Handling data</dt><dd>—</dd></div>'}</dl></article>
       <article><p class="section-code">03 // Damage profile</p><h2>${ranged ? 'Distance behavior' : 'Melee profile'}</h2><dl class="detail-stats">${damageProfileRows || '<div><dt>Profile data</dt><dd>—</dd></div>'}</dl></article>
       <article><p class="section-code">04 // Weapon mechanic</p><h2>${esc(item.mechanicName || 'Indexed effect')}</h2><p class="full-effect">${esc(effect(item) || 'No player-facing weapon mechanic is resolved for this record in the current Miner projection. Dead Signal does not substitute flavor text or guessed mechanics.')}</p></article></section>
-      <section class="progression-panel"><p class="section-code">05 // Proven static math</p><h2>Gear Tier and Blueprint Stars</h2><p>Choose a legal configuration. Base Attack is calculated from installed-game Tier and Blueprint Star data; it is not configured DPS.</p>${tiers.length ? `<div class="math-config"><label><span>Gear Tier</span><select id="gearTier">${tiers.map((tier) => `<option value="${tier.gear_tier}"${tier === tiers.at(-1) ? ' selected' : ''}>Tier ${romanTier(tier.gear_tier)}</option>`).join('')}</select></label><label><span>Blueprint Stars</span><select id="blueprintStars"></select></label><div class="math-result"><span>Verified Base Attack</span><strong id="calculatedAttack">—</strong><small id="calculationTrace"></small></div></div><div class="tier-grid">${tiers.map((tier) => `<div><span>Tier ${romanTier(tier.gear_tier)}</span><strong>${number(tier.tier_base_attack_at_1_star)}</strong><small>Base Attack at 1★</small></div>`).join('')}</div>` : '<p class="pending">Tier progression is not available for this record.</p>'}</section>
+      <section class="progression-panel"><p class="section-code">05 // Proven static math</p><h2>Gear Tier and Blueprint Stars</h2><p>Choose a legal configuration. DMG is calculated from installed-game Tier, Blueprint Star, and projectile-pattern data; it is not configured DPS.</p>${tiers.length ? `<div class="math-config"><label><span>Gear Tier</span><select id="gearTier">${tiers.map((tier) => `<option value="${tier.gear_tier}"${tier === tiers[0] ? ' selected' : ''}>Tier ${romanTier(tier.gear_tier)}</option>`).join('')}</select></label><label><span>Blueprint Stars</span><select id="blueprintStars"></select></label><div class="math-result"><span>Verified DMG</span><strong id="calculatedAttack">—</strong><small id="calculationTrace"></small></div></div><div class="tier-grid">${tiers.map((tier) => `<div><span>Tier ${romanTier(tier.gear_tier)}</span><strong>${damage(tier.tier_base_attack_at_1_star, stats.projectileCount)}</strong><small>DMG at 1★</small></div>`).join('')}</div>` : '<p class="pending">Tier progression is not available for this record.</p>'}</section>
       <section class="provenance-panel"><p class="section-code">06 // Verification</p><h2>Source and limits</h2><div><p><b>Coverage</b><span>${esc(item.coverage)}</span></p><p><b>Source</b><span>Installed game snapshot</span></p><p><b>Blueprint ID</b><span>${esc(item.blueprintId)}</span></p></div><p class="limits">Snapshot generated: ${esc(generatedLabel)}. Formula: <code>${esc(mathData.formula_contract?.base_attack || 'Not recorded')}</code>. Calibration, attachments, conditional effects, enemy defenses, and configured DPS are not applied. Known-bad flavor descriptions are intentionally excluded.</p></section>`;
 
     const tierControl = document.getElementById('gearTier');
@@ -357,7 +384,7 @@
     const trace = document.getElementById('calculationTrace');
     const plannerLink = document.getElementById('plannerLink');
     function renderCell(tier, cell) {
-      attack.textContent = number(cell?.base_attack);
+      attack.textContent = damage(cell?.base_attack, stats.projectileCount);
       trace.textContent = `${number(tier?.tier_base_attack_at_1_star)} × ${number(cell?.preset_attack_ratio)} = ${number(cell?.unrounded_attack)} → ${number(cell?.base_attack)}`;
       plannerLink.href = plannerUrl(item, tier?.gear_tier, cell?.blueprint_stars);
     }

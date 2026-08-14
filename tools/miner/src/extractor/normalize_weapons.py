@@ -66,6 +66,10 @@ def main() -> int:
     passive_skills = table(base / "game_common/data/passive_skill_data.json")
     stability = table(base / "game_common/data/gun_stability_data.json")
     scatter = table(base / "game_common/data/bullet_scatter_data.json")
+    bullet_patterns = load_first_table(
+        current / "client_data/bullet_pattern_data.json",
+        base / "client_data/bullet_pattern_data.json",
+    )
     char_properties = load_first_table(
         current / "game_common/data/char_property_data.json",
         base / "game_common/data/char_property_data.json",
@@ -394,6 +398,8 @@ def main() -> int:
 
         gun_no = int(equip.get("gun_no") or 0)
         gun = gun_params.get(str(gun_no), {})
+        bullet_pattern_id = str(gun.get("bullet_pattern_no") or "")
+        bullet_pattern = bullet_patterns.get(bullet_pattern_id, {})
         scatter_row = scatter.get(str(gun.get("bullet_scatter_no") or ""), {})
         stability_row = stability.get(str(gun_no), {}) or stability.get(
             str(gun.get("viewkick_no") or ""), {}
@@ -413,6 +419,8 @@ def main() -> int:
                 "minimum_damage_distance": (gun.get("dis_damage_value2") or [None])[0],
                 "minimum_damage_multiplier": (gun.get("dis_damage_value2") or [None, None])[1],
                 "ammo_item_id": int(gun.get("bullet_no") or 0),
+                "bullet_pattern_id": bullet_pattern_id,
+                "projectile_count": bullet_pattern.get("bullet_num"),
             }
             missing = [
                 key
@@ -624,6 +632,14 @@ def main() -> int:
                 for recipe in all_recipes
             ),
             "weapon_effects": sum(bool(weapon["effect"]) for weapon in weapons),
+            "weapons_with_projectile_count": sum(
+                (weapon.get("ranged_stats") or {}).get("projectile_count") is not None
+                for weapon in weapons
+            ),
+            "multi_projectile_weapons": sum(
+                ((weapon.get("ranged_stats") or {}).get("projectile_count") or 0) > 1
+                for weapon in weapons
+            ),
             "alternate_templates_excluded": exclusions["alternate-template"],
             "translation_misses": len(meaningful_translation_misses),
             "review_queue": len(review_queue),
