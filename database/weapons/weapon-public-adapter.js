@@ -22,6 +22,21 @@
     && expected.every((value) => values.includes(value))
   );
 
+  const minedStarAxisFor = (weapon, progression) => {
+    const rarity = String(weapon?.rarity || '').trim().toLowerCase();
+    const rarityCap = STAR_CAPS[rarity];
+    if (!rarityCap) return null;
+    const axis = progression?.blueprint_stars;
+    if (!axis || axis.semantic_status !== 'validated-source-axis' || !Array.isArray(axis.stars) || !axis.stars.length) return null;
+    const values = axis.stars.map((row) => row?.blueprint_stars);
+    if (values.some((value) => !Number.isInteger(value) || value < 1)) return null;
+    if (new Set(values).size !== values.length) return null;
+    const maximum = Math.max(...values);
+    const expected = Array.from({ length: maximum }, (_, index) => index + 1);
+    if (!hasExactNumbers(values, expected) || maximum > rarityCap) return null;
+    return expected;
+  };
+
   const validProgressionFor = (weapon) => {
     const progression = weapon?.progression;
     if (!progression || progression.formula_status !== 'proven-static-base-attack') return false;
@@ -37,10 +52,8 @@
     const matrixTiers = matrix.map((row) => row?.gear_tier);
     if (!hasExactNumbers(matrixTiers, LEGAL_TIERS)) return false;
 
-    const rarity = String(weapon?.rarity || '').trim().toLowerCase();
-    const starCap = STAR_CAPS[rarity];
-    if (!starCap) return false;
-    const expectedStars = Array.from({ length: starCap }, (_, index) => index + 1);
+    const expectedStars = minedStarAxisFor(weapon, progression);
+    if (!expectedStars) return false;
 
     return matrix.every((row) => {
       if (!isFiniteNumber(row?.tier_base_attack_at_1_star)) return false;
