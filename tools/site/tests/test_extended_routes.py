@@ -75,7 +75,7 @@ class ExtendedRouteWiringTests(unittest.TestCase):
     def test_calibration_bridge_requires_proven_secondary_pool(self):
         source = (ROOT / "preview" / "build-lab" / "canonical-category-bridge.js").read_text(encoding="utf-8")
         self.assertIn("secondary_pool_failure_ids", source)
-        self.assertIn("current-system-selected-from-proven-main-roll-and-secondary-pool", source)
+        self.assertIn("current-system-selected-from-shared-buff-identity-and-proven-main-plus-secondary-rolls", source)
         self.assertIn("secondary_roll_candidates", source)
         self.assertIn("observed_candidate_weights", source)
 
