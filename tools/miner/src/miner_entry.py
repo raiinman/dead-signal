@@ -10,9 +10,11 @@ import armor_tier_completion
 import mod_frame_enrichment
 import weapon_evidence_enrichment
 import weapon_reference_filter
+import weapon_typed_seed_trace
 
 
 weapon_reference_filter.install(weapon_evidence_enrichment)
+weapon_typed_seed_trace.install(weapon_evidence_enrichment)
 
 _original_link_published_images = miner_core.link_published_images
 _original_run_module_main = miner_core.run_module_main
@@ -28,37 +30,16 @@ def run_module_main_with_completion(module_name, arguments, log):
         return arguments[index + 1]
 
     if module_name == "normalize_armor":
-        armor_tier_completion.complete_file(
-            argument("--base"),
-            argument("--current"),
-            argument("--output"),
-            log,
-        )
+        armor_tier_completion.complete_file(argument("--base"), argument("--current"), argument("--output"), log)
     elif module_name == "normalize_weapons":
-        weapon_evidence_enrichment.enrich_file(
-            argument("--base"),
-            argument("--current"),
-            argument("--output"),
-            log,
-        )
+        weapon_evidence_enrichment.enrich_file(argument("--base"), argument("--current"), argument("--output"), log)
     elif module_name == "normalize_extended":
-        mod_frame_enrichment.enrich_file(
-            argument("--base"),
-            argument("--current"),
-            Path(argument("--output-dir")) / "mods.json",
-            log,
-        )
+        mod_frame_enrichment.enrich_file(argument("--base"), argument("--current"), Path(argument("--output-dir")) / "mods.json", log)
     elif module_name == "publish_web_data":
         projector = importlib.import_module("project_weapon_evidence")
         published = Path(argument("--published"))
-        projected = projector.project_file(
-            Path(argument("--data-dir")) / "weapons.json",
-            published / "web" / "weapons.json",
-        )
-        log(
-            "Projected Weapon verification evidence: "
-            f"{projected.get('record_counts', {}).get('effect_resolution_statuses', {})}."
-        )
+        projected = projector.project_file(Path(argument("--data-dir")) / "weapons.json", published / "web" / "weapons.json")
+        log("Projected Weapon verification evidence: " + f"{projected.get('record_counts', {}).get('effect_resolution_statuses', {})}.")
     return result
 
 
@@ -66,19 +47,16 @@ def link_images_and_publish_extended(published, log):
     result = _original_link_published_images(published, log)
     publisher = importlib.import_module("publish_extended_web_data")
     outputs = publisher.publish(published / "data", published)
-
     mod_projector = importlib.import_module("project_mod_frame_evidence")
     mod_path = published / "web" / "mods.json"
     projected_mods = mod_projector.project_file(published / "data" / "mods.json", mod_path)
     outputs["mods"]["record_counts"] = projected_mods.get("record_counts", {})
     outputs["mods"]["mod_frame_evidence_status"] = projected_mods.get("mod_frame_evidence_status")
-
     calibration_projector = importlib.import_module("publish_current_calibrations")
     calibration_path = published / "web" / "calibrations.json"
     calibration = calibration_projector.project_file(calibration_path)
     outputs["calibrations"]["record_counts"] = calibration.get("record_counts", {})
     outputs["calibrations"]["publication_status"] = calibration.get("publication_status")
-
     log("Published compact extended website contracts: " + ", ".join(sorted(outputs)))
     return result
 
@@ -94,38 +72,23 @@ def self_test_with_extended_publisher():
         miner_core.EXTRACTOR_ROOT / "project_mod_frame_evidence.py",
         miner_core.EXTRACTOR_ROOT / "weapon_evidence_enrichment.py",
         miner_core.EXTRACTOR_ROOT / "weapon_reference_filter.py",
+        miner_core.EXTRACTOR_ROOT / "weapon_typed_seed_trace.py",
         miner_core.EXTRACTOR_ROOT / "project_weapon_evidence.py",
     )
     for resource in resources:
         checks.setdefault("resources", {})[str(resource)] = resource.is_file()
     for module_name in (
-        "publish_extended_web_data",
-        "publish_current_calibrations",
-        "armor_tier_normalization",
-        "armor_tier_completion",
-        "mod_frame_enrichment",
-        "project_mod_frame_evidence",
-        "weapon_evidence_enrichment",
-        "weapon_reference_filter",
-        "project_weapon_evidence",
-        "research_console",
-        "research_window",
+        "publish_extended_web_data", "publish_current_calibrations", "armor_tier_normalization",
+        "armor_tier_completion", "mod_frame_enrichment", "project_mod_frame_evidence",
+        "weapon_evidence_enrichment", "weapon_reference_filter", "weapon_typed_seed_trace",
+        "project_weapon_evidence", "research_console", "research_window",
     ):
         try:
             module = importlib.import_module(module_name)
             checks.setdefault("imports", {})[module_name] = getattr(module, "__version__", "ok")
         except Exception as error:
-            checks.setdefault("imports", {})[module_name] = (
-                f"ERROR: {type(error).__name__}: {error}"
-            )
-    checks["ok"] = bool(
-        all(checks.get("resources", {}).values())
-        and all(
-            not str(value).startswith("ERROR")
-            for value in checks.get("imports", {}).values()
-        )
-        and checks.get("installations")
-    )
+            checks.setdefault("imports", {})[module_name] = f"ERROR: {type(error).__name__}: {error}"
+    checks["ok"] = bool(all(checks.get("resources", {}).values()) and all(not str(value).startswith("ERROR") for value in checks.get("imports", {}).values()) and checks.get("installations"))
     return checks
 
 
