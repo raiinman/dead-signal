@@ -2,7 +2,7 @@
 
 > Read this file and `PROJECT-RULES.md` first. Canonical current-state handoff for `raiinman/dead-signal` on `main`.
 >
-> Updated **2026-08-13 Day Shift** after fresh installed-client proof, Miner v1.5.12.8 release, Mod frame-library research, and Deviation/Cradle browser hardening.
+> Updated **2026-08-13 Day Shift** after fresh installed-client v1.5.12.8 proof, all-seven contract validation, Weapon star-axis correction, and Armor Tier/recipe UX work.
 
 ## Non-negotiables
 
@@ -13,191 +13,225 @@
 - Preserve accepted landing page, Official Once Human X feed, global workstation shell, and readability system unless a concrete bug exists.
 - Static/copy-only cPanel deployment. No WordPress runtime. Do not touch DNS, SSL, redirects, domain settings, or cPanel hosting configuration.
 - Routes that are not genuinely ready remain `SOON`.
-- Use transactional all-seven materialization for a final Miner snapshot; do not hand-copy one category around a blocked category.
+- Use transactional all-seven materialization for a final Miner snapshot; do not hand-copy one category around another category.
 - Competitor UX audit remains last, after core database + Build Lab migration is broadly complete.
 
-## Stable Miner / current release
+## Stable Miner
 
 Miner **v1.5.12.8 is RELEASED and stable**.
 
 Release chain:
 
-- `28741e919668da0aac73b3f447298c193f5717d7` — fresh v1.5.12.7 installed-client evidence note.
-- `2a48e197e33c956c4c90a1d3b1b0c101d6d1a1a7` — Calibration binary-float comparison repair.
-- `b0b76b6a4d3ece160983d89366e83d673fe60ec8` — intentional VERSION bump to 1.5.12.8.
-- `1329230baff3c7a24866dba0262e246c7c753aa0` — release bot publishes stable updater manifest last.
-
-Release workflow `31756476284` completed **SUCCESS** through source tests, Windows build, packaged self-test, release publication, public re-download verification, and updater manifest last.
+- `2a48e197e33c956c4c90a1d3b1b0c101d6d1a1a7` — Calibration float comparison repair.
+- `b0b76b6a4d3ece160983d89366e83d673fe60ec8` — VERSION 1.5.12.8.
+- `1329230baff3c7a24866dba0262e246c7c753aa0` — updater manifest published last.
+- Release workflow `31756476284` SUCCESS.
 
 Stable package:
 
-- Version: **1.5.12.8**
-- SHA-256: `b70cd294fd45616ecbb5409fb3e790fecce1e20879c5d5ebfb3040553a53b95e`
-- Size: **30,742,885 bytes**
+- SHA-256 `b70cd294fd45616ecbb5409fb3e790fecce1e20879c5d5ebfb3040553a53b95e`
+- Size 30,742,885 bytes.
 
-The old repo-root research archive `data.7z` was deleted at `91d55bb1968efe4d8eb702f7293f5dfc7829e473`. Do not claim it remains in Git.
+## Fresh installed-client proof — v1.5.12.8 COMPLETE
 
-## Fresh installed-client proof — v1.5.12.7
+Durable evidence note:
 
-Durable evidence: `docs/evidence/installed-client-v1.5.12.7-2026-08-13.md`.
+- `docs/evidence/installed-client-v1.5.12.8-2026-08-13.md`
+- evidence-note commit `ba48ff8ac0219fa494b0a767204e2550d1205c07`.
 
-Fresh run facts:
+Uploaded archive identity:
 
-- Overall Miner validation PASS.
-- Weapons: **120**.
-- Armor: **23 sets / 133 set pieces / 40 Key Armor / 173 total pieces**.
-- Armor Gear Tier rows: **865 = 173 × 5**. Any older handoff saying 850 is wrong arithmetic.
-- All prior 15 missing Armor stat rows recovered; **0 unresolved stat-row gaps**.
-- Attachments: **119**, with **110 direct localized compatibility statements / 9 unresolved blank-description records**.
-- Mods: **1,618** source families.
-- Deviations: **98 display-name families / 160 source variants**.
-- Cradles: **120 display-name families / 170 source variants**.
+- SHA-256 `59a5164d223931963e4383bfb0cbc5439e2b47b457c7bfdb574f9dba0d3df743`
+- 27,291,055 bytes.
+- Archive is not stored in Git.
+- Miner `reports/validation.json`: PASS.
 
-Do not request another v1.5.12.7 run. The next useful external proof is one fresh run on **v1.5.12.8 or newer**.
+Fresh compact facts:
+
+- Weapons: **120** = 95 ranged / 25 melee.
+- Armor: **23 sets / 133 set pieces / 40 Key Armor / 173 pieces / 865 Tier rows / 865 current recipe rows**.
+- Calibrations: **94 current families**, Rare 24 / Epic 35 / Legendary 35, 0 ambiguous, 0 secondary-pool failures.
+- Mods: **1,618** families.
+- Attachments: **119**, 110 direct localized compatibility texts / 9 unresolved blank-description records.
+- Deviations: **98 display-name families / 160 source variants / 60 multi-variant families**.
+- Cradles: **120 display-name families / 170 source variants / 32 multi-variant families**.
+
+After the repository fixes below, **all seven fresh compact contracts pass the strict transaction semantics**. The remaining materialization blocker is transport only: the large uploaded payload bytes are available in the current assistant sandbox but are not directly available as repository files to the GitHub connector.
+
+## Transaction / ingestion path
+
+The approved final path remains all-seven transactional materialization.
+
+Fresh snapshot exposed and fixed two stale repository gates:
+
+1. `73bde75ff8f28b31853c87e2923a8e89ea557319` — extended materializer accepts current Calibration status `current-system-selected-from-shared-buff-identity-and-proven-main-plus-secondary-rolls`.
+2. Weapon rarity is a **maximum Blueprint-Star cap**, not an unconditional exact star count. See Weapons section below.
+
+New helper:
+
+- `9dd7a3a4a8590d2a8ca72e691cf2b1fae4c398d1` — `tools/site/materialize-miner-zip.py` safely accepts a local Miner ZIP, checks archive traversal, extracts to temp, and delegates to the existing all-seven transactional materializer.
+- `332a550ed631e0040932c87de8cda0a3ca41e346` — ZIP-helper regressions for traversal rejection and dry-run delegation.
+
+This helper is developer-side only. It does not run on cPanel and does not change copy-only deployment.
+
+Do not claim the seven production JS payloads have been materialized until this tool (or the existing directory materializer) actually writes all seven together into the repository.
 
 ## Weapons — gold-standard vertical
 
-- 120 weapons = 95 ranged + 25 melee.
-- 600 Gear Tier rows, 545 Blueprint-Star rows, 530 current recipes.
-- Catalogue, detail UX, compare, legal Gear Tier × Blueprint Stars, acquisition/crafting evidence, provenance, unresolved-effect handling, and Build Planner handoff are implemented.
-- Compare applies only proven static Tier/Star inputs; it does not claim configured DPS.
-- Short descriptions remain withheld because fresh data reproduces the Kukri/frozen-tilapia localization cross-wire. Correct repair direction is translation provenance/collision diagnostics, never a one-off override.
-- 14 melee weapons lack Tier I–V recipe evidence and remain **recipe evidence unresolved**, never “non-craftable.”
-- 14 non-Common weapons reference exact `WS...` IDs with no exact passive-skill backing. Do not alias similar IDs.
-- Minor clarity cleanup remains: catalogue card `Base Attack` is actually default Tier V · 1★. Detail already labels it correctly.
+Baseline:
 
-## Armor & Sets — invariant proven, route still `SOON`
+- 120 weapons.
+- 600 Gear Tier rows.
+- 545 Blueprint-Star rows.
+- 530 current recipe rows.
+- Catalogue/detail/compare/Build Planner handoff implemented.
+- Short descriptions remain withheld because installed data reproduces the Kukri/frozen-tilapia localization cross-wire.
+- 14 melee recipe series remain unresolved, never “non-craftable.”
+- 14 non-Common fixed `WS...` references lack exact backing passive-skill record IDs; never alias similar IDs.
 
-Canonical Armor identity is variant-aware:
+### Blueprint-Star legality correction from v1.5.12.8
 
-- Set piece: `ds-a-{suit_id}-{blueprint_id}`.
-- Key Armor: `ds-ka-{blueprint_id}`.
+Fresh installed-client output disproves the old exact-rarity-count assumption.
 
-Fresh real-client proof validates the recovery end-to-end:
+Observed distribution:
 
-- 173 pieces.
-- Exactly five unique Gear Tiers I–V for every piece.
+- Common: 32 × 3★.
+- Rare: 25 × 4★.
+- Rare: **Metal Baseball Bat × 3★**.
+- Epic: 26 × 5★.
+- Legendary: 36 × 6★.
+
+For every weapon the mined `progression.blueprint_stars` axis is contiguous `1..N`, `N` is at or below the rarity cap, and every Tier × Star matrix exactly matches that weapon's own source axis.
+
+Landed generic fix — no weapon-specific exception:
+
+- `9efde702380dd456695931de178ac3f47daf66e6` — Python transactional materializer validates source star axis and rarity cap.
+- `7e5af6cfabbe6f7a69c07638347883389b0651c8` — browser Weapons guard uses the same rule.
+- `ae0b01c2c81a126817dd16d0d5dcda390979ec1d` / `9bb3d28f9fe2e9457ed02addd5ee630bf3278df8` — browser/Python regressions including a Rare 3★ case.
+- Site CI `31762139671` SUCCESS.
+
+Minor clarity cleanup still remains: catalogue card `Base Attack` is the default Tier V · 1★ value and should be labeled accordingly. Compare can keep generic Base Attack because Tier/Stars are configurable there.
+
+## Armor & Sets — invariant proven, route prepared
+
+Canonical identity:
+
+- set piece `ds-a-{suit_id}-{blueprint_id}`.
+- Key Armor `ds-ka-{blueprint_id}`.
+
+Fresh v1.5.12.8 proof:
+
+- 173 player-facing pieces.
+- exactly five unique Tier I-V rows each.
 - **865 Tier rows**.
-- All 15 previously dropped stat rows recovered.
-- Zero unresolved stat-row gaps.
+- **865 current recipe rows**.
+- all 15 previously missing stat rows recovered.
+- Armor data-quality status READY.
 
-Two Blackstone crafting-output conflicts remain deliberately separate from stat identity:
+Two Blackstone crafting-output conflicts remain explicit:
 
-- Blackstone Boots - Cold T3: exact stat item `24003303`, suit `1033`; recipe output `24003103`, suit `1031`.
-- Blackstone Gloves - Heat T3: exact stat item `25003203`, suit `1032`; recipe output `25003103`, suit `1031`.
+- Blackstone Boots - Cold T3: stat item `24003303`, suit `1033`; recipe output `24003103`, suit `1031`.
+- Blackstone Gloves - Heat T3: stat item `25003203`, suit `1032`; recipe output `25003103`, suit `1031`.
 
-Never rewrite those recipe outputs as variant-specific crafting proof.
+Do not rewrite those recipe outputs as exact variant crafting proof.
 
-The set-centric Armor route/materializer are prepared and fail closed, but `database/armor/armor-data.js` remains a null placeholder. Keep Armor `SOON` until a final transactional snapshot is materialized. The contract already contains per-Tier HP, Pollution Resist, Psi Intensity, resolved stat provenance, and current recipe/material evidence; exposing more of that in route UX remains useful follow-up work.
+Route UX:
 
-## Current Calibrations — float defect fixed in v1.5.12.8
+- `9b1f5d5c2476c27c92c77b31ea80c189e3504bb8` exposes proven per-Tier HP, Pollution Resist, Psi Intensity, durability, and expandable current recipe evidence.
+- The renderer flags recipe output/stat-row ID mismatch rather than silently treating it as exact.
+- Site CI `31762251084` SUCCESS.
+
+`database/armor/armor-data.js` remains a placeholder until all-seven materialization is actually committed. Armor remains `SOON` until then.
+
+## Current Calibrations
 
 Proven current system:
 
-- 188 normalized rows = 94 current + 94 legacy.
-- 94 shared `buff_id` identities.
+- 188 normalized = 94 current + 94 legacy.
+- Current compact contract = 94 families.
 - Rare 24 / Epic 35 / Legendary 35.
-- Main Weapon DMG `D0102`: Rare 18–25%, Epic 26–33%, Legendary 34–50%.
-- Exactly one secondary from four observed candidates, each with mined source weight 200. Do not turn those weights into probability percentages without separate proof.
+- D0102 Weapon DMG main roll: Rare 18–25%, Epic 26–33%, Legendary 34–50%.
+- Exactly one secondary from four mined candidates; each source weight is 200. Do not call 200 a probability percentage.
 
 Secondary ranges:
 
-- Rare: Weakspot 12–18, Crit Rate 8–12, Elemental 12–18, Crit DMG 20–30.
-- Epic: Weakspot 15–21, Crit Rate 10–14, Elemental 12–18, Crit DMG 25–35.
-- Legendary: Weakspot 18–24, Crit Rate 12–16, Elemental 15–20, Crit DMG 30–40.
-
-Fresh v1.5.12.7 exposed an exact-equality float bug: Epic Crit Rate max `0.14 × 100` becomes `14.000000000000002`, so all 35 Epic families were wrongly rejected and the compact projector produced 59/94.
-
-`2a48e197...` replaces brittle exact numeric equality with tolerance-safe comparison while retaining stat-ID, weight, rarity-range, and shared-buff identity checks. Replay against the actual user ZIP yields exactly **94/94**, Rare 24 / Epic 35 / Legendary 35, 0 ambiguous, 0 secondary failures. Miner CI `31756412509` SUCCESS including Windows package/self-test.
-
-An explicit new Epic `0.14` regression-file write was connector-blocked; do not claim that specific test landed.
-
-Build Lab stale status gate is now fixed:
-
-- `4b2a614d2760a8248268c6da58e13fa3cff1915e` — canonical bridge accepts current projector status `current-system-selected-from-shared-buff-identity-and-proven-main-plus-secondary-rolls`.
-
-A final v1.5.12.8 snapshot is still needed before transactional materialization.
-
-## Attachments — schema v2 provenance contract
-
-Exactly 119 player weapon attachments: Sight 30 / Muzzle 36 / Tactical 36 / Magazine 17.
-
-Fresh proof:
-
-- 110 / 119 have direct localized installed-game compatibility wording.
-- 9 / 119 are unresolved because their description is blank.
-- coded `compatible_weapon_types` arrays remain empty in this snapshot.
-
-Preserve exact localized wording, including model-specific rules. Never convert English text into guessed weapon IDs or broad class codes.
-
-Attachment schema v2 publisher, materializer, route renderer, audit, and Build Lab guard are landed/tested.
-
-## Mod 2.0 — direct frame-library join newly proven
-
-Previously proven progression has exactly Levels 1–17 and every row satisfies:
-
-`frame_lv_1 + frame_lv_2 + frame_lv_3 + frame_lv_4 = mod_level`
-
-New fresh-tracer evidence this shift:
-
-- Normalized Mods carry `frame_code` from `new_mod_property_data.frame`.
-- Installed-game table `game_common/data/new_mod_frame_lib_data.json` is keyed by frame code.
-- Every frame record preserves an ordered `sub_entry_item_no` list.
-- Fresh corpus: 1,618 Mod records; **32 frame codes used**; tracer exposes **37 frame-library records**; zero used frame codes missing; every used frame has exactly four sub-entry IDs.
-
-Machine audit:
-
-- `87bba600449f3d5096725189d4bd46acee96626c` — `tools/site/audit-mod-frame-library.py`.
-- Site CI `31756941230` SUCCESS.
-
-Do **not** claim list index 0..3 maps to `frame_lv_1..4`. Recovered PYC evidence identifies runtime functions `get_mod_sub_entry_desc` and `get_mod_sub_entry_data` in `ui/data_tools/ItemDataTools.pyc`, but the actual PYC exists only in the user's local Miner snapshot path and is not in the uploaded ZIP. That is the exact remaining positional-semantics boundary.
-
-Build Lab currently has no canonical Mod config. Do not add a name-based shortcut.
-
-## Deviations / Cradles — source identity hardened
-
-Display name is browse grouping only, not canonical source identity.
-
-Research:
-
-- Deviations: 60 multi-variant display-name families; 45 differ semantically, 15 remain distinct source-ID aliases/candidates.
-- Cradles: 32 multi-variant families; 30 differ semantically, and the remaining two differ in visual/equipped-image state.
+- Rare: Weakspot 12–18; Crit Rate 8–12; Elemental 12–18; Crit DMG 20–30.
+- Epic: Weakspot 15–21; Crit Rate 10–14; Elemental 12–18; Crit DMG 25–35.
+- Legendary: Weakspot 18–24; Crit Rate 12–16; Elemental 15–20; Crit DMG 30–40.
 
 Landed:
 
-- `552190b38cec60697d7d42600c0751580620213d` — Deviation variants get `ds-dev-{source_id}`, Cradle variants get `ds-cradle-{source_id}`; display-name family remains grouping. Miner CI `31753442792` SUCCESS.
-- `487221ac8a0d37b0b1015a6a15499a2d075af4a6` — transactional materializer validates source-variant IDs/counts. Site CI `31753515193` SUCCESS.
-- `c727af989ed8181a7ee790475b93b71b0ff157b1` — player database browser requires exact publication status/source-variant identities before rendering and displays canonical source identity on preserved variants.
+- `2a48e197...` float-safe projection fix.
+- `4b2a614d2760a8248268c6da58e13fa3cff1915e` Build Lab bridge accepts current status.
+- `0d2d2ef7d5f0d77449fd84780f89fdb810dfd190` updates stale site regression; CI `31757476809` SUCCESS.
+- `743ce215047fa8a279e5f2f242629d4ed21fb244` Calibration route visibly lists all four proven secondary candidates/ranges and raw mined weights without inventing probabilities.
+- `73bde75...` transactional materializer status gate fixed from the fresh v1.5.12.8 proof.
 
-Build Lab `canonical-category-variant-guard.js` intentionally nulls a Deviation/Cradle category if any family has anything other than exactly one variant. Load order is canonical data → guard → bridge → legacy app, so ambiguous current families cannot silently reach `variants[0]`. Keep this fail-closed behavior.
+## Attachments
 
-v1.5.12.8 includes the source-variant publisher. A fresh v1.5.12.8 client run is still needed to prove those IDs in actual output.
+Exactly 119 player-selectable weapon-slot records:
 
-## Build Lab migration state
+- Sight 30.
+- Muzzle 36.
+- Tactical 36.
+- Magazine 17.
+- 110 direct localized compatibility texts.
+- 9 unresolved blank-description records.
 
-Canonical bridge currently handles Calibrations, Attachments, Deviations, and Cradles by validating/matching into legacy `window.DS_COMMUNITY` pools.
+Preserve direct text. Never infer English descriptions into guessed weapon IDs/classes.
 
-Remaining boundaries:
+## Mod 2.0
 
-1. Armor has no canonical bridge config. Mapping must use exact suit + blueprint identity; never name-only matching.
-2. Mod 2.0 has no canonical bridge config and remains gated on frame consumer semantics.
-3. Deviations/Cradles remain intentionally blocked while display-name families contain multiple source variants; do not auto-pick variant 1.
-4. `preview/build-lab/data/community-data.js` and `preview/build-lab/app.js` are not stored in Git; they are hosting-installed compatibility files. Without that runtime pool shape, do not pretend Armor/Mod canonical mapping can be completed safely in-repo.
+Proven progression arithmetic: Levels 1–17 and each row satisfies
 
-## Global workstation shell / readiness
+`frame_lv_1 + frame_lv_2 + frame_lv_3 + frame_lv_4 = mod_level`.
 
-- `3899e37b1109795728947864cb56c79f60af038d` updates global shell footer to **Miner 1.5.12.8**.
-- Database nav still intentionally marks Armor, Mods, Calibrations, Deviations, and Cradles as `future`/SOON. Keep those statuses until route payloads are transactionally materialized and genuinely player-ready.
+Direct frame-library join proven:
+
+- normalized Mods carry `frame_code` from `new_mod_property_data.frame`.
+- `new_mod_frame_lib_data` is keyed by frame code.
+- 1,618 Mods; 32 frame codes used; 37 frame-library records observed; 0 used codes missing; every used frame exposes exactly four ordered sub-entry IDs.
+- `87bba600449f3d5096725189d4bd46acee96626c` — machine audit; CI `31756941230` SUCCESS.
+
+Do not claim ordered sub-entry positions correspond to `frame_lv_1..4`. Runtime symbols `get_mod_sub_entry_data` / `get_mod_sub_entry_desc` exist, but consumer internals are not safely proven from the available uploaded artifact.
+
+Build Lab has no canonical Mod mapping yet. Do not add name-only matching.
+
+## Deviations / Cradles
+
+Fresh v1.5.12.8 output proves source-variant canonical IDs are present and valid.
+
+- Deviation variants: `ds-dev-{source_id}`.
+- Cradle variants: `ds-cradle-{source_id}`.
+- Display-name family remains browse grouping, not player-selectable identity.
+- `c727af989ed8181a7ee790475b93b71b0ff157b1` hardens database browser validation and displays canonical variant identity.
+
+Build Lab guard intentionally blocks either category when any display-name family has multiple source variants. Do not auto-pick variant 1.
+
+## Build Lab migration
+
+Canonical bridge currently covers Calibrations, Attachments, Deviations, and Cradles.
+
+Boundaries:
+
+1. Armor has no canonical bridge config; exact mapping must use suit + blueprint identity.
+2. Mod 2.0 has no canonical bridge config and remains gated on consumer semantics / exact legacy runtime shape.
+3. Deviations/Cradles remain fail-closed while families contain multiple source variants.
+4. `preview/build-lab/data/community-data.js` and `preview/build-lab/app.js` are hosting-installed compatibility files, not stored in Git. Do not invent mappings without their runtime pool shape.
+
+## Global shell / readiness
+
+- `3899e37b1109795728947864cb56c79f60af038d` — shell footer shows Miner 1.5.12.8.
+- Armor, Mods, Calibrations, Deviations, Cradles remain `SOON` until final payloads are transactionally materialized and routes are genuinely player-ready.
 
 ## Exact next sequence
 
-1. Confirm site CI for `c727af...`, `4b2a614d...`, and `3899e37b...`; fix failures.
-2. User should run **Miner v1.5.12.8 once** and provide the fresh output. This is the next useful external proof run.
-3. Verify final output: Calibration 94/94 with zero failures; Armor 173/865; Attachments 110/9; Deviation/Cradle variants carry canonical source IDs.
-4. Run transactional all-seven materialization from that snapshot; promote only passing categories.
-5. Finish Armor route UX and Build Lab integration once exact legacy/runtime mapping is accessible.
-6. Continue Mod frame consumer investigation; direct frame-library join is proven, positional frame-level semantics are not.
-7. Resolve Deviation/Cradle player-selectable variant semantics only from evidence.
-8. Finish canonical Build Lab migration away from stale compatibility pools.
-9. Minor Weapons catalogue clarity cleanup remains: `Base Attack` → `Tier V · 1★ Base Attack`.
-10. Only after core functionality is broadly complete, perform fresh Wikily/OnceHumanDB UX/features audit and implement safe evidence-backed improvements; never copy their corpus counts.
+1. Verify CI for `332a550...` ZIP-helper tests; fix any failure.
+2. Materialize the supplied v1.5.12.8 ZIP through the all-seven transaction on a filesystem that can access both the archive and the repository. Preferred command: `python tools/site/materialize-miner-zip.py <fresh-zip> --repository-root .`.
+3. Review the seven generated JS diffs, commit them together to `main`, run site CI, and only then consider promoting database nav routes from `SOON`.
+4. Finish exact Armor → Build Lab mapping once the legacy runtime pool shape is accessible.
+5. Continue Mod frame consumer investigation; frame-library join is proven, positional semantics are not.
+6. Resolve Deviation/Cradle player-selectable variant semantics only from evidence.
+7. Finish canonical Build Lab migration away from stale compatibility pools.
+8. Minor Weapons catalogue clarity cleanup: `Base Attack` → `Tier V · 1★ Base Attack`.
+9. Only after core functionality is broadly complete, perform a fresh Wikily/OnceHumanDB UX/features audit; never copy their corpus counts.
