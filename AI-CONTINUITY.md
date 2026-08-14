@@ -36,15 +36,18 @@ The read-only Miner Research Console is implemented and verified on canonical `m
 - GitHub Actions `31777559089` (`Test Miner source`) SUCCESS for `e4711592ca9350a57a754f8dac4e39f01b95a0e8`; source tests, Windows build, and packaged self-test all passed.
 - Local validation: 64 Miner source tests PASS; dependency-complete source self-test PASS; Windows PyInstaller build PASS; packaged self-test exit code 0; GUI smoke PASS for the main Miner window and the Research Console window.
 - Local verified executable SHA-256: `466c8575ba030ce5d361c3e4ff61ca575b22fe0efb4cbc1b5d5525e07a883d8e` (developer build only; not a published release asset).
+- `a4619b7d7c2c4894cdc068f5ac25218a778c04d1` — corrects the version collision with the previously published v1.5.12.9 package and releases the Research Console as Miner v1.5.13.0.
+- Release workflow `31777944199` SUCCESS: source tests, Windows build, packaged self-test, release packaging, GitHub asset publication, public asset download/hash verification, and updater-manifest-last publication all passed.
+- Public v1.5.13.0 package: SHA-256 `cd023bcf643a55c02f24798135e23011e7534f581b585ff01a6b3b233a3a9729`, size 30,826,730 bytes; updater-manifest commit `df17efa4ff5b702de4733e22059bdf9b1e109b1b`.
 
 Safety boundaries are enforced in code and tests: game files and snapshot inputs are read-only, research paths cannot traverse outside the selected Miner data folder, the SQLite tracer is opened read-only, no game bytecode is executed, IDs are never fuzzy-promoted, Related Search cannot create authoritative evidence, graph edges retain source provenance, and suspect/shared/conflicting translations remain withheld from publication. `reference-tracer.sqlite`, snapshots, research notes, exports, builds, and packaged runtimes remain local/generated and are not committed.
 
 Current Research Console blockers / follow-up:
 
-1. The existing local published snapshot was produced by released Miner v1.5.12.8. Run one complete v1.5.12.9 snapshot before relying on the newly projected Weapon effect/translation classifications in the console; existing snapshot evidence still correctly exposes 14 missing recipe series, 9 unresolved attachment compatibilities, 92 ambiguous Deviation/Cradle families, and the Mod consumer-semantics blocker.
+1. The existing local published snapshot was produced by released Miner v1.5.12.8. After updating to v1.5.13.0, run one complete snapshot before relying on the newly projected Weapon effect/translation classifications in the console; existing snapshot evidence still correctly exposes 14 missing recipe series, 9 unresolved attachment compatibilities, 92 ambiguous Deviation/Cradle families, and the Mod consumer-semantics blocker.
 2. Mod frame positional consumer semantics remain unproven and fail-closed.
 3. Deviation/Cradle multi-variant player-selection semantics remain unproven and fail-closed.
-4. The local v1.5.12.9 developer build has not been installed, packaged as a release ZIP, uploaded, or published through `release/latest.json`; v1.5.12.8 remains the released stable client.
+4. Miner v1.5.13.0 is released through `release/latest.json`. Installed v1.5.12.9 clients must run Check for Updates once more to receive the Research Console build.
 
 Stable package:
 
