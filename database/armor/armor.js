@@ -14,6 +14,7 @@
   const art = (row) => row?.image_asset ? `<img src="${esc(row.image_asset)}" alt="${esc(row.name || '')}" loading="lazy">` : '<span>IMAGE PENDING</span>';
   const tierLabel = (row) => ['I','II','III','IV','V'][Number(row?.data_level ?? row?.tier ?? 0)-1] || '—';
   const tierNumber = (row) => Number(row?.data_level ?? row?.tier ?? 0);
+  const number = (value) => Number.isFinite(Number(value)) ? Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '—';
 
   function validPiece(piece, parentSuit = null, keyArmor = false) {
     if (!piece || typeof piece !== 'object' || !String(piece.name || '').trim() || !String(piece.slot || '').trim()) return false;
@@ -82,14 +83,38 @@
     return (!query || haystack.includes(query)) && (!slot.value || piece.slot === slot.value) && (!rarity.value || piece.rarity === rarity.value);
   }
 
-  function tierSummary(piece) {
-    const tiers = piece.tiers || [];
-    if (!tiers.length) return 'No Tier rows resolved';
-    return tiers.map((row) => `Tier ${tierLabel(row)}`).join(' · ');
+  function tierRows(piece) {
+    return [...(piece.tiers || [])].sort((a, b) => tierNumber(a) - tierNumber(b)).map((tier) => `
+      <div class="tier-row">
+        <b>Tier ${esc(tierLabel(tier))}</b>
+        <span>HP ${esc(number(tier.hp))}</span>
+        <span>Pollution ${esc(number(tier.pollution_resistance))}</span>
+        <span>Psi ${esc(number(tier.psi_intensity))}</span>
+        <span>Durability ${esc(number(tier.durability))}</span>
+      </div>`).join('');
+  }
+
+  function recipeRows(piece) {
+    const tiers = new Map((piece.tiers || []).map((row) => [tierNumber(row), row]));
+    const recipes = [...(piece.crafting_recipes || [])].sort((a, b) => Number(a?.tier || 0) - Number(b?.tier || 0));
+    if (!recipes.length) return '<p class="recipe-note">No current recipe row is resolved. That is unresolved evidence, not proof this item is non-craftable.</p>';
+    return recipes.map((recipe) => {
+      const tier = tiers.get(Number(recipe?.tier));
+      const outputConflict = tier?.item_id != null && recipe?.output_item_id != null && Number(tier.item_id) !== Number(recipe.output_item_id);
+      if (outputConflict) {
+        return `<p class="recipe-note"><b>Tier ${esc(tierLabel(recipe))}:</b> recipe output ${esc(recipe.output_item_id)} does not match this suit-variant stat row ${esc(tier.item_id)}. Crafting variant identity remains unresolved.</p>`;
+      }
+      const fixed = (recipe.fixed_materials || []).map((item) => `${item.name || item.item_id} ×${item.quantity}`).join(' · ');
+      const groups = (recipe.material_groups || []).map((group) => `${group.label || `Group ${group.group_id}`} ×${group.multiplier ?? 1} (${group.option_count ?? '?'} choices)`).join(' · ');
+      const currency = recipe.currency?.quantity != null ? `${recipe.currency.name || 'Currency'} ${number(recipe.currency.quantity)}` : '';
+      const time = recipe.craft_time_seconds != null ? `${number(recipe.craft_time_seconds)}s` : '';
+      const parts = [fixed, groups, currency, time].filter(Boolean);
+      return `<p class="recipe-note"><b>Tier ${esc(tierLabel(recipe))}:</b> ${esc(parts.join(' · ') || 'Recipe row resolved; material detail unavailable.')}</p>`;
+    }).join('');
   }
 
   function pieceCard(piece) {
-    return `<article class="armor-piece rarity-${esc(piece.rarity || '')}"><header><div><small>${esc(piece.slot || 'Slot unresolved')} · ${esc(piece.rarity || 'Rarity unresolved')}</small><h3>${esc(piece.name || 'Unnamed Armor')}</h3></div></header><div class="piece-meta"><div><span>Blueprint</span><b>${esc(piece.blueprint_id ?? '—')}</b></div><div><span>Tiers</span><b>${esc((piece.tiers || []).length)}</b></div><div><span>Recipes</span><b>${esc((piece.crafting_recipes || []).length)}</b></div></div><p class="recipe-note">${esc(tierSummary(piece))}. Missing recipe rows remain unresolved evidence, not proof of non-craftability.</p></article>`;
+    return `<article class="armor-piece rarity-${esc(piece.rarity || '')}"><header><div><small>${esc(piece.slot || 'Slot unresolved')} · ${esc(piece.rarity || 'Rarity unresolved')}</small><h3>${esc(piece.name || 'Unnamed Armor')}</h3></div></header><div class="piece-meta"><div><span>Blueprint</span><b>${esc(piece.blueprint_id ?? '—')}</b></div><div><span>Tiers</span><b>${esc((piece.tiers || []).length)}</b></div><div><span>Recipes</span><b>${esc((piece.crafting_recipes || []).length)}</b></div></div><div class="tier-table" aria-label="${esc(piece.name || 'Armor')} Tier stats">${tierRows(piece)}</div><details class="piece-detail"><summary>Current crafting evidence</summary>${recipeRows(piece)}</details></article>`;
   }
 
   function bonuses(set) {
