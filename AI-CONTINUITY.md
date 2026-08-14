@@ -23,6 +23,8 @@ Landed and pushed to canonical `main` as `9debce2929ee217302c0c38a56c1890372895b
 
 The user would like to try **Perplexity.ai** for selected Dead Signal research. Treat it as an external lead/source-discovery assistant, not as a canonical data source.
 
+Dedicated operating brief: `docs/PERPLEXITY-RESEARCH-HANDOFF.md`. Give Perplexity that document plus exactly one assignment wrapper; do not rely on the broader continuity file alone.
+
 Good uses:
 
 - locate official Once Human pages, patch notes, announcements, and other primary sources;
