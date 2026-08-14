@@ -3,7 +3,7 @@
 
   const category = document.body.dataset.category;
   const configs = {
-    calibrations: ['dead-signal-calibrations-current', window.DS_CALIBRATIONS_WEB, 'families', 'Calibration families'],
+    calibrations: ['dead-signal-calibrations', window.DS_CALIBRATIONS_WEB, 'families', 'Calibration families'],
     mods: ['dead-signal-mods', window.DS_MODS_WEB, 'families', 'Mod families'],
     attachments: ['dead-signal-attachments', window.DS_ATTACHMENTS_WEB, 'attachments', 'Weapon attachments'],
     deviations: ['dead-signal-deviations', window.DS_DEVIATIONS_WEB, 'families', 'Deviation families'],
@@ -26,6 +26,23 @@
   const name = (row) => text(row.name) || text(variants(row)[0]?.name) || 'Unnamed record';
   const rarities = (row) => [...new Set(variants(row).map((item) => text(item.rarity)).filter(Boolean))];
 
+  function validFamilyIds(rows, prefix) {
+    const familyIds = rows.map((row) => text(row?.canonical_id));
+    if (familyIds.some((value) => !value) || new Set(familyIds).size !== familyIds.length) return false;
+    const sourceIds = [];
+    for (const family of rows) {
+      const list = family?.variants;
+      if (!Array.isArray(list) || !list.length || Number(family?.variant_count) !== list.length) return false;
+      for (const variant of list) {
+        const sourceId = variant?.id;
+        const canonicalId = text(variant?.canonical_id);
+        if (sourceId === null || sourceId === undefined || sourceId === '' || canonicalId !== `${prefix}${sourceId}`) return false;
+        sourceIds.push(canonicalId);
+      }
+    }
+    return new Set(sourceIds).size === sourceIds.length;
+  }
+
   function verifiedContract() {
     if (!data || data.schema !== schema || !Array.isArray(data[collection])) return false;
     if (category === 'attachments') {
@@ -38,12 +55,28 @@
             && (text(evidence.status) !== 'direct-localized-installed-game-text' || !!text(evidence.text));
         });
     }
+    if (category === 'mods') {
+      return data.schema_version === 1
+        && data.publication_status === 'mod-code-family-projection-variants-preserved'
+        && data[collection].every((row) => text(row?.canonical_id) && Array.isArray(row?.variants) && row.variants.length > 0);
+    }
+    if (category === 'deviations' || category === 'cradles') {
+      const prefix = category === 'deviations' ? 'ds-dev-' : 'ds-cradle-';
+      const expectedVariants = Number(data.record_counts?.source_variants);
+      const actualVariants = data[collection].reduce((total, row) => total + (Array.isArray(row?.variants) ? row.variants.length : 0), 0);
+      return data.schema_version === 1
+        && data.publication_status === 'display-name-families-with-source-variants-preserved'
+        && validFamilyIds(data[collection], prefix)
+        && Number.isFinite(expectedVariants)
+        && expectedVariants === actualVariants;
+    }
     if (category !== 'calibrations') return true;
     return data.schema_version === 2
       && data.publication_status === 'ready-current-system'
       && data.expected_current_families === 94
       && data[collection].length === 94
       && !(data.ambiguous_family_ids || []).length
+      && !(data.secondary_pool_failure_ids || []).length
       && data[collection].every((row) => Array.isArray(row.variants) && row.variants.length === 1);
   }
 
@@ -149,8 +182,8 @@
         const variant = document.createElement('div');
         variant.className = 'variant';
         appendText(variant, 'strong', text(item.name) || `Source ${item.id ?? item.item_id ?? 'record'}`);
-        const suffix = item.item_id ? ` · item ${item.item_id}` : '';
-        appendText(variant, 'span', `${text(item.rarity)}${suffix}`);
+        const identity = text(item.canonical_id) || (item.id != null ? `Source ${item.id}` : 'Source identity unresolved');
+        appendText(variant, 'span', `${identity}${text(item.rarity) ? ` · ${text(item.rarity)}` : ''}`);
         variantList.append(variant);
       });
       article.append(variantList);
