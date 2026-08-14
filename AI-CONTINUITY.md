@@ -18,7 +18,7 @@
 
 ## Stable Miner
 
-Miner **v1.5.12.8 is RELEASED and stable**.
+Miner **v1.5.13.2 is RELEASED and stable**. The v1.5.12.8 chain below remains the last fresh installed-client proof; current Research Console release evidence is recorded in the next section.
 
 Release chain:
 
@@ -30,6 +30,13 @@ Release chain:
 ## Miner Research Console — source complete on main
 
 The read-only Miner Research Console is implemented and verified on canonical `main`:
+
+- `54d0403a9a85fc6ddcce252ad1e7454c87b1637b` — adds the clickable, game-card-style Weapon Investigator evidence map with proven/mixed/missing states and a provenance detail pane.
+- `2c55a8010b7ee69aebbc676d43c11d1e219e732c` — releases that visual investigator as Miner v1.5.13.1; workflow `31780343932` SUCCESS; public package SHA-256 `4f9bb8310a671be57caf411e3bbbcba74680650062a2f0bb8cd66732f61280e6`, size 30,834,298 bytes; updater-manifest commit `996bd62`.
+- `5614a6ad4384fa9e2f7d2f5cc9b78a3edff16c3f` — adds four exact, read-only resolution aids: Static PYC Context, Skill Triangulator, exact-family Variant Delta, and conservative Baseline Classifier. Static PYC lookup uses bounded case-sensitive token matching, streams the report without loading it wholesale, and never executes bytecode. Family membership requires an exact shared `prototype_id` or `gun_no`; names never join records.
+- `8a520ab796afa2c03a048f65dca98867f455c4d7` — releases the resolver suite as Miner v1.5.13.2.
+- Release workflow `31781897598` SUCCESS: 68 source tests, Windows build, packaged self-test, release packaging, public asset publication/download verification, and updater-manifest-last publication all passed. Public v1.5.13.2 package SHA-256 `41de144f54814f6523425c335201e8c710b126621ff786accac1e8f4c77f1e30`, size 30,840,551 bytes; updater-manifest commit `9f1b99f`.
+- Real-snapshot proof: OIC-8 - Last Carnival resolves only its exact `WS2001`, finds 24 exact tracer occurrences and 3 bounded static PYC-context matches, compares one exact family member through `prototype_id=404` / `gun_no=10430131`, and remains blocked as `exact-skill-record-missing`; no similar skill is promoted.
 
 - `29df27b66ebf0729709ddc00b8430a5d8a867240` — adds the Research Console service, desktop UI, exact evidence search, explicitly non-authoritative Related Search, Weapon Investigator, exact-ID reverse lookup, provenance graph, unresolved queue, translation forensics, prioritized snapshot diff, local bookmarks/notes, compact research evidence export, and integrity/coverage dashboard.
 - `e4711592ca9350a57a754f8dac4e39f01b95a0e8` — hardens frozen-app packaging/self-test behavior and applies the final dark results-grid treatment found during GUI smoke testing.
@@ -47,7 +54,7 @@ Current Research Console blockers / follow-up:
 1. The existing local published snapshot was produced by released Miner v1.5.12.8. After updating to v1.5.13.0, run one complete snapshot before relying on the newly projected Weapon effect/translation classifications in the console; existing snapshot evidence still correctly exposes 14 missing recipe series, 9 unresolved attachment compatibilities, 92 ambiguous Deviation/Cradle families, and the Mod consumer-semantics blocker.
 2. Mod frame positional consumer semantics remain unproven and fail-closed.
 3. Deviation/Cradle multi-variant player-selection semantics remain unproven and fail-closed.
-4. Miner v1.5.13.0 is released through `release/latest.json`. Installed v1.5.12.9 clients must run Check for Updates once more to receive the Research Console build.
+4. Miner v1.5.13.2 is released through `release/latest.json`. Installed older clients must run Check for Updates to receive the visual investigator and resolver suite.
 
 Stable package:
 
