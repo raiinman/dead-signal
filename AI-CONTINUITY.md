@@ -102,6 +102,19 @@ After the repository fixes below, **all seven fresh compact contracts pass the s
 - Remaining blockers: exact Armor-to-Build-Lab mapping still needs the legacy runtime pool shape; Mod 2.0 positional consumer semantics remain unproven; Deviation/Cradle multi-variant families remain fail-closed for player selection.
 - Database navigation/routes remain `SOON` until each route is genuinely player-ready; materialization alone does not authorize readiness promotion.
 
+## 2026-08-14 v1.5.13.2 transaction and exact-WS follow-up complete
+
+- Canonical `main` was fast-forwarded to `51a641ed3092be42f9282f9ea99a83414b84eebe` before repository writes.
+- Fresh installed-client source: `C:\Users\mikea\Documents\Dead Signal Miner\published`, produced by Miner v1.5.13.2 at `2026-08-14T08:05:04.880016+00:00`; source archive identity is `data(6).zip`, SHA-256 `fb7425d596b764d8d7630319e45554f86eddfc5ca8030fef5fd84a6b5d6a9385`; Miner validation PASS.
+- All seven contracts passed a dry-run and were materialized transactionally together: Weapons, Armor, Calibrations, Mods, Attachments, Deviations, and Cradles. The Mod contract contains complete frame-library evidence for all 1,618 variants; positional consumer semantics remain unproven.
+- Production payload commit and canonical HEAD before this continuity-only follow-up: `2e23cac443733337fb99fa3ab582251bead0dcda` (`Materialize verified v1.5.13.2 database snapshot`).
+- Local validation: 90 Python site tests PASS; `test-weapon-public-adapter.js` PASS; `git diff --check` PASS. GitHub Actions `31784533095` (`Test database website data paths`) SUCCESS for the payload commit.
+- Weapon evidence states now materialized exactly: 76 `resolved-player-facing-effect`, 14 `exact-fixed-skill-record-missing`, and 30 `no-fixed-skill-reference`. The evidence-specific browse/detail UI is active, and the catalogue label remains `Tier V · 1★ Base Attack`.
+- Exact Research Console follow-up covered all 11 unique missing IDs. Exact tracer occurrences are confined to base `game_common/data/gun_blueprint_attr_data.json` `fixed_skill_code` fields: `WS1001` 5, `WS1101` 5, `WS1301` 10, `WS1402` 5, `WS14503` 6, `WS1501` 5, `WS15203` 12, `WS15304` 12, `WS15502` 12, `WS1601` 5, and `WS2001` 24.
+- All 11 IDs have zero exact `passive_skill_data` records and zero bounded, case-sensitive Static PYC Context token matches. Every mechanic remains unresolved; no similar ID or family member was promoted.
+- Exact-family research-only leads exist through shared `prototype_id` for each affected weapon. The narrowest leads are `SR2000 - Die Another Day` → `WA2000`; `OIC-8 - Last Carnival` → `XM8`; and exact weapon-family groups for MG4, DBSG, HAMR, SN700, MPS7/KV-SBR, pistol, and assault-rifle variants. These are comparison paths only, not mechanic identity evidence. No affected weapon shared an exact `gun_no` with another published weapon.
+- `reference-tracer.sqlite` stayed local/read-only under the Miner output and was not committed or published. No SSL, DNS, redirect, domain, cPanel hosting configuration, accepted landing-page, Official Once Human X feed, or copy-only deployment changes were made.
+
 ## Transaction / ingestion path
 
 The approved final path remains all-seven transactional materialization.
