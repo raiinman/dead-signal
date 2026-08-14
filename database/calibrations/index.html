@@ -11,17 +11,16 @@
   <link rel="stylesheet" href="../extended-catalogue.css">
   <script src="../../shared/readability.js" defer></script>
   <script src="../../shared/workstation-shell.js" defer></script>
-  <script src="calibrations-data.js?v=20260813b"></script>
-  <!-- Migration note: this current-system route intentionally no longer loads ../extended-catalogue.js. -->
+  <script src="calibrations-data.js?v=20260813c"></script>
 </head>
 <body data-category="calibrations">
   <a class="skip-link" href="#databaseMain">Skip to Calibration database</a>
   <main id="databaseMain" class="db-route">
-    <section class="db-hero"><div><p>DB // Current Calibrations</p><h1>Craft with the <em>current system.</em></h1><p>Dead Signal publishes current Calibration Blueprints only after the Miner proves one unambiguous current record per family. Legacy rows remain audit evidence, not silent defaults.</p></div><div class="db-count"><strong id="dbCount">—</strong><span>Current families</span></div></section>
+    <section class="db-hero"><div><p>DB // Current Calibrations</p><h1>Craft with the <em>current system.</em></h1><p>Dead Signal publishes current Calibration Blueprints only after the Miner proves one unambiguous current record per family, its Weapon DMG roll, and the exact four-candidate secondary pool. Equal mined weights are preserved as evidence, not converted into invented probability percentages.</p></div><div class="db-count"><strong id="dbCount">—</strong><span>Current families</span></div></section>
     <section class="db-controls" aria-label="Calibration filters"><label><span>Search</span><input id="dbSearch" type="search" placeholder="Calibration, style, effect…" autocomplete="off"></label><label><span>Style</span><select id="dbPrimary"><option value="">All styles</option></select></label><label><span>Rarity</span><select id="dbRarity"><option value="">All rarities</option></select></label><button id="dbClear" type="button">Clear filters</button></section>
     <p id="dbStatus" class="db-status" aria-live="polite">Loading verified current Calibration contract…</p>
     <section id="dbGrid" class="db-grid" aria-label="Calibration results"></section>
-    <section id="dbUnavailable" class="db-unavailable" hidden><strong>CALIBRATION DATA AWAITING VERIFIED SNAPSHOT</strong><p>The route is ready, but it stays fail-closed until a compact Miner contract proves exactly 94 current families with no current/legacy ambiguity.</p></section>
+    <section id="dbUnavailable" class="db-unavailable" hidden><strong>CALIBRATION DATA AWAITING VERIFIED SNAPSHOT</strong><p>The route stays fail-closed until the compact Miner contract proves exactly 94 current families, zero ambiguity, and the proven one-of-four secondary-roll pool.</p></section>
   </main>
   <script>
   (() => {
@@ -36,6 +35,18 @@
     const count = document.getElementById('dbCount');
     const clear = document.getElementById('dbClear');
     const text = (value) => String(value ?? '').trim();
+    const expectedStatus = 'current-system-selected-from-shared-buff-identity-and-proven-main-plus-secondary-rolls';
+    const validFamily = (family) => {
+      if (family?.variant_count !== 1 || family?.variant_status !== expectedStatus) return false;
+      if (!Array.isArray(family?.variants) || family.variants.length !== 1) return false;
+      const candidates = family.variants[0]?.secondary_roll_candidates;
+      return Array.isArray(candidates)
+        && candidates.length === 4
+        && candidates.every((candidate) => Number(candidate?.weight) === 200
+          && Number.isFinite(Number(candidate?.minimum_percent))
+          && Number.isFinite(Number(candidate?.maximum_percent))
+          && !!text(candidate?.label));
+    };
     const valid = !!data
       && data.schema === 'dead-signal-calibrations'
       && data.schema_version === 2
@@ -43,13 +54,18 @@
       && data.expected_current_families === 94
       && Array.isArray(data.families)
       && data.families.length === 94
+      && !(data.duplicate_canonical_ids || []).length
       && !(data.ambiguous_family_ids || []).length
-      && data.families.every((family) => Array.isArray(family.variants) && family.variants.length === 1);
+      && !(data.secondary_pool_failure_ids || []).length
+      && data.main_roll_semantics?.stat_id === 'D0102'
+      && data.secondary_roll_semantics?.selection_count === 1
+      && JSON.stringify(data.secondary_roll_semantics?.observed_candidate_weights) === JSON.stringify([200, 200, 200, 200])
+      && data.families.every(validFamily);
 
     if (!valid) {
       grid.hidden = true;
       unavailable.hidden = false;
-      status.textContent = 'Current Calibration route prepared · verified 94-family compact contract not materialized.';
+      status.textContent = 'Current Calibration route prepared · verified 94-family main + secondary contract not materialized.';
       return;
     }
 
@@ -57,6 +73,7 @@
     count.textContent = records.length.toLocaleString();
     const styleName = ({ family, item }) => text(item.style_code) ? `Style ${item.style_code}` : text(family.name) || 'Style unresolved';
     const rarityName = ({ item }) => text(item.rarity) || 'Unknown';
+    const candidateText = (candidate) => `${text(candidate.label)} ${Number(candidate.minimum_percent)}–${Number(candidate.maximum_percent)}%`;
     const styles = [...new Set(records.map(styleName))].sort();
     const rarities = [...new Set(records.map(rarityName))].sort();
     styles.forEach((value) => style.add(new Option(value, value)));
@@ -97,6 +114,18 @@
       add(compatibility, 'b', weaponTypes);
       meta.append(mainRoll, compatibility);
       article.append(meta);
+
+      const secondary = document.createElement('div');
+      secondary.className = 'variant-list';
+      add(secondary, 'small', 'One secondary roll · four proven candidates');
+      item.secondary_roll_candidates.forEach((candidate) => {
+        const row = document.createElement('div');
+        row.className = 'variant';
+        add(row, 'strong', text(candidate.label));
+        add(row, 'span', `${Number(candidate.minimum_percent)}–${Number(candidate.maximum_percent)}% · mined weight ${Number(candidate.weight)}`);
+        secondary.append(row);
+      });
+      article.append(secondary);
       return article;
     }
 
@@ -104,13 +133,14 @@
       const query = search.value.trim().toLowerCase();
       const visible = records.filter((record) => {
         const { family, item } = record;
-        const haystack = `${family.name || ''} ${item.name || ''} ${item.description || ''} ${styleName(record)} ${rarityName(record)} ${(item.weapon_type_codes || []).join(' ')}`.toLowerCase();
+        const secondaries = item.secondary_roll_candidates.map(candidateText).join(' ');
+        const haystack = `${family.name || ''} ${item.name || ''} ${item.description || ''} ${styleName(record)} ${rarityName(record)} ${(item.weapon_type_codes || []).join(' ')} ${secondaries}`.toLowerCase();
         return (!query || haystack.includes(query))
           && (!style.value || styleName(record) === style.value)
           && (!rarity.value || rarityName(record) === rarity.value);
       });
       grid.replaceChildren(...visible.map(card));
-      status.textContent = `${visible.length} of ${records.length} current Calibration families shown · ${data.publication_status}.`;
+      status.textContent = `${visible.length} of ${records.length} current Calibration families shown · main roll + one-of-four secondary pool proven.`;
     }
 
     search.addEventListener('input', render);
