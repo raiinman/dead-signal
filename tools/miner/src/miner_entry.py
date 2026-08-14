@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+from pathlib import Path
 
 import miner_core
 import armor_tier_completion
@@ -33,7 +34,7 @@ def run_module_main_with_completion(module_name, arguments, log):
         mod_frame_enrichment.enrich_file(
             argument("--base"),
             argument("--current"),
-            importlib.import_module("pathlib").Path(argument("--output-dir")) / "mods.json",
+            Path(argument("--output-dir")) / "mods.json",
             log,
         )
     return result
@@ -43,6 +44,12 @@ def link_images_and_publish_extended(published, log):
     result = _original_link_published_images(published, log)
     publisher = importlib.import_module("publish_extended_web_data")
     outputs = publisher.publish(published / "data", published)
+
+    mod_projector = importlib.import_module("project_mod_frame_evidence")
+    mod_path = published / "web" / "mods.json"
+    projected_mods = mod_projector.project_file(published / "data" / "mods.json", mod_path)
+    outputs["mods"]["record_counts"] = projected_mods.get("record_counts", {})
+    outputs["mods"]["mod_frame_evidence_status"] = projected_mods.get("mod_frame_evidence_status")
 
     calibration_projector = importlib.import_module("publish_current_calibrations")
     calibration_path = published / "web" / "calibrations.json"
@@ -62,6 +69,7 @@ def self_test_with_extended_publisher():
         miner_core.EXTRACTOR_ROOT / "armor_tier_normalization.py",
         miner_core.EXTRACTOR_ROOT / "armor_tier_completion.py",
         miner_core.EXTRACTOR_ROOT / "mod_frame_enrichment.py",
+        miner_core.EXTRACTOR_ROOT / "project_mod_frame_evidence.py",
     )
     for resource in resources:
         checks.setdefault("resources", {})[str(resource)] = resource.is_file()
@@ -71,6 +79,7 @@ def self_test_with_extended_publisher():
         "armor_tier_normalization",
         "armor_tier_completion",
         "mod_frame_enrichment",
+        "project_mod_frame_evidence",
     ):
         try:
             module = importlib.import_module(module_name)
