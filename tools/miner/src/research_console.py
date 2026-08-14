@@ -290,7 +290,10 @@ class ResearchConsole:
         handle = desc.get("raw_handle")
         return {
             "schema": "dead-signal-weapon-investigation", "schema_version": SCHEMA_VERSION,
-            "weapon": {key: weapon.get(key) for key in ("canonical_id", "name", "blueprint_id", "item_id", "category")},
+            "weapon": {key: weapon.get(key) for key in (
+                "canonical_id", "name", "blueprint_id", "item_id", "category",
+                "rarity", "image_asset", "effect_resolution",
+            )},
             "known_ids": known, "evidence_tree": {"nodes": nodes, "edges": edges},
             "missing_links": missing, "translation_forensics": self.translation_forensics(handle) if handle else None,
             "identity_policy": "Exact identifiers only; missing records stay missing and similar IDs are never substituted.",

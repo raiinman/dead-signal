@@ -16,6 +16,32 @@ TEXT = "#eef1f4"
 MUTED = "#9aa3ac"
 RED = "#e52b32"
 BORDER = "#2a3138"
+GREEN = "#2d9b68"
+AMBER = "#c58b2a"
+
+
+def graph_groups(evidence: dict) -> list[dict]:
+    """Collapse exact-ID nodes into clickable field families for the visual map."""
+    nodes = (evidence.get("evidence_tree") or {}).get("nodes") or []
+    grouped = {}
+    for node in nodes:
+        if not isinstance(node, dict) or node.get("kind") == "weapon":
+            continue
+        kind = str(node.get("kind") or "evidence")
+        group = grouped.setdefault(kind, {"kind": kind, "nodes": [], "present": 0, "missing": 0})
+        group["nodes"].append(node)
+        if node.get("status") == "missing-link":
+            group["missing"] += 1
+        else:
+            group["present"] += 1
+    for group in grouped.values():
+        group["status"] = "missing" if not group["present"] else ("mixed" if group["missing"] else "present")
+    preferred = {
+        "blueprint_id": 0, "item_id": 1, "prototype_id": 2, "gun_no": 3,
+        "fixed_skill_code": 4, "buff_id": 5, "raw_handle": 6,
+        "translation_handle": 7, "forge_id": 8,
+    }
+    return sorted(grouped.values(), key=lambda row: (preferred.get(row["kind"], 100), row["kind"]))
 
 
 class ResearchWindow:
@@ -140,8 +166,26 @@ class ResearchWindow:
         box.pack(side="left", fill="x", expand=True, ipady=4)
         self._button(row, "INVESTIGATE", self._investigate).pack(side="left", padx=(8, 0))
         self._button(row, "EXPORT EVIDENCE", self._export).pack(side="left", padx=(8, 0))
-        self.investigation = self._text(frame)
-        self.investigation.pack(fill="both", expand=True, pady=(10, 0))
+        body = tk.PanedWindow(frame, orient="horizontal", bg=BORDER, sashwidth=5)
+        body.pack(fill="both", expand=True, pady=(10, 0))
+        map_panel = tk.Frame(body, bg=BG)
+        detail_panel = tk.Frame(body, bg=PANEL, padx=12, pady=10)
+        body.add(map_panel, minsize=600, stretch="always")
+        body.add(detail_panel, minsize=310, stretch="never")
+        self.graph_canvas = tk.Canvas(map_panel, bg=BG, highlightthickness=0, bd=0)
+        graph_scroll = tk.Scrollbar(map_panel, orient="vertical", command=self.graph_canvas.yview)
+        self.graph_canvas.configure(yscrollcommand=graph_scroll.set)
+        graph_scroll.pack(side="right", fill="y")
+        self.graph_canvas.pack(fill="both", expand=True)
+        self.graph_canvas.bind("<MouseWheel>", lambda event: self.graph_canvas.yview_scroll(int(-event.delta / 120), "units"))
+        tk.Label(detail_panel, text="EVIDENCE CARD", bg=PANEL, fg=RED,
+                 font=("Bahnschrift SemiCondensed", 13, "bold")).pack(anchor="w")
+        tk.Label(detail_panel, text="Click the weapon or any connected ID family.", bg=PANEL,
+                 fg=MUTED, font=("Segoe UI", 9), wraplength=300, justify="left").pack(anchor="w", pady=(2, 8))
+        self.investigation = self._text(detail_panel)
+        self.investigation.pack(fill="both", expand=True)
+        self.graph_canvas.create_text(36, 36, text="Choose a Weapon, then select INVESTIGATE",
+                                      fill=MUTED, anchor="nw", font=("Segoe UI", 12, "bold"))
 
     def _investigate(self):
         identity = self.weapon_var.get().strip()
@@ -149,10 +193,122 @@ class ResearchWindow:
             identity = identity.rsplit("[", 1)[1][:-1]
         try:
             self.last_evidence = self.service.investigate_weapon(identity)
-            self.investigation.delete("1.0", "end")
-            self.investigation.insert("1.0", json.dumps(self.last_evidence, ensure_ascii=False, indent=2))
+            self._draw_weapon_map(self.last_evidence)
+            self._show_weapon_card()
         except Exception as error:
             messagebox.showerror("Weapon Investigator", str(error), parent=self.window)
+
+    def _draw_weapon_map(self, evidence):
+        canvas = self.graph_canvas
+        canvas.delete("all")
+        self.graph_groups = graph_groups(evidence)
+        self.graph_hitboxes = {}
+        weapon = evidence.get("weapon") or {}
+        width = max(canvas.winfo_width(), 600)
+        center_x = width // 2
+        center_y = 160
+        canvas.create_text(28, 22, anchor="nw", text="EXACT EVIDENCE MAP", fill=TEXT,
+                           font=("Bahnschrift SemiCondensed", 16, "bold"))
+        canvas.create_text(28, 49, anchor="nw", text="Every line is an exact mined relationship. Red cards remain unresolved.",
+                           fill=MUTED, font=("Segoe UI", 9))
+        legend_x = max(350, width - 325)
+        for offset, color, label in ((0, GREEN, "PROVEN"), (96, AMBER, "MIXED"), (184, RED, "MISSING")):
+            canvas.create_rectangle(legend_x + offset, 24, legend_x + offset + 12, 36, fill=color, outline="")
+            canvas.create_text(legend_x + offset + 18, 30, text=label, fill=MUTED, anchor="w", font=("Segoe UI", 8, "bold"))
+
+        card = (center_x - 170, center_y - 88, center_x + 170, center_y + 88)
+        rarity_colors = {"Legendary": "#d79b36", "Epic": "#a45fd2", "Rare": "#4b8ed6", "Common": "#78907b"}
+        rarity = str(weapon.get("rarity") or "")
+        outline = rarity_colors.get(rarity, RED)
+        canvas.create_rectangle(*card, fill="#171c21", outline=outline, width=3, tags=("weapon-card",))
+        canvas.create_text(center_x, center_y - 49, text=str(weapon.get("name") or "UNKNOWN WEAPON").upper(),
+                           fill=TEXT, font=("Bahnschrift SemiCondensed", 18, "bold"), width=300, tags=("weapon-card",))
+        canvas.create_text(center_x, center_y - 15, text=f"{weapon.get('category') or 'Weapon'}  •  {rarity or 'RARITY UNKNOWN'}",
+                           fill=outline, font=("Segoe UI", 9, "bold"), tags=("weapon-card",))
+        canvas.create_text(center_x, center_y + 17, text=f"BLUEPRINT {weapon.get('blueprint_id') or '—'}   /   ITEM {weapon.get('item_id') or '—'}",
+                           fill=MUTED, font=("Cascadia Mono", 9), tags=("weapon-card",))
+        canvas.create_text(center_x, center_y + 52, text="CLICK FOR WEAPON EVIDENCE", fill=TEXT,
+                           font=("Segoe UI", 8, "bold"), tags=("weapon-card",))
+        canvas.tag_bind("weapon-card", "<Button-1>", lambda _event: self._show_weapon_card())
+        canvas.tag_bind("weapon-card", "<Enter>", lambda _event: canvas.configure(cursor="hand2"))
+        canvas.tag_bind("weapon-card", "<Leave>", lambda _event: canvas.configure(cursor=""))
+
+        left = self.graph_groups[::2]
+        right = self.graph_groups[1::2]
+        for side, groups in (("left", left), ("right", right)):
+            x = 32 if side == "left" else width - 262
+            for index, group in enumerate(groups):
+                y = 285 + index * 92
+                node_center_x = x + 115
+                canvas.create_line(center_x, card[3], node_center_x, y, fill="#43505b", width=2, arrow="last")
+                self._draw_group_card(canvas, x, y, group, node_center_x)
+        required_height = max(410, 310 + max(len(left), len(right)) * 92)
+        canvas.configure(scrollregion=(0, 0, width, required_height))
+
+    def _draw_group_card(self, canvas, x, y, group, center_x):
+        colors = {"present": GREEN, "mixed": AMBER, "missing": RED}
+        color = colors[group["status"]]
+        tag = f"group-{len(self.graph_hitboxes)}"
+        self.graph_hitboxes[tag] = group
+        canvas.create_rectangle(x, y, x + 230, y + 64, fill="#13181d", outline=color, width=2, tags=(tag,))
+        title = group["kind"].replace("_", " ").upper()
+        canvas.create_text(x + 12, y + 13, text=title, fill=TEXT, anchor="nw",
+                           font=("Segoe UI", 9, "bold"), tags=(tag,))
+        count = len(group["nodes"])
+        summary = f"{count} exact value{'s' if count != 1 else ''}  •  {group['present']} proven"
+        if group["missing"]:
+            summary += f"  •  {group['missing']} missing"
+        canvas.create_text(x + 12, y + 39, text=summary, fill=color, anchor="nw",
+                           font=("Segoe UI", 8, "bold"), tags=(tag,))
+        canvas.create_text(x + 213, y + 31, text="›", fill=color, font=("Segoe UI", 20, "bold"), tags=(tag,))
+        canvas.tag_bind(tag, "<Button-1>", lambda _event, row=group: self._show_group_card(row))
+        canvas.tag_bind(tag, "<Enter>", lambda _event: canvas.configure(cursor="hand2"))
+        canvas.tag_bind(tag, "<Leave>", lambda _event: canvas.configure(cursor=""))
+
+    def _set_investigation_detail(self, text):
+        self.investigation.configure(state="normal")
+        self.investigation.delete("1.0", "end")
+        self.investigation.insert("1.0", text)
+        self.investigation.configure(state="disabled")
+
+    def _show_weapon_card(self):
+        evidence = self.last_evidence or {}
+        weapon = evidence.get("weapon") or {}
+        missing = evidence.get("missing_links") or []
+        translation = evidence.get("translation_forensics") or {}
+        lines = [
+            str(weapon.get("name") or "UNKNOWN WEAPON").upper(),
+            "═" * 34,
+            f"Canonical ID  {weapon.get('canonical_id') or '—'}",
+            f"Blueprint ID  {weapon.get('blueprint_id') or '—'}",
+            f"Item ID       {weapon.get('item_id') or '—'}",
+            f"Category      {weapon.get('category') or '—'}",
+            "",
+            f"Evidence families  {len(getattr(self, 'graph_groups', []))}",
+            f"Missing links      {len(missing)}",
+            f"Translation        {translation.get('publication_status') or 'no handle evidence'}",
+            "",
+            "IDENTITY POLICY",
+            evidence.get("identity_policy") or "Exact identifiers only.",
+        ]
+        self._set_investigation_detail("\n".join(lines))
+
+    def _show_group_card(self, group):
+        lines = [group["kind"].replace("_", " ").upper(), "═" * 34,
+                 f"Status: {group['status'].upper()}",
+                 f"Exact values: {len(group['nodes'])}", ""]
+        for node in group["nodes"]:
+            references = node.get("references") or []
+            lines.extend([f"{node.get('label')}  [{node.get('status')}]",
+                          f"  Exact references: {len(references)}"])
+            for reference in references[:12]:
+                lines.append(f"  • {reference.get('source')} / {reference.get('table')} / {reference.get('field')}")
+            if len(references) > 12:
+                lines.append(f"  • … {len(references) - 12} more exact references")
+            if not references:
+                lines.append("  • No exact backing occurrence found; identity remains unresolved.")
+            lines.append("")
+        self._set_investigation_detail("\n".join(lines))
 
     def _build_queue(self, notebook):
         frame = self._tab(notebook, "Unresolved Queue")

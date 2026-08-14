@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 
 from research_console import ResearchConsole
+from research_window import graph_groups
 
 
 def write_json(path: Path, payload) -> None:
@@ -93,6 +94,13 @@ class ResearchConsoleTests(unittest.TestCase):
         self.assertTrue(graph["edges"])
         self.assertTrue(all(edge["provenance"] for edge in graph["edges"]))
         self.assertTrue(all(edge["authoritative"] for edge in graph["edges"]))
+
+    def test_visual_graph_groups_exact_nodes_and_missing_state(self):
+        evidence = self.console.investigate_weapon("ds-w-100")
+        groups = {row["kind"]: row for row in graph_groups(evidence)}
+        self.assertEqual("present", groups["blueprint_id"]["status"])
+        self.assertEqual("missing", groups["canonical_id"]["status"])
+        self.assertEqual(1, groups["blueprint_id"]["present"])
 
     def test_unresolved_classification(self):
         queue = self.console.unresolved_queue()
