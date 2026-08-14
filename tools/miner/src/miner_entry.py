@@ -9,7 +9,10 @@ import miner_core
 import armor_tier_completion
 import mod_frame_enrichment
 import weapon_evidence_enrichment
+import weapon_reference_filter
 
+
+weapon_reference_filter.install(weapon_evidence_enrichment)
 
 _original_link_published_images = miner_core.link_published_images
 _original_run_module_main = miner_core.run_module_main
@@ -90,6 +93,7 @@ def self_test_with_extended_publisher():
         miner_core.EXTRACTOR_ROOT / "mod_frame_enrichment.py",
         miner_core.EXTRACTOR_ROOT / "project_mod_frame_evidence.py",
         miner_core.EXTRACTOR_ROOT / "weapon_evidence_enrichment.py",
+        miner_core.EXTRACTOR_ROOT / "weapon_reference_filter.py",
         miner_core.EXTRACTOR_ROOT / "project_weapon_evidence.py",
     )
     for resource in resources:
@@ -102,6 +106,7 @@ def self_test_with_extended_publisher():
         "mod_frame_enrichment",
         "project_mod_frame_evidence",
         "weapon_evidence_enrichment",
+        "weapon_reference_filter",
         "project_weapon_evidence",
         "research_console",
         "research_window",
