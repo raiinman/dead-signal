@@ -33,6 +33,7 @@ $HiddenImports = @(
     'publish_web_data', 'publish_extended_web_data', 'publish_current_calibrations',
     'armor_tier_normalization', 'armor_tier_completion',
     'mod_frame_enrichment', 'project_mod_frame_evidence',
+    'weapon_evidence_enrichment', 'project_weapon_evidence',
     'reference_images', 'update_manager'
 )
 $MainArguments = @(
