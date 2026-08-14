@@ -40,6 +40,10 @@ class MaterializeWeaponsWebTests(unittest.TestCase):
             "baseline": {"ranged": {"rpm": 600} if ranged else None, "melee": None if ranged else {"attack_speed": 1}},
             "progression": {
                 "gear_tiers": [{"tier": tier} for tier in range(1, 6)],
+                "blueprint_stars": {
+                    "semantic_status": "validated-source-axis",
+                    "stars": [{"blueprint_stars": stars} for stars in range(1, star_cap + 1)],
+                },
                 "tier_star_matrix": cls.matrix(star_cap),
                 "validation_issues": [],
             },
@@ -76,6 +80,15 @@ class MaterializeWeaponsWebTests(unittest.TestCase):
             self.assertIn("window.DS_WEAPONS_WEB=", text)
             encoded = text.split("window.DS_WEAPONS_WEB=", 1)[1].rsplit(";", 1)[0]
             self.assertEqual(payload, json.loads(encoded))
+
+    def test_subcap_mined_star_axis_is_valid(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder) / "weapons.json"
+            payload = self.payload()
+            payload["weapons"][1] = self.weapon("ds-w-200", "Rare Three Star", "Rare", 3, False)
+            source.write_text(json.dumps(payload), encoding="utf-8")
+            loaded = MODULE.load_and_validate(source)
+            self.assertEqual(3, len(loaded["weapons"][1]["progression"]["blueprint_stars"]["stars"]))
 
     def test_duplicate_canonical_ids_fail_closed(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
@@ -122,14 +135,24 @@ class MaterializeWeaponsWebTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "five Tier × Blueprint Star matrix rows"):
                 MODULE.load_and_validate(source)
 
-    def test_blueprint_stars_must_match_exact_rarity_set(self) -> None:
+    def test_matrix_stars_must_match_mined_axis(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
             source = Path(folder) / "weapons.json"
             payload = self.payload()
             stars = payload["weapons"][1]["progression"]["tier_star_matrix"][0]["blueprint_star_values"]
             stars.pop(1)
             source.write_text(json.dumps(payload), encoding="utf-8")
-            with self.assertRaisesRegex(ValueError, "must be exactly 1-5"):
+            with self.assertRaisesRegex(ValueError, "exactly match mined Blueprint Star axis"):
+                MODULE.load_and_validate(source)
+
+    def test_mined_star_axis_must_not_exceed_rarity_cap(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder) / "weapons.json"
+            payload = self.payload()
+            weapon = payload["weapons"][1]
+            weapon["rarity"] = "Rare"
+            source.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "exceeds Rare rarity cap 4"):
                 MODULE.load_and_validate(source)
 
     def test_unknown_rarity_fails_closed(self) -> None:
