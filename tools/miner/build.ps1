@@ -34,6 +34,7 @@ $HiddenImports = @(
     'armor_tier_normalization', 'armor_tier_completion',
     'mod_frame_enrichment', 'project_mod_frame_evidence',
     'weapon_evidence_enrichment', 'project_weapon_evidence',
+    'research_console', 'research_window',
     'reference_images', 'update_manager'
 )
 $MainArguments = @(

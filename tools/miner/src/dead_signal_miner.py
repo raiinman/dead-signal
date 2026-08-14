@@ -204,6 +204,8 @@ class DeadSignalMinerApp:
         self.cancel_button.pack(side="left", padx=(10, 0))
         self.open_button = tk.Button(actions, text="OPEN OUTPUT", command=lambda: open_folder(self.last_output / "published"), bg=PANEL_2, activebackground=BORDER, fg=TEXT, activeforeground=TEXT, relief="flat", bd=0, padx=18, pady=12, font=("Segoe UI", 9, "bold"))
         self.open_button.pack(side="right")
+        self.research_button = tk.Button(actions, text="RESEARCH CONSOLE", command=self._open_research_console, bg=PANEL_2, activebackground=BORDER, fg=TEXT, activeforeground=TEXT, relief="flat", bd=0, padx=18, pady=12, font=("Segoe UI", 9, "bold"))
+        self.research_button.pack(side="right", padx=(0, 10))
         self.update_button = tk.Button(actions, text="CHECK FOR UPDATES", command=self._check_updates, bg=PANEL_2, activebackground=BORDER, fg=TEXT, activeforeground=TEXT, relief="flat", bd=0, padx=18, pady=12, font=("Segoe UI", 9, "bold"))
         self.update_button.pack(side="right", padx=(0, 10))
 
@@ -266,6 +268,19 @@ class DeadSignalMinerApp:
         value = filedialog.askdirectory(title="Select where miner snapshots should be stored", initialdir=self.output_var.get() or None)
         if value:
             self.output_var.set(value)
+
+    def _open_research_console(self) -> None:
+        try:
+            from research_window import open_research_console  # pylint: disable=import-outside-toplevel
+
+            output = Path(self.output_var.get().strip()).expanduser().resolve()
+            open_research_console(self.root, output)
+        except Exception as error:
+            messagebox.showerror(
+                "Research Console",
+                f"A completed local snapshot is required.\n\n{error}",
+                parent=self.root,
+            )
 
 
     def _append_log(self, message: str) -> None:
