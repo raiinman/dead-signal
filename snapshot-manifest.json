@@ -1,0 +1,276 @@
+{
+  "schema": "dead-signal-snapshot-manifest",
+  "schema_version": 1,
+  "generated_utc": "2026-08-14T16:11:04.088820+00:00",
+  "miner_version": "1.5.13.2",
+  "source_fingerprints": {
+    "base_script_sha256": "cce900774fbac48d49ff311e348b33c6805e0c9db763d44ab99c5727eeb5c19e",
+    "current_script_sha256": "3b0d5f959649761397514ef2e37f5383b79fbd3dd15710644e190dffd90198cd",
+    "game_executable_sha256": "28f5e40f14e1e0d570a2ffe3a3799ce4f1da0c108399ce30f9f5680e4008fa6e",
+    "resource_index_fingerprint": "dddcb934f67fdf6dc4175c39a1fac5aaeb5bc58d7ed93eba3b0ce84a39f3a5b4",
+    "pipeline_source_sha256": {
+      "normalize_weapons.py": "7929f6241c4905c413f7d8a934a98653b8949bf93a206aa185ed1da8b6ea4b9b",
+      "normalize_armor.py": "9462faaf97884382ab8d1b5761245c747e2ce7d8922d661972cdabdc232fc138",
+      "normalize_extended.py": "25c783b157e4e255dbe6d32469e95943fa4285ca5e2b2d05bcc284cdfd11f1c1",
+      "combat_resolver.py": "6ec65e1ed9a5e155259aaeac833267a56496d02971c05c7b52eef29ff557082f",
+      "export_weapon_math.py": "eaeff63e6c8c43f2e7be017d4c14f0502086d97dbda79290af97c393f3de648a",
+      "export_weapon_configuration.py": "9cfffcf749cc77e5faf1aca0d5c668e52cb5041e2474074153601737a9c98569",
+      "export_gun_profiles.py": "58113a67a7b9ee452818b2f49db86932dc250079e75f06db7504477ce1e683f6",
+      "link_published_images.py": "b98c212a5f109d561c34259508eb63e8eef01af172eab91f1586ccec4f8fa53c",
+      "publish_web_data.py": "46fded2c97a7da86a4e0196249c84218e530d9d189269bf0d07342009f672981"
+    }
+  },
+  "quality_status": "PARTIAL",
+  "files": [
+    {
+      "path": "data/ammo.json",
+      "size": 257658,
+      "sha256": "d9b8d96c3645ef4a78e75cfd1c3e5ea0ada8f1431be8cbca8970c28b190fa266"
+    },
+    {
+      "path": "data/armor-sets.json",
+      "size": 6840888,
+      "sha256": "618cecbd1b9d1e6d007df6c8d6b261fc30eab5f34ba2fb9c235904fa7f5db643"
+    },
+    {
+      "path": "data/attachments.json",
+      "size": 460819,
+      "sha256": "9867a066cb653ebcefacd93eb10b9a7aeb81d5a22a564fbc5281c62fd0aa69bd"
+    },
+    {
+      "path": "data/buffs.json",
+      "size": 62052220,
+      "sha256": "1604e8d7ece496db0475ef9e9d27e981e1813e05bec67575fc6e37bf5d31bcca"
+    },
+    {
+      "path": "data/calibrations.json",
+      "size": 18755510,
+      "sha256": "7ea39f39022d96a03b15916884e36298782ae8d1eb63d1aade560af7dc771812"
+    },
+    {
+      "path": "data/consumables.json",
+      "size": 1609939,
+      "sha256": "0644451813597b5ecc1c54bc2a8f6e4e3e0925ec4bb8ea5d0f49973ea9b96644"
+    },
+    {
+      "path": "data/cradles.json",
+      "size": 186918,
+      "sha256": "d1b382b3e4e4ae5185fa4a2bf8e0f67c2dcf90b1ba25e31c7bcb445c6ebb60d8"
+    },
+    {
+      "path": "data/deviations.json",
+      "size": 493956,
+      "sha256": "78c16c820f514b42406a12d39f7b3f4cc7d935e6ba37e98f4a92971da2f7f050"
+    },
+    {
+      "path": "data/gun-profiles.json",
+      "size": 971641,
+      "sha256": "b769056cc293c91574f116e79547b951a236fd835bda6055468505fc8f603959"
+    },
+    {
+      "path": "data/image-coverage.json",
+      "size": 6395,
+      "sha256": "02fca5f0df68f16fc69b94dbfbeb9c5683faebc22fbe024c20918e46e634027f"
+    },
+    {
+      "path": "data/keywords.json",
+      "size": 26506,
+      "sha256": "026f41d69e98c6249975e1c21a851873532316b2a585e862dece2f6a5687c9ec"
+    },
+    {
+      "path": "data/mods.json",
+      "size": 28336745,
+      "sha256": "adab489170fd07fd2fceebff22606659a8fe2bba217c2ebd2a7df5b97822f94e"
+    },
+    {
+      "path": "data/progression.json",
+      "size": 10565681,
+      "sha256": "bd79981dfa458fa28569e272f9fdc37f7c4787a9613cdff168965c847ba8d72d"
+    },
+    {
+      "path": "data/reference-images.json",
+      "size": 24784603,
+      "sha256": "f4fc5aff44099066028abcffa737b71c3703ae4c9297b3359281be040b6b8d78"
+    },
+    {
+      "path": "data/relationship-graph.json",
+      "size": 325227,
+      "sha256": "308d28662811aff361a35ce3c7848f0afa1a03d4938f6ad34f53b158afa252e9"
+    },
+    {
+      "path": "data/relationships.json",
+      "size": 6471301,
+      "sha256": "44476f0bc7b75fed5bb7525a6946d4a95814e182923b8d94d45ae91b015c1ee1"
+    },
+    {
+      "path": "data/skills.json",
+      "size": 761096,
+      "sha256": "a56e7e982329078abdb0db7db1a3e006d79512d40b80529c4834196ff62271a3"
+    },
+    {
+      "path": "data/stat-definitions.json",
+      "size": 845498,
+      "sha256": "377ef2bb43821b9e4799b6cdfce3315feaefa1e81cdccbe97dab249407397e9e"
+    },
+    {
+      "path": "data/statuses.json",
+      "size": 32921,
+      "sha256": "c75f6ad9e4d35de6ab2877b18e0c60c43fe05b8248e4062f40517eba30dea5f9"
+    },
+    {
+      "path": "data/weapon-blueprint-progression.json",
+      "size": 1747190,
+      "sha256": "f61fdff5f242bfd5862425863a7cca38797f22aa8fd88d1d35b2fb3b77e9695b"
+    },
+    {
+      "path": "data/weapon-configuration.json",
+      "size": 2303228,
+      "sha256": "8b50d073b304cb49709c57d1fbd20e761b16c958f7444e9e3897e60993c057f1"
+    },
+    {
+      "path": "data/weapon-math.json",
+      "size": 8676334,
+      "sha256": "8c46e14578b5325b31f22ce5dedd22cc145e434c197e189317f10d3b945b9344"
+    },
+    {
+      "path": "data/weapon-progression-investigation.json",
+      "size": 292639148,
+      "sha256": "d1ed9144acd0b1cb43ea2c83216e12f25d868eda4b84057da378dc51d3518753"
+    },
+    {
+      "path": "data/weapons.json",
+      "size": 5940213,
+      "sha256": "24c8d11a08de7b7170f13e57aac22ced396fb13ceb19dcb01f2619d6304f79d0"
+    },
+    {
+      "path": "web/armor.json",
+      "size": 6794064,
+      "sha256": "ae712e9b869ce079c1989436e0a2e3cb626e36dd068875d4a3d057b817cc03d3"
+    },
+    {
+      "path": "web/attachments.json",
+      "size": 156512,
+      "sha256": "ccbe15c1ed80b2602c156eecd0489e0fea210260fa08c150e4c4b5e66d9ac533"
+    },
+    {
+      "path": "web/calibrations.json",
+      "size": 1272827,
+      "sha256": "3feb64ec3bdc807eedbfcdfe879ab9c8d7067a2c785b2f0ef3db29d85863bc71"
+    },
+    {
+      "path": "web/catalog-index.json",
+      "size": 5400,
+      "sha256": "cc81d20e4a76d11f7440f7893738cc2d08d09a71f7a24ad36b300df8409a9d42"
+    },
+    {
+      "path": "web/cradles.json",
+      "size": 144768,
+      "sha256": "cbf8f3e51e383e915bb2086a3f77e4cfa4d1ca234a3ade1d88a9ebec08fa10c7"
+    },
+    {
+      "path": "web/deviations.json",
+      "size": 198480,
+      "sha256": "5d4bd8f6af97734f949da879eddc7b11a222e79bd376a98ea1ebdf29e289af5b"
+    },
+    {
+      "path": "web/mods.json",
+      "size": 8387499,
+      "sha256": "fafc7fe6b3f097e0773ab2a2f75b520d03475e8d55349e520c39681212a66084"
+    },
+    {
+      "path": "web/relationship-graph.json",
+      "size": 325227,
+      "sha256": "308d28662811aff361a35ce3c7848f0afa1a03d4938f6ad34f53b158afa252e9"
+    },
+    {
+      "path": "web/weapon-configuration.json",
+      "size": 2303060,
+      "sha256": "cb728c19cf64077ebd4708036bb78f62495cbf01e7ce14cef6e6bae94dd5ba8a"
+    },
+    {
+      "path": "web/weapons.json",
+      "size": 12988796,
+      "sha256": "c6d8df31c1b0d60dcf44a0b7bc8c977a239c3b0a37ccc734720a74048e449f4c"
+    },
+    {
+      "path": "reports/calibration-investigation.json",
+      "size": 112941,
+      "sha256": "33f63c00e04565ce9f6dc6326b122c2db38a515266e3310380230b45843d6b12"
+    },
+    {
+      "path": "reports/change-report.json",
+      "size": 3719,
+      "sha256": "bc78621bf7241dc108392fe72b6d7964efdb3533f8655189763ce9cf89b95fc3"
+    },
+    {
+      "path": "reports/CHANGE-REPORT.txt",
+      "size": 1000,
+      "sha256": "0fac1dfa516ce7b2ee337002ed5547b73dca6d5fde73f8ff8b7e239196623cf8"
+    },
+    {
+      "path": "reports/combat-resolution-summary.json",
+      "size": 3440,
+      "sha256": "8bf928d8b81c73f08f29cb153632e83e77e79b61a04909d5a7ac5bff41cc80a0"
+    },
+    {
+      "path": "reports/data-quality.json",
+      "size": 1543,
+      "sha256": "f35c6f30cf90cc25806d2a961f75ccdc27d9bc5b8654f37b232757d16b579a0e"
+    },
+    {
+      "path": "reports/known-entity-traces.json",
+      "size": 133927,
+      "sha256": "cdaa7c1881ab281be7cd6857326031267df6891fd55eae1922066e1c939898c1"
+    },
+    {
+      "path": "reports/relationship-anomalies.json",
+      "size": 953955,
+      "sha256": "3ecaec65bd8d616e4e936304d29aac7ce8655ad995ae3c4aef3bbe9b5edd9e37"
+    },
+    {
+      "path": "reports/unresolved-apply-range-codes.json",
+      "size": 87,
+      "sha256": "c8241d61f4c7899a012d3662b57e01444af9c382cfeac1a8117be6737ddb3c7f"
+    },
+    {
+      "path": "reports/unresolved-buff-references.json",
+      "size": 3883,
+      "sha256": "228c144ed908de2413f6fab87985128eff32685ea0084e00accb0448fca107d6"
+    },
+    {
+      "path": "reports/unresolved-localization.json",
+      "size": 151,
+      "sha256": "a6e6f8f6cae042dceffba496a377fd09651682491dc083846235b625f3f1d654"
+    },
+    {
+      "path": "reports/unresolved-logic-nodes.json",
+      "size": 887576,
+      "sha256": "9aebb3182137170f5a263c46a78d08cf80c45f6616d9b624a48f9acdc467dd66"
+    },
+    {
+      "path": "reports/unresolved-stat-ids.json",
+      "size": 3978,
+      "sha256": "16ecb496f5643bf0786e9f94d93e1b9f799463d215c239fecf3a696e6267669f"
+    },
+    {
+      "path": "reports/validation.json",
+      "size": 1096,
+      "sha256": "746522d9ed0f6d6242ca1c09699e817bce8b2048d394cd2268e16cfc6ca32c31"
+    },
+    {
+      "path": "reports/weapon-progression-candidates.json",
+      "size": 1448740,
+      "sha256": "4bcf492cd5ddc23fe3ad146bb4876cdb518695997f287af9215e4db2b8b48d63"
+    },
+    {
+      "path": "reports/weapon-progression-pyc-consumers.json",
+      "size": 268852166,
+      "sha256": "1a15ffa8fad375bbef6c3fd0791e73b53c9ca529b91efc04e395e616c2c0198b"
+    },
+    {
+      "path": "reports/weapon-stat-aggregator-investigation.json",
+      "size": 559445,
+      "sha256": "f008d6cbde872ef253d6d95bafcae7c27cb8788fedc54a2b0bd0d59d03e493c2"
+    }
+  ]
+}
