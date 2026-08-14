@@ -2,7 +2,21 @@
 
 > Read this file and `PROJECT-RULES.md` first. Canonical current-state handoff for `raiinman/dead-signal` on `main`.
 >
-> Updated **2026-08-13 Day Shift** after fresh installed-client v1.5.12.8 proof, all-seven contract validation, Weapon star-axis correction, and Armor Tier/recipe UX work.
+> Updated **2026-08-14 Day Shift** after fresh installed-client v1.5.13.2 proof, all-seven contract validation, and catalogue-wide Weapon rating/acquisition correction.
+
+## Weapon catalogue correction — 2026-08-14
+
+Landed locally on canonical `main` as `9debce2929ee217302c0c38a56c1890372895bff` (push/CI outcome recorded by the follow-up continuity commit).
+
+- The browse/detail/compare defaults now use **Tier I · 1★**, not the previous maximum Tier V row.
+- `client_data/bullet_pattern_data.bullet_num` is joined through the exact `gun_base_params_data.bullet_pattern_no` reference. Exact counts exist for 13 multi-projectile shotguns; the remaining 82 ranged weapons have no multi-projectile pattern count and display the scalar normally.
+- DMG formatting now preserves the per-projectile scalar and proven count, for example ACS12 - Netherworld is `32×5` at Tier I · 1★ and `188×5` at Tier V · 1★.
+- The internal `weapon_magazine_size_affix_value` is no longer presented as the final in-game magazine rating. The exact `get_gun_magazine_size` aggregation remains unresolved; do not restore a Magazine field until that consumer/formula is proven.
+- Acquisition is classified only from exact evidence: **106 recipe-proven**, **9 direct stronghold acquisition**, **5 unresolved**. Missing recipes are never labeled non-craftable. Browse cards expose the classification and an Acquisition filter.
+- Weapon mechanic/description evidence remains fail-closed: 76 resolved player-facing mechanics, 14 exact missing skill records, and 30 no fixed-skill references. The 14 suspect flavor-description handles remain withheld; do not invent or cross-wire descriptions.
+- The fresh full Miner run exposed that `armor_tier_completion.complete_file` was no longer called by the canonical runner. The call is restored: 15 exact Tier rows recovered, zero unresolved Armor Tier series, two existing crafting-variant conflicts retained.
+- All seven browser contracts were dry-run validated and transactionally materialized together. Fresh contract SHAs: Weapons `c6d8df31c1b0d60dcf44a0b7bc8c977a239c3b0a37ccc734720a74048e449f4c`; Armor `ae712e9b869ce079c1989436e0a2e3cb626e36dd068875d4a3d057b817cc03d3`; the other five validated unchanged.
+- Verification: 68 Miner tests PASS; 90 site tests PASS; Weapon public adapter PASS; JavaScript syntax PASS; `git diff --check` PASS; local browser confirms `32×5`, recipe evidence, and Acquisition filter.
 
 ## Non-negotiables
 
