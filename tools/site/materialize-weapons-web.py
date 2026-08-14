@@ -61,6 +61,34 @@ def _number(value: Any) -> float | None:
     return float(value) if _finite_number(value) else None
 
 
+def _validated_star_axis(record: dict[str, Any], progression: dict[str, Any]) -> set[int]:
+    canonical_id = record.get("canonical_id") or "<missing canonical_id>"
+    rarity = str(record.get("rarity") or "").strip().lower()
+    rarity_cap = RARITY_STAR_CAPS.get(rarity)
+    if rarity_cap is None:
+        raise ValueError(f"Weapon {canonical_id} has unsupported rarity {record.get('rarity')!r}")
+
+    axis = progression.get("blueprint_stars")
+    if not isinstance(axis, dict) or axis.get("semantic_status") != "validated-source-axis":
+        raise ValueError(f"Weapon {canonical_id} is missing a validated mined Blueprint Star axis")
+    stars = axis.get("stars")
+    if not isinstance(stars, list) or not stars or any(not isinstance(row, dict) for row in stars):
+        raise ValueError(f"Weapon {canonical_id} has no mined Blueprint Star source rows")
+
+    star_numbers = [_positive_int(row.get("blueprint_stars")) for row in stars]
+    if any(value is None for value in star_numbers) or len(star_numbers) != len(set(star_numbers)):
+        raise ValueError(f"Weapon {canonical_id} has invalid or duplicate mined Blueprint Star rows")
+    maximum = max(value for value in star_numbers if value is not None)
+    expected = set(range(1, maximum + 1))
+    if set(star_numbers) != expected:
+        raise ValueError(f"Weapon {canonical_id} mined Blueprint Star axis must be contiguous from 1 through {maximum}")
+    if maximum > rarity_cap:
+        raise ValueError(
+            f"Weapon {canonical_id} mined Blueprint Star axis exceeds {record.get('rarity')} rarity cap {rarity_cap}"
+        )
+    return expected
+
+
 def _validate_progression(record: dict[str, Any]) -> None:
     canonical_id = record.get("canonical_id") or "<missing canonical_id>"
     progression = record.get("progression")
@@ -81,11 +109,7 @@ def _validate_progression(record: dict[str, Any]) -> None:
     if set(matrix_tiers) != LEGAL_GEAR_TIERS or len(set(matrix_tiers)) != 5:
         raise ValueError(f"Weapon {canonical_id} Tier × Star matrix must cover unique Gear Tier I-V")
 
-    rarity = str(record.get("rarity") or "").strip().lower()
-    star_cap = RARITY_STAR_CAPS.get(rarity)
-    if star_cap is None:
-        raise ValueError(f"Weapon {canonical_id} has unsupported rarity {record.get('rarity')!r}")
-    expected_stars = set(range(1, star_cap + 1))
+    expected_stars = _validated_star_axis(record, progression)
 
     for row in matrix:
         if not isinstance(row, dict):
@@ -103,8 +127,8 @@ def _validate_progression(record: dict[str, Any]) -> None:
             raise ValueError(f"Weapon {canonical_id} has invalid or duplicate Blueprint Star rows")
         if set(star_numbers) != expected_stars:
             raise ValueError(
-                f"Weapon {canonical_id} {record.get('rarity')} Blueprint Star rows must be exactly "
-                f"1-{star_cap}; found {sorted(value for value in star_numbers if value is not None)}"
+                f"Weapon {canonical_id} Tier × Star rows must exactly match mined Blueprint Star axis "
+                f"{sorted(expected_stars)}; found {sorted(value for value in star_numbers if value is not None)}"
             )
 
         for star in stars:
