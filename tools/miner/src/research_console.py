@@ -299,6 +299,163 @@ class ResearchConsole:
             "identity_policy": "Exact identifiers only; missing records stay missing and similar IDs are never substituted.",
         }
 
+    def static_pyc_context(self, symbol: object, *, context_lines: int = 3, limit: int = 80) -> dict[str, Any]:
+        """Return bounded, static report context without importing or executing bytecode."""
+        query = str(symbol).strip()
+        if not query:
+            raise ValueError("Enter an exact PYC symbol or ID")
+        if context_lines < 0 or context_lines > 12 or limit < 1 or limit > 500:
+            raise ValueError("PYC context bounds are outside the safe research limits")
+        path = _safe_child(
+            self.output,
+            self.published / "reports" / "weapon-progression-pyc-consumers.json",
+        )
+        before: list[tuple[int, str]] = []
+        matches: list[dict[str, Any]] = []
+        pending_after = 0
+        current: dict[str, Any] | None = None
+        exact_token = re.compile(rf"(?<![A-Za-z0-9]){re.escape(query)}(?![A-Za-z0-9])")
+        with path.open("r", encoding="utf-8", errors="replace") as source:
+            for line_number, line in enumerate(source, 1):
+                cleaned = line.rstrip()[:1200]
+                if exact_token.search(line):
+                    current = {
+                        "line": line_number,
+                        "before": [{"line": number, "text": text} for number, text in before],
+                        "match": cleaned,
+                        "after": [],
+                    }
+                    matches.append(current)
+                    pending_after = context_lines
+                    if len(matches) >= limit:
+                        break
+                elif pending_after and current is not None:
+                    current["after"].append({"line": line_number, "text": cleaned})
+                    pending_after -= 1
+                before.append((line_number, cleaned))
+                before = before[-context_lines:]
+        return {
+            "schema": "dead-signal-static-pyc-context", "schema_version": 1,
+            "query": query, "source": str(path.relative_to(self.output)),
+            "match_count": len(matches), "matches": matches,
+            "execution_policy": "static report inspection only; game bytecode was not executed",
+            "identity_policy": "Exact case-sensitive token match; context is evidence, not an identity join.",
+        }
+
+    @staticmethod
+    def _fixed_skill(weapon: dict[str, Any]) -> str:
+        effect = weapon.get("effect_resolution") or {}
+        if effect.get("fixed_skill_code"):
+            return str(effect["fixed_skill_code"])
+        for pointer, field, value in _walk(weapon.get("progression") or {}):
+            if field == "fixed_skill_code" and value:
+                return str(value)
+        return ""
+
+    @staticmethod
+    def _family_keys(weapon: dict[str, Any]) -> dict[str, str]:
+        gun = weapon.get("gun_profile") or {}
+        return {
+            "prototype_id": str(weapon.get("prototype_id") or ""),
+            "gun_no": str(gun.get("gun_no") or weapon.get("gun_no") or ""),
+        }
+
+    def weapon_family(self, identity: object) -> list[dict[str, Any]]:
+        selected = self.find_weapon(identity)
+        keys = self._family_keys(selected)
+        family = []
+        for weapon in self.weapons():
+            candidate = self._family_keys(weapon)
+            reasons = [key for key, value in keys.items() if value and candidate.get(key) == value]
+            if reasons:
+                family.append({"weapon": weapon, "exact_shared_keys": reasons})
+        return family
+
+    def classify_weapon_baseline(self, identity: object) -> dict[str, Any]:
+        weapon = self.find_weapon(identity)
+        fixed_skill = self._fixed_skill(weapon)
+        family = self.weapon_family(identity)
+        family_skill_records = [
+            {"canonical_id": row["weapon"].get("canonical_id"), "name": row["weapon"].get("name"),
+             "fixed_skill_code": self._fixed_skill(row["weapon"]), "exact_shared_keys": row["exact_shared_keys"]}
+            for row in family if self._fixed_skill(row["weapon"])
+        ]
+        effect_present = bool(weapon.get("effect"))
+        rarity = str(weapon.get("rarity") or "")
+        if fixed_skill:
+            status = "fixed-skill-present"
+        elif effect_present:
+            status = "effect-present-without-fixed-skill-unresolved"
+        elif rarity == "Common" and not family_skill_records:
+            status = "baseline-pattern-supported-no-fixed-skill"
+        else:
+            status = "no-fixed-skill-unresolved"
+        return {
+            "schema": "dead-signal-weapon-baseline-classification", "schema_version": 1,
+            "weapon": {key: weapon.get(key) for key in ("canonical_id", "name", "rarity", "prototype_id")},
+            "status": status, "fixed_skill_code": fixed_skill, "effect_present": effect_present,
+            "exact_family_keys": self._family_keys(weapon), "exact_family_size": len(family),
+            "family_members_with_fixed_skill": family_skill_records,
+            "publication_status": "research-classification-only",
+            "policy": "Common rarity plus no effect and no exact-family fixed-skill evidence supports a baseline pattern; it does not prove the absence of hidden runtime behavior.",
+        }
+
+    def weapon_family_delta(self, identity: object, *, limit: int = 600) -> dict[str, Any]:
+        selected = self.find_weapon(identity)
+        selected_scalars = {pointer: value for pointer, _field, value in _walk(selected)}
+        comparisons = []
+        for member in self.weapon_family(identity):
+            other = member["weapon"]
+            if str(other.get("canonical_id") or "") == str(selected.get("canonical_id") or ""):
+                continue
+            other_scalars = {pointer: value for pointer, _field, value in _walk(other)}
+            differences = []
+            for pointer in sorted(set(selected_scalars) | set(other_scalars)):
+                left = selected_scalars.get(pointer)
+                right = other_scalars.get(pointer)
+                if left != right:
+                    differences.append({"json_pointer": pointer, "selected": left, "other": right})
+                    if len(differences) >= limit:
+                        break
+            comparisons.append({
+                "canonical_id": other.get("canonical_id"), "name": other.get("name"),
+                "exact_shared_keys": member["exact_shared_keys"],
+                "difference_count": len(differences), "differences": differences,
+            })
+        return {
+            "schema": "dead-signal-weapon-family-delta", "schema_version": 1,
+            "selected": {"canonical_id": selected.get("canonical_id"), "name": selected.get("name")},
+            "family_keys": self._family_keys(selected), "comparison_count": len(comparisons),
+            "comparisons": comparisons,
+            "identity_policy": "Family membership requires an exact shared prototype_id or gun_no; names are not matched.",
+        }
+
+    def triangulate_weapon_skill(self, identity: object) -> dict[str, Any]:
+        weapon = self.find_weapon(identity)
+        skill = self._fixed_skill(weapon)
+        if not skill:
+            return {
+                "schema": "dead-signal-skill-triangulation", "schema_version": 1,
+                "weapon": {"canonical_id": weapon.get("canonical_id"), "name": weapon.get("name")},
+                "status": "no-fixed-skill-reference", "exact_skill_id": "",
+                "baseline_classification": self.classify_weapon_baseline(identity),
+                "promotion_status": "blocked-no-exact-skill-id",
+            }
+        occurrences = self._trace(skill, 2000)
+        pyc = self.static_pyc_context(skill, context_lines=2, limit=100)
+        family = self.weapon_family_delta(identity, limit=120)
+        passive = [row for row in occurrences if Path(str(row.get("table") or "")).stem == "passive_skill_data"]
+        return {
+            "schema": "dead-signal-skill-triangulation", "schema_version": 1,
+            "weapon": {"canonical_id": weapon.get("canonical_id"), "name": weapon.get("name")},
+            "status": "exact-skill-record-present" if passive else "exact-skill-record-missing",
+            "exact_skill_id": skill, "exact_occurrences": occurrences,
+            "exact_passive_skill_records": passive, "static_pyc_context": pyc,
+            "exact_family_delta": family,
+            "promotion_status": "eligible-for-review" if passive else "blocked-missing-exact-passive-skill-record",
+            "policy": "Triangulation may reveal source paths but never substitutes a similar skill ID.",
+        }
+
     def unresolved_queue(self) -> dict[str, Any]:
         groups: dict[str, list[dict[str, Any]]] = {key: [] for key in UNRESOLVED_GROUPS}
         weapons = self.weapons()

@@ -102,6 +102,34 @@ class ResearchConsoleTests(unittest.TestCase):
         self.assertEqual("missing", groups["canonical_id"]["status"])
         self.assertEqual(1, groups["blueprint_id"]["present"])
 
+    def test_static_pyc_context_is_bounded_and_non_executing(self):
+        result = self.console.static_pyc_context("WS1301", context_lines=1, limit=5)
+        self.assertEqual(1, result["match_count"])
+        self.assertIn("not executed", result["execution_policy"])
+        self.assertEqual(0, self.console.static_pyc_context("WS130", limit=5)["match_count"])
+
+    def test_skill_triangulation_keeps_missing_exact_record_blocked(self):
+        result = self.console.triangulate_weapon_skill("ds-w-100")
+        self.assertEqual("WS1301", result["exact_skill_id"])
+        self.assertEqual("exact-skill-record-missing", result["status"])
+        self.assertEqual("blocked-missing-exact-passive-skill-record", result["promotion_status"])
+
+    def test_baseline_classifier_and_family_delta_use_exact_keys(self):
+        payload = json.loads((self.published / "web/weapons.json").read_text(encoding="utf-8"))
+        payload["weapons"].extend([
+            {"canonical_id": "base-1", "name": "Base", "rarity": "Common", "prototype_id": 77,
+             "item_id": 701, "effect": None, "effect_resolution": {"status": "no-fixed-skill-reference"}},
+            {"canonical_id": "base-2", "name": "Base Variant", "rarity": "Common", "prototype_id": 77,
+             "item_id": 702, "effect": None, "effect_resolution": {"status": "no-fixed-skill-reference"}},
+        ])
+        write_json(self.published / "web/weapons.json", payload)
+        classification = self.console.classify_weapon_baseline("base-1")
+        delta = self.console.weapon_family_delta("base-1")
+        self.assertEqual("baseline-pattern-supported-no-fixed-skill", classification["status"])
+        self.assertEqual(2, classification["exact_family_size"])
+        self.assertEqual(1, delta["comparison_count"])
+        self.assertEqual(["prototype_id"], delta["comparisons"][0]["exact_shared_keys"])
+
     def test_unresolved_classification(self):
         queue = self.console.unresolved_queue()
         self.assertEqual(1, queue["counts"]["exact missing skill record"])

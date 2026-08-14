@@ -166,6 +166,19 @@ class ResearchWindow:
         box.pack(side="left", fill="x", expand=True, ipady=4)
         self._button(row, "INVESTIGATE", self._investigate).pack(side="left", padx=(8, 0))
         self._button(row, "EXPORT EVIDENCE", self._export).pack(side="left", padx=(8, 0))
+        resolver_bar = tk.Frame(frame, bg=PANEL)
+        resolver_bar.pack(fill="x", pady=(8, 0))
+        tk.Label(resolver_bar, text="RESOLVERS", bg=PANEL, fg=MUTED,
+                 font=("Segoe UI", 8, "bold")).pack(side="left", padx=(0, 8))
+        for label, command in (
+            ("BASELINE CLASSIFIER", self._show_baseline_classifier),
+            ("SKILL TRIANGULATOR", self._show_skill_triangulator),
+            ("FAMILY DELTA", self._show_family_delta),
+            ("STATIC PYC CONTEXT", self._show_pyc_context),
+        ):
+            button = self._button(resolver_bar, label, command)
+            button.configure(bg="#343c44", padx=10, pady=5, font=("Segoe UI", 8, "bold"))
+            button.pack(side="left", padx=(0, 6))
         body = tk.PanedWindow(frame, orient="horizontal", bg=BORDER, sashwidth=5)
         body.pack(fill="both", expand=True, pady=(10, 0))
         map_panel = tk.Frame(body, bg=BG)
@@ -188,15 +201,50 @@ class ResearchWindow:
                                       fill=MUTED, anchor="nw", font=("Segoe UI", 12, "bold"))
 
     def _investigate(self):
-        identity = self.weapon_var.get().strip()
-        if identity.endswith("]") and "[" in identity:
-            identity = identity.rsplit("[", 1)[1][:-1]
+        identity = self._current_weapon_identity()
         try:
             self.last_evidence = self.service.investigate_weapon(identity)
             self._draw_weapon_map(self.last_evidence)
             self._show_weapon_card()
         except Exception as error:
             messagebox.showerror("Weapon Investigator", str(error), parent=self.window)
+
+    def _current_weapon_identity(self):
+        identity = self.weapon_var.get().strip()
+        if identity.endswith("]") and "[" in identity:
+            identity = identity.rsplit("[", 1)[1][:-1]
+        if not identity:
+            raise ValueError("Choose a Weapon first")
+        return identity
+
+    def _run_resolver(self, title, operation):
+        try:
+            result = operation(self._current_weapon_identity())
+            self.last_evidence = result
+            self._set_investigation_detail(json.dumps(result, ensure_ascii=False, indent=2))
+        except Exception as error:
+            messagebox.showerror(title, str(error), parent=self.window)
+
+    def _show_baseline_classifier(self):
+        self._run_resolver("Baseline Classifier", self.service.classify_weapon_baseline)
+
+    def _show_skill_triangulator(self):
+        self._run_resolver("Skill Triangulator", self.service.triangulate_weapon_skill)
+
+    def _show_family_delta(self):
+        self._run_resolver("Weapon Family Delta", self.service.weapon_family_delta)
+
+    def _show_pyc_context(self):
+        try:
+            weapon = self.service.find_weapon(self._current_weapon_identity())
+            symbol = self.service._fixed_skill(weapon)  # Exact extracted identifier; no fuzzy lookup.
+            if not symbol:
+                raise ValueError("This Weapon has no exact fixed-skill ID to inspect")
+            result = self.service.static_pyc_context(symbol)
+            self.last_evidence = result
+            self._set_investigation_detail(json.dumps(result, ensure_ascii=False, indent=2))
+        except Exception as error:
+            messagebox.showerror("Static PYC Context", str(error), parent=self.window)
 
     def _draw_weapon_map(self, evidence):
         canvas = self.graph_canvas
