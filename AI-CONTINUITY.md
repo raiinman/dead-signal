@@ -19,35 +19,11 @@ Landed and pushed to canonical `main` as `9debce2929ee217302c0c38a56c1890372895b
 - Verification: 68 Miner tests PASS; 90 site tests PASS; Weapon public adapter PASS; JavaScript syntax PASS; `git diff --check` PASS; local browser confirms `32×5`, recipe evidence, and Acquisition filter.
 - GitHub CI for `39804be01068bbf1faf987a2be56cd741891e6da`: database website run `31818497633` SUCCESS; Miner source/build/packaged-self-test run `31818497565` SUCCESS.
 
-## Perplexity coding-agent handoff
+## External-agent trial closed
 
-The user would like to try **Perplexity.ai as a working coding/computer agent**, not merely as a web researcher. It may inspect, implement, test, commit, push, and check CI within an explicitly assigned repository task. Web research is an optional supporting capability, not its primary role.
+The Perplexity coding-agent trial was abandoned on 2026-08-14 after consuming the user's agent credits without producing useful implementation work. Do not route Dead Signal tasks to Perplexity or recreate a Perplexity-specific handoff unless the user explicitly reverses this decision.
 
-Dedicated operating brief: `docs/PERPLEXITY-RESEARCH-HANDOFF.md` (the historical filename is retained so the previously shared GitHub URL remains stable). Give Perplexity that document plus one concrete coding assignment.
-
-Good uses include:
-
-- implement scoped repository changes and regression tests;
-- run the Miner/site validation suites and local browser checks;
-- transactionally materialize all seven payloads when fresh Miner data is in scope;
-- commit/push canonical `main`, inspect CI, and update continuity;
-- perform source research only when it supports an assigned implementation/evidence task.
-
-Evidence rules:
-
-- Installed-game Miner evidence and direct in-game captures remain authoritative for database mechanics and numeric records.
-- Perplexity output must return the original source URLs, page titles, publication/access dates, and the exact claim each source supports. A Perplexity summary without inspectable sources is not evidence.
-- Prefer official/primary sources. Community wikis, videos, social posts, and search snippets may create leads but cannot directly promote a mechanic, rating, recipe, compatibility rule, acquisition classification, or exact ID.
-- Never fuzzy-map similar `WS...`, item, blueprint, gun, buff, or prototype IDs. Every promotion still requires an exact local identity/reverse-reference path or direct in-game proof.
-- Do not upload or expose raw Miner snapshots, `reference-tracer.sqlite`, raw PYC reports, private notes, machine-specific paths, unpublished bundles, credentials, or personal data to Perplexity. Share only the smallest sanitized question/evidence excerpt required.
-- Record useful results in the repository evidence/continuity trail with provenance and an explicit status such as `lead`, `externally corroborated`, `in-game verified`, or `installed-data verified`.
-
-Current high-value Perplexity trial topics:
-
-1. Find primary-source or clearly dated in-game evidence for the five unresolved Weapon acquisition records: Machete, Metal Baseball Bat, Old Baseball Bat, Old Machete, and Rusted Blade.
-2. Find documented/current in-game magazine values by exact weapon variant as comparison evidence for reconstructing `get_gun_magazine_size`; do not infer the formula from those values alone.
-3. Look for exact references to the 11 unique missing `WS...` IDs, preserving the full ID string and source context; similar IDs are irrelevant.
-4. Investigate the 14 withheld flavor-description cases only by exact weapon identity and exact quoted source wording. Do not use name similarity to repair installed handle cross-wires.
+External commit `14b7e79c4757ffc5d4d592c0393842cc06821129` added generated `data.zip`, `reports.zip`, `web.zip`, and `snapshot-manifest.json` files to the repository root. Those artifacts violate the repository policy against committing/publishing Miner bundles and were removed in the immediate cleanup commit. The history was not rewritten.
 
 ## Non-negotiables
 
