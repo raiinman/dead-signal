@@ -19,6 +19,33 @@ Landed and pushed to canonical `main` as `9debce2929ee217302c0c38a56c1890372895b
 - Verification: 68 Miner tests PASS; 90 site tests PASS; Weapon public adapter PASS; JavaScript syntax PASS; `git diff --check` PASS; local browser confirms `32×5`, recipe evidence, and Acquisition filter.
 - GitHub CI for `39804be01068bbf1faf987a2be56cd741891e6da`: database website run `31818497633` SUCCESS; Miner source/build/packaged-self-test run `31818497565` SUCCESS.
 
+## Perplexity research trial
+
+The user would like to try **Perplexity.ai** for selected Dead Signal research. Treat it as an external lead/source-discovery assistant, not as a canonical data source.
+
+Good uses:
+
+- locate official Once Human pages, patch notes, announcements, and other primary sources;
+- collect dated URLs and screenshots that may corroborate acquisition paths, availability, terminology, or visible in-game UI;
+- identify promising table names, exact IDs, symbols, or reverse-reference leads for subsequent local Miner/Research Console verification;
+- summarize community claims into an explicit research queue, clearly labeled unverified.
+
+Evidence rules:
+
+- Installed-game Miner evidence and direct in-game captures remain authoritative for database mechanics and numeric records.
+- Perplexity output must return the original source URLs, page titles, publication/access dates, and the exact claim each source supports. A Perplexity summary without inspectable sources is not evidence.
+- Prefer official/primary sources. Community wikis, videos, social posts, and search snippets may create leads but cannot directly promote a mechanic, rating, recipe, compatibility rule, acquisition classification, or exact ID.
+- Never fuzzy-map similar `WS...`, item, blueprint, gun, buff, or prototype IDs. Every promotion still requires an exact local identity/reverse-reference path or direct in-game proof.
+- Do not upload or expose raw Miner snapshots, `reference-tracer.sqlite`, raw PYC reports, private notes, machine-specific paths, unpublished bundles, credentials, or personal data to Perplexity. Share only the smallest sanitized question/evidence excerpt required.
+- Record useful results in the repository evidence/continuity trail with provenance and an explicit status such as `lead`, `externally corroborated`, `in-game verified`, or `installed-data verified`.
+
+Current high-value Perplexity trial topics:
+
+1. Find primary-source or clearly dated in-game evidence for the five unresolved Weapon acquisition records: Machete, Metal Baseball Bat, Old Baseball Bat, Old Machete, and Rusted Blade.
+2. Find documented/current in-game magazine values by exact weapon variant as comparison evidence for reconstructing `get_gun_magazine_size`; do not infer the formula from those values alone.
+3. Look for exact references to the 11 unique missing `WS...` IDs, preserving the full ID string and source context; similar IDs are irrelevant.
+4. Investigate the 14 withheld flavor-description cases only by exact weapon identity and exact quoted source wording. Do not use name similarity to repair installed handle cross-wires.
+
 ## Non-negotiables
 
 - Work directly on canonical `main` unless the user explicitly requests otherwise.
