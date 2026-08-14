@@ -8,6 +8,7 @@ from pathlib import Path
 import miner_core
 import armor_tier_completion
 import mod_frame_enrichment
+import weapon_evidence_enrichment
 
 
 _original_link_published_images = miner_core.link_published_images
@@ -25,6 +26,13 @@ def run_module_main_with_completion(module_name, arguments, log):
 
     if module_name == "normalize_armor":
         armor_tier_completion.complete_file(
+            argument("--base"),
+            argument("--current"),
+            argument("--output"),
+            log,
+        )
+    elif module_name == "normalize_weapons":
+        weapon_evidence_enrichment.enrich_file(
             argument("--base"),
             argument("--current"),
             argument("--output"),
@@ -70,6 +78,7 @@ def self_test_with_extended_publisher():
         miner_core.EXTRACTOR_ROOT / "armor_tier_completion.py",
         miner_core.EXTRACTOR_ROOT / "mod_frame_enrichment.py",
         miner_core.EXTRACTOR_ROOT / "project_mod_frame_evidence.py",
+        miner_core.EXTRACTOR_ROOT / "weapon_evidence_enrichment.py",
     )
     for resource in resources:
         checks.setdefault("resources", {})[str(resource)] = resource.is_file()
@@ -80,6 +89,7 @@ def self_test_with_extended_publisher():
         "armor_tier_completion",
         "mod_frame_enrichment",
         "project_mod_frame_evidence",
+        "weapon_evidence_enrichment",
     ):
         try:
             module = importlib.import_module(module_name)
