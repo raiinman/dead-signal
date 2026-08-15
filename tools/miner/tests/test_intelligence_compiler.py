@@ -44,7 +44,7 @@ class IntelligenceCompilerTests(unittest.TestCase):
         resolved = compiler.resolve_snapshot(self.root)
         self.assertEqual(self.base.resolve(), resolved["base"])
         self.assertEqual(self.current.resolve(), resolved["current"])
-        self.assertEqual(self.root / "published" / "data" / "weapons.json", resolved["weapons"])
+        self.assertEqual((self.root / "published" / "data" / "weapons.json").resolve(), resolved["weapons"].resolve())
 
     def test_resolve_snapshot_rejects_incomplete_folder(self):
         with tempfile.TemporaryDirectory() as empty:
