@@ -27,6 +27,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Updater build failed.' }
 
 $HiddenImports = @(
     'lz4.block', 'zstandard', 'PIL.Image', 'texture2ddecoder',
+    'duckdb', 'polars', 'pyarrow',
     'npk_extract', 'export_bindict', 'export_marshaled_bindict',
     'normalize_armor', 'normalize_weapons', 'normalize_extended',
     'link_published_images', 'combat_resolver', 'weapon_progression',
@@ -35,6 +36,10 @@ $HiddenImports = @(
     'mod_frame_enrichment', 'project_mod_frame_evidence',
     'weapon_evidence_enrichment', 'project_weapon_evidence',
     'research_console', 'research_window',
+    'dead_signal_research_suite', 'dead_signal_source_finder', 'dead_signal_table_profiler',
+    'dead_signal_intelligence_window', 'dead_signal_intelligence_advanced', 'dead_signal_intelligence_hub',
+    'dead_signal_analytics', 'dead_signal_evidence_graph', 'dead_signal_workflow_lab',
+    'dead_signal_pipeline_inspector', 'dead_signal_publication_gate', 'neox_data_explorer',
     'reference_images', 'update_manager'
 )
 $MainArguments = @(
@@ -48,6 +53,9 @@ $MainArguments = @(
     '--paths', (Join-Path $Source 'extractor'),
     '--paths', (Join-Path $Source 'neoxtractor'),
     '--collect-all', 'PIL',
+    '--collect-all', 'duckdb',
+    '--collect-all', 'polars',
+    '--collect-all', 'pyarrow',
     '--add-data', "$(Join-Path $Source 'extractor');extractor",
     '--add-data', "$(Join-Path $Source 'neoxtractor');neoxtractor",
     '--add-data', "$(Join-Path $MinerRoot 'assets\dead-signal-miner.ico');.",
