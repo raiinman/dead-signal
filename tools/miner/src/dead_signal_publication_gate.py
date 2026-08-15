@@ -8,6 +8,7 @@ rewrite public datasets; it emits gate decisions for review and later projectors
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -38,6 +39,23 @@ DEFAULT_POLICIES = {
         "required_evidence": ("exact_identity",),
     },
 }
+
+
+def candidate_key(weapon_key: object, candidate: dict[str, Any]) -> str:
+    """Return a stable review key bound to exact candidate provenance and content."""
+    weapon = str(weapon_key or "").strip()
+    provenance = {
+        "weapon": weapon,
+        "source": str(candidate.get("source") or ""),
+        "table": str(candidate.get("table") or ""),
+        "record_id": str(candidate.get("record_id") or ""),
+        "field": str(candidate.get("field") or ""),
+        "json_pointer": str(candidate.get("json_pointer") or ""),
+        "raw_value": str(candidate.get("raw_value") or ""),
+        "text": str(candidate.get("text") or ""),
+    }
+    encoded = json.dumps(provenance, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return f"{weapon}:{hashlib.sha256(encoded).hexdigest()[:20]}"
 
 
 def decide(subject: str, candidate: dict[str, Any], verification: dict[str, Any] | None = None,
@@ -89,10 +107,17 @@ def gate_source_finder(source_finder: dict[str, Any], verifications: dict[str, A
         weapon_key = str(weapon.get("blueprint_id") or weapon.get("item_id") or weapon.get("name") or "")
         candidate_rows = []
         for index, candidate in enumerate(weapon.get("candidates") or []):
-            candidate_key = f"{weapon_key}:{index}"
-            verification = verifications.get(candidate_key) or verifications.get(weapon_key) or {}
+            stable_key = candidate_key(weapon_key, candidate)
+            legacy_key = f"{weapon_key}:{index}"
+            verification = verifications.get(stable_key) or verifications.get(legacy_key) or verifications.get(weapon_key) or {}
             decision = decide("weapon.description", candidate, verification)
-            candidate_rows.append({"candidate_key": candidate_key, "candidate": candidate, "verification": verification, "gate": decision})
+            candidate_rows.append({
+                "candidate_key": stable_key,
+                "legacy_candidate_key": legacy_key,
+                "candidate": candidate,
+                "verification": verification,
+                "gate": decision,
+            })
             publishable += int(decision["publishable"])
         rows.append({
             "blueprint_id": weapon.get("blueprint_id"),
@@ -111,6 +136,7 @@ def gate_source_finder(source_finder: dict[str, Any], verifications: dict[str, A
         "policy": {
             "separation": "Extraction, resolution, candidacy, verification, and publication are separate states.",
             "verification": "Only explicit independent verification can satisfy the gate.",
+            "verification_keys": "Candidate verification keys are stable hashes of exact provenance and content; changed evidence requires fresh review.",
             "write_path": "This report is advisory; it does not rewrite public website datasets.",
         },
     }
