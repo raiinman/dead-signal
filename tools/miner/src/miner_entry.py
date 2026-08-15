@@ -14,6 +14,7 @@ import weapon_reference_filter
 import weapon_typed_seed_trace
 import research_window
 from dead_signal_analytics import DeadSignalAnalytics
+from dead_signal_discovery import DeadSignalDiscovery
 from dead_signal_intelligence_hub import open_data_intelligence
 from dead_signal_pipeline_inspector import PipelineRecorder
 from dead_signal_publication_gate import build_gate_report
@@ -87,6 +88,8 @@ def run_module_main_with_completion(module_name, arguments, log):
 
 def link_images_and_publish_extended(published, log):
     started = time.perf_counter()
+    status = "complete"
+    error_text = None
     try:
         result = _original_link_published_images(published, log)
         publisher = importlib.import_module("publish_extended_web_data")
@@ -103,13 +106,40 @@ def link_images_and_publish_extended(published, log):
         outputs["calibrations"]["publication_status"] = calibration.get("publication_status")
         log("Published compact extended website contracts: " + ", ".join(sorted(outputs)))
         return result
+    except Exception as error:
+        status = "failed"
+        error_text = f"{type(error).__name__}: {error}"
+        raise
     finally:
         if _active_pipeline_recorder is not None:
             _active_pipeline_recorder.record(
                 "extended-publishing",
+                status=status,
                 duration_seconds=time.perf_counter() - started,
                 details={"published": str(published)},
+                error=error_text,
             )
+
+
+def _run_nonfatal_intelligence_stage(recorder, log, name, operation):
+    started = time.perf_counter()
+    try:
+        value = operation()
+        recorder.record(
+            f"data-intelligence:{name}",
+            duration_seconds=time.perf_counter() - started,
+            details=(value.get("record_counts", {}) if isinstance(value, dict) else {}),
+        )
+        return value
+    except Exception as error:
+        recorder.record(
+            f"data-intelligence:{name}",
+            status="failed",
+            duration_seconds=time.perf_counter() - started,
+            error=f"{type(error).__name__}: {error}",
+        )
+        log(f"Data Intelligence warning: {name} failed: {error}")
+        return None
 
 
 def run_pipeline_with_intelligence(config, log, progress, cancel=None):
@@ -123,41 +153,23 @@ def run_pipeline_with_intelligence(config, log, progress, cancel=None):
         output = Path(result.get("config", {}).get("output") or config.output).expanduser().resolve()
         reports = output / "published" / "reports"
 
-        started = time.perf_counter()
-        try:
-            gate = build_gate_report(reports)
-            recorder.record(
-                "data-intelligence:publication-gate",
-                duration_seconds=time.perf_counter() - started,
-                details={"publishable_candidates": gate.get("record_counts", {}).get("publishable_candidates", 0)},
-            )
+        gate = _run_nonfatal_intelligence_stage(
+            recorder, log, "publication-gate", lambda: build_gate_report(reports)
+        )
+        if gate is not None:
             log("Dead Signal Publication Gate review generated (advisory; public data unchanged).")
-        except Exception as error:  # research add-ons must not invalidate a healthy extraction
-            recorder.record(
-                "data-intelligence:publication-gate",
-                status="failed",
-                duration_seconds=time.perf_counter() - started,
-                error=f"{type(error).__name__}: {error}",
-            )
-            log(f"Data Intelligence warning: Publication Gate report failed: {error}")
 
-        started = time.perf_counter()
-        try:
-            analytics = DeadSignalAnalytics(output).build()
-            recorder.record(
-                "data-intelligence:analytics-warehouse",
-                duration_seconds=time.perf_counter() - started,
-                details=analytics.get("rows", {}),
-            )
+        discovery = _run_nonfatal_intelligence_stage(
+            recorder, log, "discovery", lambda: DeadSignalDiscovery(output).run_all()
+        )
+        if discovery is not None:
+            log("Dead Signal Discovery report generated (research leads only).")
+
+        analytics = _run_nonfatal_intelligence_stage(
+            recorder, log, "analytics-warehouse", lambda: DeadSignalAnalytics(output).build()
+        )
+        if analytics is not None:
             log("Dead Signal Analytics warehouse refreshed.")
-        except Exception as error:  # packaging/dependency diagnostics stay non-fatal
-            recorder.record(
-                "data-intelligence:analytics-warehouse",
-                status="failed",
-                duration_seconds=time.perf_counter() - started,
-                error=f"{type(error).__name__}: {error}",
-            )
-            log(f"Data Intelligence warning: analytics warehouse unavailable: {error}")
 
         recorder.report(output, result=result)
         return result
@@ -193,6 +205,8 @@ def self_test_with_extended_publisher():
         miner_core.ROOT / "dead_signal_intelligence_window.py",
         miner_core.ROOT / "dead_signal_intelligence_advanced.py",
         miner_core.ROOT / "dead_signal_intelligence_hub.py",
+        miner_core.ROOT / "dead_signal_discovery.py",
+        miner_core.ROOT / "dead_signal_discovery_tab.py",
         miner_core.ROOT / "dead_signal_analytics.py",
         miner_core.ROOT / "dead_signal_evidence_graph.py",
         miner_core.ROOT / "dead_signal_workflow_lab.py",
@@ -209,8 +223,9 @@ def self_test_with_extended_publisher():
         "project_weapon_evidence", "research_console", "research_window",
         "dead_signal_research_suite", "dead_signal_source_finder", "dead_signal_table_profiler",
         "dead_signal_intelligence_window", "dead_signal_intelligence_advanced", "dead_signal_intelligence_hub",
-        "dead_signal_analytics", "dead_signal_evidence_graph", "dead_signal_workflow_lab",
-        "dead_signal_pipeline_inspector", "dead_signal_publication_gate", "neox_data_explorer",
+        "dead_signal_discovery", "dead_signal_discovery_tab", "dead_signal_analytics",
+        "dead_signal_evidence_graph", "dead_signal_workflow_lab", "dead_signal_pipeline_inspector",
+        "dead_signal_publication_gate", "neox_data_explorer",
         "investigate_weapon_descriptions", "investigate_weapon_description_sources",
         "duckdb", "polars", "pyarrow",
     ):
