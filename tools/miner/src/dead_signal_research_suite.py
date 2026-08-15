@@ -24,6 +24,12 @@ PROFILE_TABLE_HINTS = (
     "weapon", "gun", "item", "equip", "blueprint", "prototype", "skill",
     "display", "ui", "tooltip", "desc", "copy",
 )
+PROFILE_PRIORITY_HINTS = (
+    ("tooltip", 90), ("description", 90), ("desc", 80), ("copy", 80),
+    ("display", 70), ("ui", 60), ("weapon", 55), ("gun", 55),
+    ("blueprint", 45), ("item", 40), ("equip", 35), ("prototype", 35),
+    ("skill", 25), ("preview", 20),
+)
 MAX_PROFILE_TABLES = 500
 ActivityCallback = Callable[[str], None]
 
@@ -42,6 +48,18 @@ def _write_json(path: Path, payload: Any) -> None:
     temporary.replace(path)
 
 
+def _profile_path_score(relative: str) -> int:
+    lowered = relative.casefold()
+    score = sum(weight for token, weight in PROFILE_PRIORITY_HINTS if token in lowered)
+    # Favor tables close to canonical gameplay data over generic client support
+    # records when the 500-table safety cap is reached.
+    if lowered.startswith("game_common/data/"):
+        score += 20
+    if "/logic_tree/" in lowered:
+        score -= 40
+    return score
+
+
 def _candidate_profile_paths(base: Path, current: Path) -> list[str]:
     paths: set[str] = set()
     for root in (base, current):
@@ -52,7 +70,7 @@ def _candidate_profile_paths(base: Path, current: Path) -> list[str]:
                 continue
             if any(token in lowered for token in PROFILE_TABLE_HINTS):
                 paths.add(relative)
-    return sorted(paths)[:MAX_PROFILE_TABLES]
+    return sorted(paths, key=lambda relative: (-_profile_path_score(relative), relative))[:MAX_PROFILE_TABLES]
 
 
 def build_table_profile_report(
@@ -64,7 +82,7 @@ def build_table_profile_report(
     activity = activity or (lambda _message: None)
     candidates = _candidate_profile_paths(base, current)
     total = len(candidates)
-    activity(f"Table Profiler found {total} candidate NeoX tables")
+    activity(f"Table Profiler found {total} candidate NeoX tables (ranked by Weapon/description relevance)")
 
     tables = []
     for index, relative in enumerate(candidates, start=1):
@@ -78,6 +96,7 @@ def build_table_profile_report(
             "table": relative,
             "base_present": base_profile is not None,
             "current_present": current_profile is not None,
+            "profile_priority_score": _profile_path_score(relative),
             "active_profile": active,
         }
         if base_profile and current_profile:
@@ -89,6 +108,7 @@ def build_table_profile_report(
         key=lambda row: (
             -len((row.get("active_profile") or {}).get("description_like_fields") or []),
             -len((row.get("active_profile") or {}).get("identity_like_fields") or []),
+            -int(row.get("profile_priority_score") or 0),
             row["table"],
         ),
     )
