@@ -96,6 +96,19 @@ class DeadSignalVerificationTests(unittest.TestCase):
         self.assertEqual({}, row["verification"])
         self.assertEqual("BLOCKED", row["gate"]["decision"])
 
+    def test_changed_reference_path_invalidates_old_verification(self):
+        original = dict(self.candidate)
+        original["reference_path"] = [
+            {"kind": "weapon-seed", "field": "item_id", "value": "200"},
+            {"kind": "exact-reference", "source": "current", "table": "a.json", "record_id": "1", "field": "item_id", "json_pointer": "/item_id", "value": "200", "depth": 0},
+        ]
+        changed = dict(original)
+        changed["reference_path"] = [
+            {"kind": "weapon-seed", "field": "item_id", "value": "200"},
+            {"kind": "exact-reference", "source": "current", "table": "b.json", "record_id": "1", "field": "item_id", "json_pointer": "/item_id", "value": "200", "depth": 0},
+        ]
+        self.assertNotEqual(self._key(original), self._key(changed))
+
     def test_missing_required_evidence_stays_blocked(self):
         save_verification(
             self.root,
