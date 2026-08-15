@@ -137,7 +137,14 @@ html[data-ds-font-size="xlarge"] .system-description{-webkit-line-clamp:5}
 @media(max-width:940px){.bl-picker.arsenal-mode .arsenal-body{grid-template-columns:1fr!important}.bl-picker.arsenal-mode .arsenal-rail{display:none!important}}
 
 /* Build Lab weapon arsenal: taller cards for readable mechanic descriptions. */
-.bl-picker.arsenal-mode .arsenal-card{min-height:228px!important}
-.bl-picker.arsenal-mode .arsenal-art{min-height:228px!important}
-.bl-picker.arsenal-mode .arsenal-mechanic{min-height:54px!important;line-height:1.45!important;-webkit-line-clamp:3!important}
-@media(max-width:620px){.bl-picker.arsenal-mode .arsenal-card{min-height:0!important}.bl-picker.arsenal-mode .arsenal-art{min-height:150px!important}.bl-picker.arsenal-mode .arsenal-mechanic{min-height:0!important;-webkit-line-clamp:4!important}}
+.bl-picker.arsenal-mode .arsenal-card{min-height:286px!important}
+.bl-picker.arsenal-mode .arsenal-art{min-height:286px!important;padding:18px!important}
+.bl-picker.arsenal-mode .arsenal-art img{height:150px!important}
+.bl-picker.arsenal-mode .arsenal-copy{padding:15px 15px 13px!important}
+.bl-picker.arsenal-mode .arsenal-title{margin-bottom:2px!important}
+.bl-picker.arsenal-mode .arsenal-chips{margin-top:7px!important}
+.bl-picker.arsenal-mode .arsenal-mechanic{min-height:82px!important;margin-top:11px!important;line-height:1.5!important;-webkit-line-clamp:4!important}
+.bl-picker.arsenal-mode .arsenal-stats{margin-top:11px!important}
+.bl-picker.arsenal-mode .arsenal-evidence{margin-top:10px!important;padding-top:10px!important}
+.bl-picker.arsenal-mode .arsenal-actions{padding-top:10px!important}
+@media(max-width:620px){.bl-picker.arsenal-mode .arsenal-card{min-height:0!important}.bl-picker.arsenal-mode .arsenal-art{min-height:175px!important}.bl-picker.arsenal-mode .arsenal-art img{height:125px!important}.bl-picker.arsenal-mode .arsenal-mechanic{min-height:0!important;-webkit-line-clamp:5!important}}
