@@ -1,0 +1,120 @@
+from __future__ import annotations
+
+import json
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+
+SRC = Path(__file__).resolve().parents[1] / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+
+from dead_signal_publication_gate import build_gate_report  # noqa: E402
+from dead_signal_verification import delete_verification, load_verifications, save_verification  # noqa: E402
+
+
+class DeadSignalVerificationTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp.name)
+        reports = self.root / "published" / "reports"
+        reports.mkdir(parents=True)
+        reports.joinpath("dead-signal-source-finder.json").write_text(json.dumps({
+            "weapons": [{
+                "blueprint_id": 100,
+                "item_id": 200,
+                "name": "Test Pathfinder",
+                "candidates": [{
+                    "state": "CANDIDATE",
+                    "score": 90,
+                    "blockers": [],
+                    "shared_across_weapons": False,
+                    "table": "game_common/data/weapon_ui_data.json",
+                    "field": "description",
+                    "text": "Verified candidate text",
+                }],
+            }],
+        }), encoding="utf-8")
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    def test_gate_is_blocked_before_manual_verification(self):
+        report = build_gate_report(self.root / "published" / "reports")
+        self.assertEqual(0, report["record_counts"]["publishable_candidates"])
+        decision = report["weapons"][0]["candidate_decisions"][0]["gate"]
+        self.assertEqual("BLOCKED", decision["decision"])
+
+    def test_explicit_verification_can_satisfy_advisory_gate(self):
+        saved = save_verification(
+            self.root,
+            "100:0",
+            state="VERIFIED",
+            evidence=["exact_identity", "independent_source"],
+            note="Exact item identity confirmed in a second installed-client record.",
+            source_ref="game_common/data/weapon_ui_data.json:100",
+        )
+        self.assertEqual("VERIFIED", saved["state"])
+        report = build_gate_report(self.root / "published" / "reports")
+        self.assertEqual(1, report["record_counts"]["publishable_candidates"])
+        row = report["weapons"][0]["candidate_decisions"][0]
+        self.assertEqual("PUBLISHABLE", row["gate"]["decision"])
+        self.assertEqual("VERIFIED", row["verification"]["state"])
+        self.assertIn("public website datasets", report["policy"]["write_path"])
+
+    def test_missing_required_evidence_stays_blocked(self):
+        save_verification(
+            self.root,
+            "100:0",
+            state="VERIFIED",
+            evidence=["exact_identity"],
+            note="Identity was checked but independent source proof is still missing.",
+        )
+        report = build_gate_report(self.root / "published" / "reports")
+        decision = report["weapons"][0]["candidate_decisions"][0]["gate"]
+        self.assertFalse(decision["publishable"])
+        self.assertIn("missing-verification:independent_source", decision["blockers"])
+
+    def test_conflict_review_blocks_candidate(self):
+        save_verification(
+            self.root,
+            "100:0",
+            state="CONFLICT",
+            evidence=["exact_identity", "independent_source"],
+            note="Independent source points at different player-facing copy.",
+        )
+        report = build_gate_report(self.root / "published" / "reports")
+        decision = report["weapons"][0]["candidate_decisions"][0]["gate"]
+        self.assertFalse(decision["publishable"])
+        self.assertIn("conflicting-evidence", decision["blockers"])
+
+    def test_verification_registry_is_manual_and_removable(self):
+        save_verification(
+            self.root,
+            "100:0",
+            state="VERIFIED",
+            evidence=["exact_identity", "independent_source"],
+            note="Manual review with exact installed-client evidence completed.",
+        )
+        registry = load_verifications(self.root)
+        self.assertTrue(registry["verifications"]["100:0"]["manual"])
+        self.assertTrue(delete_verification(self.root, "100:0"))
+        self.assertNotIn("100:0", load_verifications(self.root)["verifications"])
+
+    def test_short_or_unknown_verification_evidence_is_rejected(self):
+        with self.assertRaises(ValueError):
+            save_verification(
+                self.root, "100:0", state="VERIFIED",
+                evidence=["exact_identity", "made_up"], note="Valid long note here",
+            )
+        with self.assertRaises(ValueError):
+            save_verification(
+                self.root, "100:0", state="VERIFIED",
+                evidence=["exact_identity", "independent_source"], note="short",
+            )
+
+
+if __name__ == "__main__":
+    unittest.main()
