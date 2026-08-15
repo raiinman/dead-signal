@@ -11,6 +11,7 @@ import mod_frame_enrichment
 import weapon_evidence_enrichment
 import weapon_reference_filter
 import weapon_typed_seed_trace
+from dead_signal_research_suite import run_research_suite
 
 
 weapon_reference_filter.install(weapon_evidence_enrichment)
@@ -32,7 +33,17 @@ def run_module_main_with_completion(module_name, arguments, log):
     if module_name == "normalize_armor":
         armor_tier_completion.complete_file(argument("--base"), argument("--current"), argument("--output"), log)
     elif module_name == "normalize_weapons":
-        weapon_evidence_enrichment.enrich_file(argument("--base"), argument("--current"), argument("--output"), log)
+        base = Path(argument("--base"))
+        current = Path(argument("--current"))
+        weapons_output = Path(argument("--output"))
+        weapon_evidence_enrichment.enrich_file(base, current, weapons_output, log)
+        reports = weapons_output.parent.parent / "reports"
+        research = run_research_suite(base, current, weapons_output, reports)
+        log(
+            "Dead Signal research suite ready: "
+            + f"{research.get('record_counts', {}).get('profiled_tables', 0)} profiled tables; "
+            + f"Source Finder states {research.get('record_counts', {}).get('source_finder_states', {})}."
+        )
     elif module_name == "normalize_extended":
         mod_frame_enrichment.enrich_file(argument("--base"), argument("--current"), Path(argument("--output-dir")) / "mods.json", log)
     elif module_name == "publish_web_data":
@@ -74,6 +85,12 @@ def self_test_with_extended_publisher():
         miner_core.EXTRACTOR_ROOT / "weapon_reference_filter.py",
         miner_core.EXTRACTOR_ROOT / "weapon_typed_seed_trace.py",
         miner_core.EXTRACTOR_ROOT / "project_weapon_evidence.py",
+        miner_core.EXTRACTOR_ROOT / "investigate_weapon_descriptions.py",
+        miner_core.EXTRACTOR_ROOT / "investigate_weapon_description_sources.py",
+        miner_core.ROOT / "dead_signal_research_suite.py",
+        miner_core.ROOT / "dead_signal_source_finder.py",
+        miner_core.ROOT / "dead_signal_table_profiler.py",
+        miner_core.ROOT / "neox_data_explorer.py",
     )
     for resource in resources:
         checks.setdefault("resources", {})[str(resource)] = resource.is_file()
@@ -82,6 +99,8 @@ def self_test_with_extended_publisher():
         "armor_tier_completion", "mod_frame_enrichment", "project_mod_frame_evidence",
         "weapon_evidence_enrichment", "weapon_reference_filter", "weapon_typed_seed_trace",
         "project_weapon_evidence", "research_console", "research_window",
+        "dead_signal_research_suite", "dead_signal_source_finder", "dead_signal_table_profiler",
+        "neox_data_explorer", "investigate_weapon_descriptions", "investigate_weapon_description_sources",
     ):
         try:
             module = importlib.import_module(module_name)
