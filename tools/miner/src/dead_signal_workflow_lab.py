@@ -1,9 +1,9 @@
 """Dead Signal Workflow Lab.
 
 A constrained visual-workflow backend inspired by data-mining workbenches but
-purpose-built for Once Human evidence research.  Nodes are deterministic,
-read-only operations over completed Miner snapshots.  Workflows may produce
-leads and candidates; they cannot assign VERIFIED or write public datasets.
+purpose-built for Once Human evidence research. Nodes are deterministic,
+read-only operations over completed Miner snapshots. Workflows may produce leads
+and candidates; they cannot assign VERIFIED or write public datasets.
 """
 
 from __future__ import annotations
@@ -23,6 +23,7 @@ ALLOWED_NODES = (
     "weapon_input",
     "extract_exact_ids",
     "find_exact_references",
+    "open_exact_records",
     "table_filter",
     "field_filter",
     "resolve_translation",
@@ -31,13 +32,6 @@ ALLOWED_NODES = (
     "analytics_description_leads",
     "evidence_result",
 )
-
-
-def _read_json(path: Path, default: Any = None) -> Any:
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError, TypeError):
-        return default
 
 
 def default_description_workflow() -> dict[str, Any]:
@@ -49,8 +43,11 @@ def default_description_workflow() -> dict[str, Any]:
             {"id": "weapon", "type": "weapon_input", "config": {}},
             {"id": "ids", "type": "extract_exact_ids", "inputs": ["weapon"], "config": {}},
             {"id": "refs", "type": "find_exact_references", "inputs": ["ids"], "config": {"limit_per_id": 120}},
-            {"id": "fields", "type": "field_filter", "inputs": ["refs"], "config": {"contains": ["desc", "tooltip", "display", "copy", "text"]}},
-            {"id": "result", "type": "evidence_result", "inputs": ["fields"], "config": {}},
+            {"id": "records", "type": "open_exact_records", "inputs": ["refs"], "config": {"limit": 500}},
+            {"id": "fields", "type": "field_filter", "inputs": ["records"], "config": {"contains": ["desc", "tooltip", "display", "copy", "flavor", "lore", "text"]}},
+            {"id": "translated", "type": "resolve_translation", "inputs": ["fields"], "config": {}},
+            {"id": "shared", "type": "shared_value_check", "inputs": ["translated"], "config": {}},
+            {"id": "result", "type": "evidence_result", "inputs": ["shared"], "config": {}},
         ],
     }
 
@@ -66,6 +63,7 @@ class DeadSignalWorkflowLab:
             "weapon_input": self._weapon_input,
             "extract_exact_ids": self._extract_exact_ids,
             "find_exact_references": self._find_exact_references,
+            "open_exact_records": self._open_exact_records,
             "table_filter": self._table_filter,
             "field_filter": self._field_filter,
             "resolve_translation": self._resolve_translation,
@@ -97,6 +95,43 @@ class DeadSignalWorkflowLab:
                     rows.append({"identity_kind": kind, "identity_value": value, **reference})
         return rows
 
+    def _open_exact_records(self, _context: dict[str, Any], inputs: list[Any], config: dict[str, Any]) -> Any:
+        references = list(inputs[0] if inputs else [])
+        limit = min(5000, max(1, int(config.get("limit") or 500)))
+        results = []
+        seen: set[tuple[str, str, str]] = set()
+        for reference in references:
+            layer = str(reference.get("source") or "")
+            table = str(reference.get("table") or "")
+            record_id = str(reference.get("record_id") or "")
+            key = (layer, table, record_id)
+            if not layer or not table or not record_id or key in seen:
+                continue
+            seen.add(key)
+            try:
+                record = self.explorer.record(table, record_id, layer=layer)
+            except (ValueError, OSError):
+                continue
+            for field in record.get("fields") or []:
+                results.append({
+                    "source": layer,
+                    "table": table,
+                    "record_id": record_id,
+                    "field": field.get("field"),
+                    "json_pointer": field.get("json_pointer"),
+                    "value": field.get("value"),
+                    "value_type": field.get("value_type"),
+                    "record_identity_provenance": {
+                        "identity_kind": reference.get("identity_kind"),
+                        "identity_value": reference.get("identity_value"),
+                        "reference_field": reference.get("field"),
+                        "reference_pointer": reference.get("json_pointer"),
+                    },
+                })
+                if len(results) >= limit:
+                    return results
+        return results
+
     @staticmethod
     def _table_filter(_context: dict[str, Any], inputs: list[Any], config: dict[str, Any]) -> Any:
         rows = list(inputs[0] if inputs else [])
@@ -117,8 +152,8 @@ class DeadSignalWorkflowLab:
         rows = list(inputs[0] if inputs else [])
         results = []
         for row in rows:
-            value = row.get("value") or row.get("identity_value")
-            if not value:
+            value = row.get("value")
+            if value in (None, "") or isinstance(value, (dict, list, bool)):
                 results.append({**row, "translation": None})
                 continue
             forensic = self.console.translation_forensics(value)
@@ -126,14 +161,29 @@ class DeadSignalWorkflowLab:
         return results
 
     @staticmethod
-    def _shared_value_check(_context: dict[str, Any], inputs: list[Any], _config: dict[str, Any]) -> Any:
+    def _fingerprint(row: dict[str, Any]) -> str:
+        translation = row.get("translation") or {}
+        unique = translation.get("unique_texts") or []
+        if len(unique) == 1:
+            return str(unique[0])
+        return str(row.get("value") or "")
+
+    @classmethod
+    def _shared_value_check(cls, _context: dict[str, Any], inputs: list[Any], _config: dict[str, Any]) -> Any:
         rows = list(inputs[0] if inputs else [])
         counts: dict[str, int] = {}
         for row in rows:
-            value = str(row.get("value") or row.get("identity_value") or row.get("text") or "")
+            value = cls._fingerprint(row)
             if value:
                 counts[value] = counts.get(value, 0) + 1
-        return [{**row, "workflow_shared_count": counts.get(str(row.get("value") or row.get("identity_value") or row.get("text") or ""), 0)} for row in rows]
+        return [
+            {
+                **row,
+                "workflow_fingerprint": cls._fingerprint(row),
+                "workflow_shared_count": counts.get(cls._fingerprint(row), 0),
+            }
+            for row in rows
+        ]
 
     def _identity_map(self, context: dict[str, Any], _inputs: list[Any], _config: dict[str, Any]) -> Any:
         identity = context.get("weapon_identity")
@@ -146,10 +196,11 @@ class DeadSignalWorkflowLab:
 
     @staticmethod
     def _evidence_result(_context: dict[str, Any], inputs: list[Any], _config: dict[str, Any]) -> Any:
-        value = inputs[0] if inputs else None
+        rows = list(inputs[0] if inputs and isinstance(inputs[0], list) else [])
         return {
-            "state": "CANDIDATE" if value else "UNRESOLVED",
-            "result": value,
+            "state": "CANDIDATE" if rows else "UNRESOLVED",
+            "candidate_count": len(rows),
+            "result": rows,
             "verification": "BLOCKED-PENDING-INDEPENDENT-EXACT-VERIFICATION",
             "publication": "BLOCKED",
         }
@@ -175,7 +226,8 @@ class DeadSignalWorkflowLab:
             input_values = [outputs[value] for value in input_ids]
             result = self.handlers[node_type](context, input_values, dict(node.get("config") or {}))
             outputs[node_id] = result
-            trace.append({"id": node_id, "type": node_type, "inputs": input_ids, "status": "complete"})
+            size = len(result) if isinstance(result, (list, dict)) else 1
+            trace.append({"id": node_id, "type": node_type, "inputs": input_ids, "status": "complete", "result_size": size})
         final_id = str(nodes[-1].get("id"))
         return {
             "schema": "dead-signal-workflow-run",
