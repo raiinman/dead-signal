@@ -291,7 +291,23 @@ miner_core.run_pipeline = run_pipeline_with_intelligence
 miner_core.self_test = self_test_with_extended_publisher
 research_window.open_research_console = open_dead_signal_data_intelligence
 
-from dead_signal_miner import main  # noqa: E402
+# Import the desktop UI only after the canonical pipeline hooks above are installed.
+# A completed/cancelled/failed run is terminal as soon as the UI returns to its idle
+# controls. Clear the worker handle at that same transition so window-close and
+# update checks cannot mistake a finished daemon thread's final unwind for active
+# mining.
+import dead_signal_miner as _miner_ui  # noqa: E402
+
+_original_set_idle_buttons = _miner_ui.DeadSignalMinerApp._set_idle_buttons
+
+
+def _set_idle_buttons_and_clear_worker(self):
+    self.worker = None
+    return _original_set_idle_buttons(self)
+
+
+_miner_ui.DeadSignalMinerApp._set_idle_buttons = _set_idle_buttons_and_clear_worker
+main = _miner_ui.main
 
 
 if __name__ == "__main__":
