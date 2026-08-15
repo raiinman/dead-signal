@@ -72,6 +72,36 @@ class WeaponDescriptionSourceInvestigationTests(unittest.TestCase):
             self.assertEqual("research-only", candidate["publication_status"])
             self.assertEqual("exact-record-description-candidates-found", report["weapons"][0]["classification"])
 
+    def test_metadata_desc_selectors_do_not_become_copy_candidates(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            base = root / "base"
+            current = root / "current"
+            self._write_table(
+                base,
+                "game_common/data/item_data.json",
+                {"101": {"item_filter_desc_type": 1, "item_detail_desc_type": 11}},
+            )
+            payload = {"weapons": [{"blueprint_id": 1, "item_id": 101, "name": "Alpha"}]}
+            report = MODULE.investigate(payload, base, current)
+            row = report["weapons"][0]
+            self.assertEqual(0, row["candidate_count"])
+            self.assertEqual("no-description-like-field-on-exact-record", row["classification"])
+
+    def test_record_id_collision_in_unrelated_table_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            base = root / "base"
+            current = root / "current"
+            self._write_table(
+                base,
+                "client_data/task_map_item_data.json",
+                {"101": {"desc": "Unrelated task text"}},
+            )
+            payload = {"weapons": [{"blueprint_id": 1, "item_id": 101, "name": "Alpha"}]}
+            report = MODULE.investigate(payload, base, current)
+            self.assertEqual(0, report["weapons"][0]["candidate_count"])
+
 
 if __name__ == "__main__":
     unittest.main()
