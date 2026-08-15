@@ -129,3 +129,9 @@ html[data-ds-font-size="xlarge"] .pick-layout{min-height:132px}
 html[data-ds-font-size="xlarge"] .system-description{-webkit-line-clamp:5}
 
 @media(max-width:900px){.ds-readability{margin:10px 12px 0}}
+
+/* Build Lab weapon arsenal: prioritize card space over the redundant detail rail. */
+.bl-picker.arsenal-mode .arsenal-body{grid-template-columns:150px minmax(0,1fr)!important}
+.bl-picker.arsenal-mode .arsenal-inspector{display:none!important}
+@media(max-width:1250px){.bl-picker.arsenal-mode .arsenal-body{grid-template-columns:125px minmax(0,1fr)!important}}
+@media(max-width:940px){.bl-picker.arsenal-mode .arsenal-body{grid-template-columns:1fr!important}.bl-picker.arsenal-mode .arsenal-rail{display:none!important}}
