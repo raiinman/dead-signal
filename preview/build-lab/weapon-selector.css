@@ -1,0 +1,99 @@
+/* Dead Signal Build Lab — weapon selector layout
+   Dedicated, late-loaded selector stylesheet so arsenal geometry is not overridden
+   by shared readability or base Build Lab rules. */
+
+.bl-picker.arsenal-mode{
+  width:min(1520px,calc(100vw - 30px));
+  height:min(90vh,1040px);
+  max-height:none;
+  overflow:hidden;
+  display:grid;
+  grid-template-rows:auto auto minmax(0,1fr) auto;
+}
+
+.bl-picker.arsenal-mode .arsenal-body{
+  display:grid!important;
+  grid-template-columns:150px minmax(0,1fr)!important;
+  min-height:0;
+}
+.bl-picker.arsenal-mode .arsenal-inspector{display:none!important}
+.bl-picker.arsenal-mode .arsenal-center{min-width:0;overflow:hidden}
+.bl-picker.arsenal-mode .bl-picker-list{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  align-content:start;
+  gap:12px!important;
+  height:100%;
+  max-height:none!important;
+  padding:12px!important;
+  overflow:auto;
+}
+
+/* Arsenal entries are intentionally tall. Readability wins over row density. */
+.bl-picker.arsenal-mode .arsenal-card{
+  grid-template-columns:190px minmax(0,1fr)!important;
+  min-height:310px!important;
+  height:auto!important;
+}
+.bl-picker.arsenal-mode .arsenal-art{
+  min-height:310px!important;
+  padding:20px!important;
+}
+.bl-picker.arsenal-mode .arsenal-art img{
+  height:155px!important;
+  max-height:155px!important;
+}
+.bl-picker.arsenal-mode .arsenal-copy{
+  padding:16px 16px 14px!important;
+}
+.bl-picker.arsenal-mode .arsenal-title strong{
+  font-size:var(--ds-type-lg)!important;
+  line-height:1.28!important;
+}
+.bl-picker.arsenal-mode .arsenal-chips{margin-top:8px!important}
+.bl-picker.arsenal-mode .arsenal-mechanic{
+  display:-webkit-box!important;
+  min-height:82px!important;
+  margin-top:12px!important;
+  overflow:hidden!important;
+  color:#a7b2b8!important;
+  font-size:var(--ds-type-xs)!important;
+  line-height:1.52!important;
+  -webkit-box-orient:vertical!important;
+  -webkit-line-clamp:5!important;
+}
+.bl-picker.arsenal-mode .arsenal-stats{
+  gap:7px!important;
+  margin-top:12px!important;
+}
+.bl-picker.arsenal-mode .arsenal-stats span{padding:8px!important}
+.bl-picker.arsenal-mode .arsenal-evidence{
+  gap:9px!important;
+  margin-top:11px!important;
+  padding-top:10px!important;
+}
+.bl-picker.arsenal-mode .arsenal-actions{
+  margin-top:auto!important;
+  padding-top:11px!important;
+}
+
+@media(max-width:1250px){
+  .bl-picker.arsenal-mode .arsenal-body{grid-template-columns:125px minmax(0,1fr)!important}
+  .bl-picker.arsenal-mode .arsenal-card{grid-template-columns:160px minmax(0,1fr)!important;min-height:300px!important}
+  .bl-picker.arsenal-mode .arsenal-art{min-height:300px!important}
+}
+
+@media(max-width:940px){
+  .bl-picker.arsenal-mode{height:92vh}
+  .bl-picker.arsenal-mode .arsenal-body{grid-template-columns:1fr!important}
+  .bl-picker.arsenal-mode .arsenal-rail{display:none!important}
+  .bl-picker.arsenal-mode .bl-picker-list{grid-template-columns:1fr!important}
+  .bl-picker.arsenal-mode .arsenal-card{grid-template-columns:175px minmax(0,1fr)!important}
+}
+
+@media(max-width:620px){
+  .bl-picker.arsenal-mode .arsenal-card{grid-template-columns:1fr!important;min-height:0!important}
+  .bl-picker.arsenal-mode .arsenal-art{min-height:160px!important;border-right:0;border-bottom:1px solid #21313a}
+  .bl-picker.arsenal-mode .arsenal-art img{height:120px!important;max-height:120px!important}
+  .bl-picker.arsenal-mode .arsenal-mechanic{min-height:0!important;-webkit-line-clamp:6!important}
+}
