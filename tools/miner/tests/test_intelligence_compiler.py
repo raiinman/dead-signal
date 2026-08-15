@@ -62,6 +62,7 @@ class IntelligenceCompilerTests(unittest.TestCase):
 
         def research_side_effect(base, current, weapons, reports_dir, *, activity=None):
             if activity:
+                activity("Multi-hop Resolver 1/120: Test Weapon")
                 activity("Table Profiler 1/2: gun_alpha.json")
                 activity("Table Profiler 2/2: weapon_beta.json")
             payload = {
@@ -69,9 +70,13 @@ class IntelligenceCompilerTests(unittest.TestCase):
                     "weapons": 120,
                     "profiled_tables": 42,
                     "source_finder_states": {"CANDIDATE": 3, "UNRESOLVED": 117},
+                    "multihop_candidates": 7,
+                    "multihop_expanded_records": 321,
                 }
             }
             (reports_dir / "dead-signal-research-suite.json").write_text(json.dumps(payload), encoding="utf-8")
+            (reports_dir / "weapon-description-multihop.json").write_text(json.dumps({"weapons": []}), encoding="utf-8")
+            (reports_dir / "weapon-description-combined-investigation.json").write_text(json.dumps({"weapons": []}), encoding="utf-8")
             (reports_dir / "dead-signal-table-profiles.json").write_text(json.dumps({"tables": []}), encoding="utf-8")
             (reports_dir / "dead-signal-source-finder.json").write_text(json.dumps({"weapons": []}), encoding="utf-8")
             return payload
@@ -99,11 +104,14 @@ class IntelligenceCompilerTests(unittest.TestCase):
         )
 
         self.assertEqual(42, result["record_counts"]["profiled_tables"])
+        self.assertEqual(7, result["record_counts"]["multihop_candidates"])
+        self.assertEqual(321, result["record_counts"]["multihop_expanded_records"])
         self.assertEqual(5, result["record_counts"]["description_hotspots"])
         self.assertEqual(3, result["record_counts"]["description_leads"])
         self.assertEqual(0, result["record_counts"]["publishable_candidates"])
         self.assertEqual(100, progress[-1][0])
         self.assertTrue(any("Starting Research Suite" in line for line in activity))
+        self.assertTrue(any("Multi-hop Resolver 1/120" in line for line in activity))
         self.assertTrue(any("Table Profiler 1/2" in line for line in activity))
         self.assertTrue(any("Starting Analytics Warehouse" in line for line in activity))
         self.assertTrue(any("Bundle" in line for line in activity))
@@ -112,6 +120,7 @@ class IntelligenceCompilerTests(unittest.TestCase):
         with zipfile.ZipFile(archive) as bundle:
             names = set(bundle.namelist())
         self.assertIn("dead-signal-intelligence-compiled.json", names)
+        self.assertIn("published/reports/weapon-description-multihop.json", names)
         self.assertIn("published/reports/dead-signal-description-leads.json", names)
         self.assertIn("published/data/weapons.json", names)
         self.assertTrue((reports / "dead-signal-intelligence-compiled.json").is_file())
