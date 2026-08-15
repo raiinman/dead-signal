@@ -27,7 +27,9 @@ if(/^\/build-planner\/?$/i.test(location.pathname)){
     }
 
     /* Desktop/tablet: one flex column, with the results list consuming the entire
-       space between controls and footer. This removes the dead black cavity. */
+       space between controls and footer. Keep the full middle chain as flex items;
+       percentage heights on auto-sized block parents can otherwise collapse and
+       leave the apparent dead black cavity seen in production. */
     html body #picker.arsenal-mode{
       display:flex!important;
       flex-direction:column!important;
@@ -40,26 +42,31 @@ if(/^\/build-planner\/?$/i.test(location.pathname)){
       flex:0 0 auto!important;
     }
     html body #picker.arsenal-mode .arsenal-body{
-      display:block!important;
-      flex:1 1 auto!important;
+      display:flex!important;
+      flex:1 1 0%!important;
+      flex-direction:column!important;
       width:100%!important;
       height:auto!important;
       min-height:0!important;
       overflow:hidden!important;
     }
     html body #picker.arsenal-mode .arsenal-center{
+      display:flex!important;
+      flex:1 1 0%!important;
+      flex-direction:column!important;
       width:100%!important;
-      height:100%!important;
+      height:auto!important;
       min-width:0!important;
       min-height:0!important;
       overflow:hidden!important;
     }
     html body #picker.arsenal-mode .bl-picker-list{
       display:grid!important;
+      flex:1 1 0%!important;
       grid-template-columns:repeat(2,minmax(0,1fr))!important;
       align-content:start!important;
       width:100%!important;
-      height:100%!important;
+      height:auto!important;
       max-height:none!important;
       min-height:0!important;
       padding:12px!important;
@@ -175,10 +182,15 @@ if(/^\/build-planner\/?$/i.test(location.pathname)){
       html body #picker.arsenal-mode .arsenal-body,
       html body #picker.arsenal-mode .arsenal-center,
       html body #picker.arsenal-mode .bl-picker-list{
+        display:grid!important;
+        flex:none!important;
         overflow:visible!important;
       }
+      html body #picker.arsenal-mode .arsenal-body,
+      html body #picker.arsenal-mode .arsenal-center{
+        grid-template-columns:1fr!important;
+      }
       html body #picker.arsenal-mode .bl-picker-list{
-        display:grid!important;
         grid-template-columns:1fr!important;
         padding:10px!important;
         gap:10px!important;
