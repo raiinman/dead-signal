@@ -86,6 +86,15 @@
   'use strict';
   if (typeof location === 'undefined' || !/^\/build-planner\/?$/i.test(location.pathname)) return;
 
+  const selectorStyleId = 'ds-build-lab-weapon-selector-css';
+  if (typeof document !== 'undefined' && !document.getElementById(selectorStyleId)) {
+    const link = document.createElement('link');
+    link.id = selectorStyleId;
+    link.rel = 'stylesheet';
+    link.href = '/build-planner/weapon-selector.css?v=20260814-2033';
+    document.head.append(link);
+  }
+
   const RARITY_RANK = { Common: 1, Uncommon: 2, Rare: 3, Epic: 4, Legendary: 5 };
   const FAVORITES_KEY = 'dead-signal-weapon-favorites';
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
@@ -119,7 +128,6 @@
     const tiers = contract.progression?.gear_tiers || [];
     const recipeCount = tiers.filter((tier) => tier?.recipe).length;
     const gain = String(contract.acquisition?.gain_path || weapon?.item_gain_path || '').trim();
-    const hint = String(contract.acquisition?.hint || weapon?.acquisition_hint || '').trim();
     if (tiers.length && recipeCount === tiers.length) return { status: 'craftable', label: 'Recipes proven', detail: `${recipeCount}/${tiers.length} Gear Tier recipes` };
     if (/stronghold exploration/i.test(gain)) return { status: 'direct', label: 'Direct acquisition', detail: gain };
     return { status: 'unresolved', label: 'Acquisition unresolved', detail: recipeCount ? `${recipeCount}/${tiers.length} recipes found` : 'No exact recipe or direct path proven' };
