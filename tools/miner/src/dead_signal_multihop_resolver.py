@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
-from collections import Counter, deque
+from collections import Counter, OrderedDict, deque
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -22,6 +22,8 @@ MAX_RECORDS_PER_WEAPON = 240
 MAX_REFS_PER_RECORD = 32
 MAX_OCCURRENCES_PER_VALUE = 80
 MAX_CANDIDATES_PER_WEAPON = 120
+MAX_TABLE_CACHE = 16
+MAX_OCCURRENCE_CACHE = 20000
 
 REFERENCE_FIELD = re.compile(
     r"(?:^|_)(?:item|blueprint|prototype|gun|weapon|skill|buff|display|ui|tooltip|desc|copy|text|translation|locale|forge|recipe|equip|config|template)(?:_?(?:id|no|code|key|handle))?(?:$|_)",
@@ -42,6 +44,14 @@ def _read_json(path: Path, default: Any = None) -> Any:
         return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError, TypeError):
         return default
+
+
+def _table_rows(path: Path) -> dict[str, Any]:
+    payload = _read_json(path, {})
+    if not isinstance(payload, dict):
+        return {}
+    data = payload.get("data", payload)
+    return data if isinstance(data, dict) else {}
 
 
 def _scalar(value: Any) -> str:
@@ -100,9 +110,19 @@ class MultiHopResolver:
         if not self.tracer.is_file():
             raise ValueError("Reference-tracer index is required for multi-hop resolution")
         self.translations = self._load_translations()
+        self._db: sqlite3.Connection | None = None
+        self._occurrence_cache: OrderedDict[str, list[dict[str, str]]] = OrderedDict()
+        self._table_cache: OrderedDict[tuple[str, str], dict[str, Any]] = OrderedDict()
 
     def _connection(self) -> sqlite3.Connection:
-        return sqlite3.connect(f"file:{self.tracer.as_posix()}?mode=ro", uri=True)
+        if self._db is None:
+            self._db = sqlite3.connect(f"file:{self.tracer.as_posix()}?mode=ro", uri=True)
+        return self._db
+
+    def close(self) -> None:
+        if self._db is not None:
+            self._db.close()
+            self._db = None
 
     def _load_translations(self) -> list[tuple[str, dict[str, str]]]:
         sources: list[tuple[str, dict[str, str]]] = []
@@ -117,20 +137,47 @@ class MultiHopResolver:
         return sources
 
     def _occurrences(self, value: str) -> list[dict[str, str]]:
-        connection = self._connection()
-        try:
-            rows = connection.execute(
-                "SELECT layer,table_name,record_id,field,json_pointer FROM occurrences "
-                "WHERE value=? ORDER BY table_name,record_id LIMIT ?",
-                (value, MAX_OCCURRENCES_PER_VALUE),
-            ).fetchall()
-        finally:
-            connection.close()
-        return [
+        cached = self._occurrence_cache.get(value)
+        if cached is not None:
+            self._occurrence_cache.move_to_end(value)
+            return cached
+        rows = self._connection().execute(
+            "SELECT layer,table_name,record_id,field,json_pointer FROM occurrences "
+            "WHERE value=? ORDER BY table_name,record_id LIMIT ?",
+            (value, MAX_OCCURRENCES_PER_VALUE),
+        ).fetchall()
+        result = [
             {"layer": str(layer), "table": str(table), "record_id": str(record),
              "field": str(field), "json_pointer": str(pointer)}
             for layer, table, record, field, pointer in rows
         ]
+        self._occurrence_cache[value] = result
+        self._occurrence_cache.move_to_end(value)
+        while len(self._occurrence_cache) > MAX_OCCURRENCE_CACHE:
+            self._occurrence_cache.popitem(last=False)
+        return result
+
+    def _record(self, table: str, record_id: str, layer: str) -> dict[str, Any] | None:
+        key = (layer, table)
+        rows = self._table_cache.get(key)
+        if rows is None:
+            root = self.explorer.base if layer == "base" else self.explorer.current
+            path = (root / Path(table.replace("\\", "/"))).resolve()
+            try:
+                path.relative_to(self.output)
+            except ValueError:
+                return None
+            if not path.is_file():
+                return None
+            rows = _table_rows(path)
+            self._table_cache[key] = rows
+            self._table_cache.move_to_end(key)
+            while len(self._table_cache) > MAX_TABLE_CACHE:
+                self._table_cache.popitem(last=False)
+        else:
+            self._table_cache.move_to_end(key)
+        value = rows.get(str(record_id))
+        return value if isinstance(value, dict) else None
 
     def _resolve_text(self, value: str) -> dict[str, Any]:
         stripped = TRANSLATION_MARKER.sub("", value)
@@ -212,9 +259,8 @@ class MultiHopResolver:
                 if record_key in visited_records:
                     continue
                 visited_records.add(record_key)
-                try:
-                    exact = self.explorer.record(occurrence["table"], occurrence["record_id"], layer=occurrence["layer"])
-                except (ValueError, OSError):
+                record = self._record(occurrence["table"], occurrence["record_id"], occurrence["layer"])
+                if record is None:
                     continue
                 expanded_records += 1
                 hop = {
@@ -228,7 +274,7 @@ class MultiHopResolver:
                     "depth": depth,
                 }
                 record_path = path + [hop]
-                for candidate in self._text_candidates(exact.get("raw") or {}, record_path):
+                for candidate in self._text_candidates(record, record_path):
                     candidate.update({
                         "source": occurrence["layer"],
                         "table": occurrence["table"],
@@ -240,7 +286,7 @@ class MultiHopResolver:
                         break
                 if depth >= MAX_DEPTH:
                     continue
-                for ref in self._next_refs(exact.get("raw") or {}):
+                for ref in self._next_refs(record):
                     if ref["value"] in visited_values:
                         continue
                     traversed_edges += 1
@@ -253,8 +299,6 @@ class MultiHopResolver:
                 if expanded_records >= MAX_RECORDS_PER_WEAPON:
                     break
 
-        # Mark reused copy after the full report is assembled; per-weapon we only
-        # know path provenance and exact traversal facts.
         return {
             "blueprint_id": weapon.get("blueprint_id"),
             "item_id": weapon.get("item_id"),
@@ -273,15 +317,18 @@ class MultiHopResolver:
         weapons = [row for row in payload.get("weapons") or [] if isinstance(row, dict)]
         rows = []
         owners: dict[str, set[str]] = {}
-        for index, weapon in enumerate(weapons, start=1):
-            activity(f"Multi-hop Resolver {index}/{len(weapons)}: {weapon.get('name') or weapon.get('blueprint_id')}")
-            row = self.resolve_weapon(weapon)
-            rows.append(row)
-            owner = str(weapon.get("blueprint_id") or weapon.get("item_id") or index)
-            for candidate in row["candidates"]:
-                fingerprint = candidate.get("resolved_text") or candidate.get("marker_stripped_value") or candidate.get("raw_value")
-                if fingerprint:
-                    owners.setdefault(str(fingerprint), set()).add(owner)
+        try:
+            for index, weapon in enumerate(weapons, start=1):
+                activity(f"Multi-hop Resolver {index}/{len(weapons)}: {weapon.get('name') or weapon.get('blueprint_id')}")
+                row = self.resolve_weapon(weapon)
+                rows.append(row)
+                owner = str(weapon.get("blueprint_id") or weapon.get("item_id") or index)
+                for candidate in row["candidates"]:
+                    fingerprint = candidate.get("resolved_text") or candidate.get("marker_stripped_value") or candidate.get("raw_value")
+                    if fingerprint:
+                        owners.setdefault(str(fingerprint), set()).add(owner)
+        finally:
+            self.close()
 
         classifications: Counter[str] = Counter()
         for row in rows:
@@ -309,6 +356,8 @@ class MultiHopResolver:
                 "max_refs_per_record": MAX_REFS_PER_RECORD,
                 "max_occurrences_per_value": MAX_OCCURRENCES_PER_VALUE,
                 "max_candidates_per_weapon": MAX_CANDIDATES_PER_WEAPON,
+                "max_cached_tables": MAX_TABLE_CACHE,
+                "max_cached_occurrence_values": MAX_OCCURRENCE_CACHE,
             },
             "policy": {
                 "identity": "Every hop requires exact scalar equality in the installed-game reference tracer and exact record lookup.",
