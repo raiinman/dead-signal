@@ -262,6 +262,7 @@ def compile_intelligence(
         percent=90,
     )
 
+    research_counts = research.get("record_counts") or {}
     compiled = {
         "schema": "dead-signal-intelligence-compiled",
         "schema_version": SCHEMA_VERSION,
@@ -276,9 +277,11 @@ def compile_intelligence(
         },
         "stages": stages,
         "record_counts": {
-            "weapons": (research.get("record_counts") or {}).get("weapons", 0),
-            "profiled_tables": (research.get("record_counts") or {}).get("profiled_tables", 0),
-            "source_finder_states": (research.get("record_counts") or {}).get("source_finder_states", {}),
+            "weapons": research_counts.get("weapons", 0),
+            "profiled_tables": research_counts.get("profiled_tables", 0),
+            "source_finder_states": research_counts.get("source_finder_states", {}),
+            "multihop_candidates": research_counts.get("multihop_candidates", 0),
+            "multihop_expanded_records": research_counts.get("multihop_expanded_records", 0),
             "discovery_tables": ((discovery.get("schema_clusters") or {}).get("record_counts") or {}).get("tables", 0),
             "description_hotspots": ((discovery.get("description_hotspots") or {}).get("record_counts") or {}).get("hotspots", 0),
             "analytics_rows": analytics.get("rows", {}),
@@ -288,6 +291,8 @@ def compile_intelligence(
         },
         "reports": {
             "research_suite": str(paths["reports"] / "dead-signal-research-suite.json"),
+            "weapon_description_multihop": str(paths["reports"] / "weapon-description-multihop.json"),
+            "weapon_description_combined": str(paths["reports"] / "weapon-description-combined-investigation.json"),
             "table_profiles": str(paths["reports"] / "dead-signal-table-profiles.json"),
             "source_finder": str(paths["reports"] / "dead-signal-source-finder.json"),
             "discovery": str(paths["reports"] / "dead-signal-discovery.json"),
