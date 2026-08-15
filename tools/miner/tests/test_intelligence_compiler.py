@@ -55,12 +55,15 @@ class IntelligenceCompilerTests(unittest.TestCase):
     @mock.patch.object(compiler, "DeadSignalAnalytics")
     @mock.patch.object(compiler, "DeadSignalDiscovery")
     @mock.patch.object(compiler, "run_research_suite")
-    def test_compile_runs_extensions_and_builds_uploadable_bundle(
+    def test_compile_runs_extensions_builds_bundle_and_reports_activity(
         self, research_mock, discovery_class, analytics_class, gate_mock
     ):
         reports = self.root / "published" / "reports"
 
-        def research_side_effect(base, current, weapons, reports_dir):
+        def research_side_effect(base, current, weapons, reports_dir, *, activity=None):
+            if activity:
+                activity("Table Profiler 1/2: gun_alpha.json")
+                activity("Table Profiler 2/2: weapon_beta.json")
             payload = {
                 "record_counts": {
                     "weapons": 120,
@@ -88,9 +91,11 @@ class IntelligenceCompilerTests(unittest.TestCase):
         gate_mock.return_value = {"record_counts": {"publishable_candidates": 0}}
 
         progress = []
+        activity = []
         result = compiler.compile_intelligence(
             self.root,
             progress=lambda value, label: progress.append((value, label)),
+            activity=activity.append,
         )
 
         self.assertEqual(42, result["record_counts"]["profiled_tables"])
@@ -98,6 +103,10 @@ class IntelligenceCompilerTests(unittest.TestCase):
         self.assertEqual(3, result["record_counts"]["description_leads"])
         self.assertEqual(0, result["record_counts"]["publishable_candidates"])
         self.assertEqual(100, progress[-1][0])
+        self.assertTrue(any("Starting Research Suite" in line for line in activity))
+        self.assertTrue(any("Table Profiler 1/2" in line for line in activity))
+        self.assertTrue(any("Starting Analytics Warehouse" in line for line in activity))
+        self.assertTrue(any("Bundle" in line for line in activity))
         archive = Path(result["bundle"])
         self.assertTrue(archive.is_file())
         with zipfile.ZipFile(archive) as bundle:
