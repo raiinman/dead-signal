@@ -24,6 +24,7 @@ from dead_signal_research_suite import run_research_suite
 SCHEMA_VERSION = 1
 LogCallback = Callable[[str], None]
 ProgressCallback = Callable[[int, str], None]
+ActivityCallback = Callable[[str], None]
 
 
 def _read_json(path: Path, default: Any = None) -> Any:
@@ -102,26 +103,32 @@ def _stage(
     *,
     log: LogCallback,
     progress: ProgressCallback,
+    activity: ActivityCallback,
     percent: int,
 ):
     progress(percent, name)
+    activity(f"Starting {name}")
     log(f"Data Intelligence: {name}...")
     started = time.perf_counter()
     try:
         value = operation()
     except Exception as error:
+        duration = round(time.perf_counter() - started, 6)
         stages.append({
             "name": name,
             "status": "failed",
-            "duration_seconds": round(time.perf_counter() - started, 6),
+            "duration_seconds": duration,
             "error": f"{type(error).__name__}: {error}",
         })
+        activity(f"{name} failed after {duration:.1f}s: {type(error).__name__}: {error}")
         raise
+    duration = round(time.perf_counter() - started, 6)
     stages.append({
         "name": name,
         "status": "complete",
-        "duration_seconds": round(time.perf_counter() - started, 6),
+        "duration_seconds": duration,
     })
+    activity(f"Completed {name} in {duration:.1f}s")
     return value
 
 
@@ -139,24 +146,33 @@ def _bundle_members(paths: dict[str, Path]) -> list[Path]:
     return [path for path in candidates if path.is_file()]
 
 
-def build_bundle(paths: dict[str, Path], compiled: dict[str, Any]) -> Path:
+def build_bundle(
+    paths: dict[str, Path],
+    compiled: dict[str, Any],
+    *,
+    activity: ActivityCallback | None = None,
+) -> Path:
     """Create a compact research bundle without raw game-table exports."""
+    activity = activity or (lambda _message: None)
     output = paths["output"]
     intelligence_dir = output / "intelligence"
     intelligence_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%SZ")
     archive = intelligence_dir / f"Dead-Signal-Intelligence-{stamp}.zip"
+    members = _bundle_members(paths)
+    activity(f"Bundling {len(members)} intelligence files")
 
     with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as destination:
         destination.writestr(
             "dead-signal-intelligence-compiled.json",
             json.dumps(compiled, ensure_ascii=False, indent=2) + "\n",
         )
-        for path in _bundle_members(paths):
+        for index, path in enumerate(members, start=1):
             try:
                 relative = path.relative_to(output)
             except ValueError:
                 continue
+            activity(f"Bundle {index}/{len(members)}: {relative.as_posix()}")
             destination.write(path, relative.as_posix())
     return archive
 
@@ -166,20 +182,32 @@ def compile_intelligence(
     *,
     log: LogCallback | None = None,
     progress: ProgressCallback | None = None,
+    activity: ActivityCallback | None = None,
 ) -> dict[str, Any]:
     """Regenerate all standalone Data Intelligence products for one snapshot."""
     log = log or (lambda _value: None)
     progress = progress or (lambda _value, _label: None)
+    activity = activity or log
+    activity("Resolving completed Dead Signal Miner snapshot")
     paths = resolve_snapshot(output)
+    activity(f"Base layer: {paths['base'].name}")
+    activity(f"Current layer: {paths['current'].name}")
     paths["reports"].mkdir(parents=True, exist_ok=True)
     stages: list[dict[str, Any]] = []
 
     research = _stage(
         stages,
         "Research Suite",
-        lambda: run_research_suite(paths["base"], paths["current"], paths["weapons"], paths["reports"]),
+        lambda: run_research_suite(
+            paths["base"],
+            paths["current"],
+            paths["weapons"],
+            paths["reports"],
+            activity=activity,
+        ),
         log=log,
         progress=progress,
+        activity=activity,
         percent=10,
     )
     discovery = _stage(
@@ -188,6 +216,7 @@ def compile_intelligence(
         lambda: DeadSignalDiscovery(paths["output"]).run_all(),
         log=log,
         progress=progress,
+        activity=activity,
         percent=45,
     )
     analytics_engine = DeadSignalAnalytics(paths["output"])
@@ -197,6 +226,7 @@ def compile_intelligence(
         analytics_engine.build,
         log=log,
         progress=progress,
+        activity=activity,
         percent=65,
     )
     description_leads = _stage(
@@ -205,6 +235,7 @@ def compile_intelligence(
         lambda: analytics_engine.description_leads(limit=1000),
         log=log,
         progress=progress,
+        activity=activity,
         percent=76,
     )
     suspicious_fields = _stage(
@@ -213,10 +244,13 @@ def compile_intelligence(
         lambda: analytics_engine.suspicious_description_fields(limit=1000),
         log=log,
         progress=progress,
+        activity=activity,
         percent=82,
     )
     _write_json(paths["reports"] / "dead-signal-description-leads.json", description_leads)
+    activity("Wrote dead-signal-description-leads.json")
     _write_json(paths["reports"] / "dead-signal-description-field-audit.json", suspicious_fields)
+    activity("Wrote dead-signal-description-field-audit.json")
 
     gate = _stage(
         stages,
@@ -224,6 +258,7 @@ def compile_intelligence(
         lambda: build_gate_report(paths["reports"]),
         log=log,
         progress=progress,
+        activity=activity,
         percent=90,
     )
 
@@ -270,11 +305,14 @@ def compile_intelligence(
     }
     compiled_path = paths["reports"] / "dead-signal-intelligence-compiled.json"
     _write_json(compiled_path, compiled)
+    activity(f"Wrote {compiled_path.name}")
 
     progress(96, "Compile Intelligence Bundle")
-    archive = build_bundle(paths, compiled)
+    activity("Compiling uploadable Dead Signal Intelligence ZIP")
+    archive = build_bundle(paths, compiled, activity=activity)
     compiled["bundle"] = str(archive)
     _write_json(compiled_path, compiled)
     progress(100, "Data Intelligence ready")
+    activity(f"Intelligence bundle ready: {archive.name}")
     log(f"Dead Signal Intelligence bundle ready: {archive}")
     return compiled
