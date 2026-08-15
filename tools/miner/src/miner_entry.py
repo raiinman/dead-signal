@@ -52,24 +52,28 @@ def run_module_main_with_completion(module_name, arguments, log):
         if module_name == "normalize_armor":
             armor_tier_completion.complete_file(argument("--base"), argument("--current"), argument("--output"), log)
         elif module_name == "normalize_weapons":
-            base = Path(argument("--base"))
-            current = Path(argument("--current"))
-            weapons_output = Path(argument("--output"))
-            weapon_evidence_enrichment.enrich_file(base, current, weapons_output, log)
-            reports = weapons_output.parent.parent / "reports"
-            research = run_research_suite(base, current, weapons_output, reports)
-            log(
-                "Dead Signal research suite ready: "
-                + f"{research.get('record_counts', {}).get('profiled_tables', 0)} profiled tables; "
-                + f"Source Finder states {research.get('record_counts', {}).get('source_finder_states', {})}."
+            weapon_evidence_enrichment.enrich_file(
+                Path(argument("--base")),
+                Path(argument("--current")),
+                Path(argument("--output")),
+                log,
             )
         elif module_name == "normalize_extended":
-            mod_frame_enrichment.enrich_file(argument("--base"), argument("--current"), Path(argument("--output-dir")) / "mods.json", log)
+            mod_frame_enrichment.enrich_file(
+                argument("--base"), argument("--current"),
+                Path(argument("--output-dir")) / "mods.json", log,
+            )
         elif module_name == "publish_web_data":
             projector = importlib.import_module("project_weapon_evidence")
             published = Path(argument("--published"))
-            projected = projector.project_file(Path(argument("--data-dir")) / "weapons.json", published / "web" / "weapons.json")
-            log("Projected Weapon verification evidence: " + f"{projected.get('record_counts', {}).get('effect_resolution_statuses', {})}.")
+            projected = projector.project_file(
+                Path(argument("--data-dir")) / "weapons.json",
+                published / "web" / "weapons.json",
+            )
+            log(
+                "Projected Weapon verification evidence: "
+                + f"{projected.get('record_counts', {}).get('effect_resolution_statuses', {})}."
+            )
         return result
     except Exception as error:
         status = "failed"
@@ -143,15 +147,56 @@ def _run_nonfatal_intelligence_stage(recorder, log, name, operation):
 
 
 def run_pipeline_with_intelligence(config, log, progress, cancel=None):
-    """Run the proven pipeline, then finish non-publishing intelligence products."""
+    """Run the canonical pipeline, then finish non-publishing intelligence products."""
     global _active_pipeline_recorder
     recorder = PipelineRecorder()
     _active_pipeline_recorder = recorder
     result = None
+    phase = {"label": None, "started": time.perf_counter(), "percent": 0}
+
+    def inspected_progress(value, label):
+        now = time.perf_counter()
+        if phase["label"] is not None:
+            recorder.record(
+                f"phase:{phase['label']}",
+                duration_seconds=now - phase["started"],
+                details={"start_percent": phase["percent"], "end_percent": value},
+            )
+        phase["label"] = str(label)
+        phase["started"] = now
+        phase["percent"] = int(value)
+        progress(value, label)
+
     try:
-        result = _original_run_pipeline(config, log, progress, cancel)
+        result = _original_run_pipeline(config, log, inspected_progress, cancel)
+        if phase["label"] is not None:
+            recorder.record(
+                f"phase:{phase['label']}",
+                duration_seconds=time.perf_counter() - phase["started"],
+                details={"start_percent": phase["percent"], "end_percent": 100},
+            )
+            phase["label"] = None
+
         output = Path(result.get("config", {}).get("output") or config.output).expanduser().resolve()
-        reports = output / "published" / "reports"
+        published = output / "published"
+        reports = published / "reports"
+        active = result.get("active_snapshots") or {}
+        base = Path(active.get("base") or "")
+        current = Path(active.get("current") or "")
+        weapons = published / "data" / "weapons.json"
+
+        research = _run_nonfatal_intelligence_stage(
+            recorder,
+            log,
+            "research-suite",
+            lambda: run_research_suite(base, current, weapons, reports),
+        )
+        if research is not None:
+            log(
+                "Dead Signal research suite ready: "
+                + f"{research.get('record_counts', {}).get('profiled_tables', 0)} profiled tables; "
+                + f"Source Finder states {research.get('record_counts', {}).get('source_finder_states', {})}."
+            )
 
         gate = _run_nonfatal_intelligence_stage(
             recorder, log, "publication-gate", lambda: build_gate_report(reports)
@@ -174,6 +219,13 @@ def run_pipeline_with_intelligence(config, log, progress, cancel=None):
         recorder.report(output, result=result)
         return result
     except Exception:
+        if phase["label"] is not None:
+            recorder.record(
+                f"phase:{phase['label']}",
+                status="failed",
+                duration_seconds=time.perf_counter() - phase["started"],
+                details={"start_percent": phase["percent"]},
+            )
         try:
             output = Path(getattr(config, "output", ".")).expanduser().resolve()
             recorder.report(output, result=result)
@@ -207,6 +259,8 @@ def self_test_with_extended_publisher():
         miner_core.ROOT / "dead_signal_intelligence_hub.py",
         miner_core.ROOT / "dead_signal_discovery.py",
         miner_core.ROOT / "dead_signal_discovery_tab.py",
+        miner_core.ROOT / "dead_signal_verification.py",
+        miner_core.ROOT / "dead_signal_verification_tab.py",
         miner_core.ROOT / "dead_signal_analytics.py",
         miner_core.ROOT / "dead_signal_evidence_graph.py",
         miner_core.ROOT / "dead_signal_workflow_lab.py",
@@ -223,10 +277,10 @@ def self_test_with_extended_publisher():
         "project_weapon_evidence", "research_console", "research_window",
         "dead_signal_research_suite", "dead_signal_source_finder", "dead_signal_table_profiler",
         "dead_signal_intelligence_window", "dead_signal_intelligence_advanced", "dead_signal_intelligence_hub",
-        "dead_signal_discovery", "dead_signal_discovery_tab", "dead_signal_analytics",
-        "dead_signal_evidence_graph", "dead_signal_workflow_lab", "dead_signal_pipeline_inspector",
-        "dead_signal_publication_gate", "neox_data_explorer",
-        "investigate_weapon_descriptions", "investigate_weapon_description_sources",
+        "dead_signal_discovery", "dead_signal_discovery_tab", "dead_signal_verification",
+        "dead_signal_verification_tab", "dead_signal_analytics", "dead_signal_evidence_graph",
+        "dead_signal_workflow_lab", "dead_signal_pipeline_inspector", "dead_signal_publication_gate",
+        "neox_data_explorer", "investigate_weapon_descriptions", "investigate_weapon_description_sources",
         "duckdb", "polars", "pyarrow",
     ):
         try:
@@ -234,7 +288,11 @@ def self_test_with_extended_publisher():
             checks.setdefault("imports", {})[module_name] = getattr(module, "__version__", "ok")
         except Exception as error:
             checks.setdefault("imports", {})[module_name] = f"ERROR: {type(error).__name__}: {error}"
-    checks["ok"] = bool(all(checks.get("resources", {}).values()) and all(not str(value).startswith("ERROR") for value in checks.get("imports", {}).values()) and checks.get("installations"))
+    checks["ok"] = bool(
+        all(checks.get("resources", {}).values())
+        and all(not str(value).startswith("ERROR") for value in checks.get("imports", {}).values())
+        and checks.get("installations")
+    )
     return checks
 
 
