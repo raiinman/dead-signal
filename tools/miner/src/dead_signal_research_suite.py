@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 from typing import Any, Callable
 
+from dead_signal_multihop_resolver import MultiHopResolver
 from dead_signal_source_finder import build_source_finder_report
 from dead_signal_table_profiler import compare_profiles, profile_table
 from investigate_weapon_description_sources import investigate as investigate_description_sources
@@ -51,8 +52,6 @@ def _write_json(path: Path, payload: Any) -> None:
 def _profile_path_score(relative: str) -> int:
     lowered = relative.casefold()
     score = sum(weight for token, weight in PROFILE_PRIORITY_HINTS if token in lowered)
-    # Favor tables close to canonical gameplay data over generic client support
-    # records when the 500-table safety cap is reached.
     if lowered.startswith("game_common/data/"):
         score += 20
     if "/logic_tree/" in lowered:
@@ -132,6 +131,56 @@ def build_table_profile_report(
     }
 
 
+def _merge_source_investigations(primary: dict[str, Any], multihop: dict[str, Any]) -> dict[str, Any]:
+    """Combine same-record and exact multi-hop candidates without changing provenance."""
+    multi_by_blueprint = {
+        str(row.get("blueprint_id")): row
+        for row in (multihop.get("weapons") or [])
+        if isinstance(row, dict)
+    }
+    rows = []
+    for row in primary.get("weapons") or []:
+        if not isinstance(row, dict):
+            continue
+        merged = dict(row)
+        direct = [candidate for candidate in (row.get("candidates") or []) if isinstance(candidate, dict)]
+        multi_row = multi_by_blueprint.get(str(row.get("blueprint_id"))) or {}
+        indirect = [candidate for candidate in (multi_row.get("candidates") or []) if isinstance(candidate, dict)]
+        candidates = []
+        seen = set()
+        for candidate in direct + indirect:
+            key = (
+                str(candidate.get("source") or ""), str(candidate.get("table") or ""),
+                str(candidate.get("record_id") or ""), str(candidate.get("field") or ""),
+                str(candidate.get("json_pointer") or ""), str(candidate.get("resolved_text") or ""),
+                str(candidate.get("raw_value") or ""),
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            candidates.append(candidate)
+        merged["same_record_candidate_count"] = len(direct)
+        merged["multihop_candidate_count"] = len(indirect)
+        merged["candidate_count"] = len(candidates)
+        merged["candidates"] = candidates
+        rows.append(merged)
+    return {
+        "schema": "dead-signal-weapon-description-combined-investigation",
+        "schema_version": SCHEMA_VERSION,
+        "record_counts": {
+            "weapons": len(rows),
+            "same_record_candidates": sum(row["same_record_candidate_count"] for row in rows),
+            "multihop_candidates": sum(row["multihop_candidate_count"] for row in rows),
+            "candidate_rows": sum(row["candidate_count"] for row in rows),
+        },
+        "policy": {
+            "identity": "Candidates preserve either exact same-record identity or an exact bounded reference path.",
+            "verification": "Combined candidates are research-only until explicit verification.",
+        },
+        "weapons": rows,
+    }
+
+
 def run_research_suite(
     base: Path,
     current: Path,
@@ -162,8 +211,20 @@ def run_research_suite(
     _write_json(sources_path, description_sources)
     activity(f"Wrote {sources_path.name}")
 
-    activity("Dead Signal Source Finder: classifying description candidates")
-    source_finder = build_source_finder_report(description_sources)
+    output = reports_dir.parent.parent
+    activity("Dead Signal Multi-hop Resolver: following bounded exact references")
+    multihop = MultiHopResolver(output).run(weapons, activity=activity)
+    multihop_path = reports_dir / "weapon-description-multihop.json"
+    _write_json(multihop_path, multihop)
+    activity(f"Wrote {multihop_path.name}")
+
+    combined_sources = _merge_source_investigations(description_sources, multihop)
+    combined_path = reports_dir / "weapon-description-combined-investigation.json"
+    _write_json(combined_path, combined_sources)
+    activity(f"Wrote {combined_path.name}")
+
+    activity("Dead Signal Source Finder: classifying exact-path description candidates")
+    source_finder = build_source_finder_report(combined_sources)
     source_finder_path = reports_dir / "dead-signal-source-finder.json"
     _write_json(source_finder_path, source_finder)
     activity(f"Wrote {source_finder_path.name}")
@@ -181,11 +242,15 @@ def run_research_suite(
         "record_counts": {
             "weapons": weapon_count,
             "profiled_tables": table_profiles["record_counts"]["profiled_tables"],
+            "multihop_candidates": multihop["record_counts"]["candidate_rows"],
+            "multihop_expanded_records": multihop["record_counts"]["expanded_records"],
             "source_finder_states": source_finder["record_counts"]["states"],
         },
         "reports": {
             "weapon_description_identity": str(identity_path),
             "weapon_description_sources": str(sources_path),
+            "weapon_description_multihop": str(multihop_path),
+            "weapon_description_combined": str(combined_path),
             "source_finder": str(source_finder_path),
             "table_profiles": str(table_profiles_path),
         },
