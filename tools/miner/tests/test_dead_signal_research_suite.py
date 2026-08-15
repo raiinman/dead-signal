@@ -27,6 +27,8 @@ def write_table(root: Path, relative: str, data: dict) -> Path:
 
 
 def write_research_indexes(output: Path, base: Path, current: Path, relative: str) -> None:
+    base.mkdir(parents=True, exist_ok=True)
+    current.mkdir(parents=True, exist_ok=True)
     (output / "last-run.json").write_text(
         json.dumps({"active_snapshots": {"base": str(base), "current": str(current)}}), encoding="utf-8"
     )
@@ -55,6 +57,8 @@ def write_research_indexes(output: Path, base: Path, current: Path, relative: st
         "CREATE TABLE occurrences (value TEXT NOT NULL, layer TEXT NOT NULL, table_name TEXT NOT NULL, "
         "record_id TEXT NOT NULL, field TEXT NOT NULL, json_pointer TEXT NOT NULL)"
     )
+    connection.execute("CREATE INDEX occurrence_value_idx ON occurrences(value)")
+    connection.execute("CREATE INDEX occurrence_table_idx ON occurrences(table_name)")
     connection.executemany(
         "INSERT INTO occurrences VALUES (?,?,?,?,?,?)",
         [
@@ -128,6 +132,7 @@ def test_research_suite_writes_non_publishing_reports(tmp_path: Path) -> None:
 
     multihop = json.loads((reports / "weapon-description-multihop.json").read_text(encoding="utf-8"))
     assert multihop["record_counts"]["candidate_rows"] >= 1
+    assert multihop["performance"]["raw_neox_table_reparse"] is False
 
     profiles = json.loads((reports / "dead-signal-table-profiles.json").read_text(encoding="utf-8"))
     assert profiles["record_counts"]["profiled_tables"] == 1
