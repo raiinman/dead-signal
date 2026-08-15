@@ -13,19 +13,140 @@ const MODES={
 const root=document.documentElement;
 
 /*
- * Build Lab weapon-selector ownership lives in weapon-public-adapter.js.
- * Keep readability.js out of selector rendering/geometry so the two layers do not
- * fight each other. The only selector rules here are late-loading viewport guards,
- * because this shared asset is guaranteed to load after page CSS.
+ * Build Lab weapon-selector rendering/data ownership lives in weapon-public-adapter.js.
+ * This shared asset loads after page CSS and supplies only late viewport/geometry guards
+ * so page CSS cannot collapse the selector's results surface or defeat pagination.
  */
 if(/^\/build-planner\/?$/i.test(location.pathname)){
   const style=document.createElement('style');
-  style.id='ds-build-lab-mobile-selector-scroll';
+  style.id='ds-build-lab-selector-viewport-guard';
   style.textContent=`
-    /* Pagination/filter state must always win over any card display rule. */
+    /* Pagination/filter state always wins over legacy card display rules. */
     html body #picker.arsenal-mode .bl-picker-list > .bl-pick[hidden]{
       display:none!important;
     }
+
+    /* Desktop/tablet: one flex column, with the results list consuming the entire
+       space between controls and footer. This removes the dead black cavity. */
+    html body #picker.arsenal-mode{
+      display:flex!important;
+      flex-direction:column!important;
+      overflow:hidden!important;
+    }
+    html body #picker.arsenal-mode .bl-picker-head,
+    html body #picker.arsenal-mode .bl-picker-tools,
+    html body #picker.arsenal-mode .arsenal-secondary-tools,
+    html body #picker.arsenal-mode .arsenal-footer{
+      flex:0 0 auto!important;
+    }
+    html body #picker.arsenal-mode .arsenal-body{
+      display:block!important;
+      flex:1 1 auto!important;
+      width:100%!important;
+      height:auto!important;
+      min-height:0!important;
+      overflow:hidden!important;
+    }
+    html body #picker.arsenal-mode .arsenal-center{
+      width:100%!important;
+      height:100%!important;
+      min-width:0!important;
+      min-height:0!important;
+      overflow:hidden!important;
+    }
+    html body #picker.arsenal-mode .bl-picker-list{
+      display:grid!important;
+      grid-template-columns:repeat(2,minmax(0,1fr))!important;
+      align-content:start!important;
+      width:100%!important;
+      height:100%!important;
+      max-height:none!important;
+      min-height:0!important;
+      padding:12px!important;
+      gap:12px!important;
+      overflow-y:auto!important;
+      overflow-x:hidden!important;
+    }
+
+    /* Approved readable card geometry. */
+    html body #picker.arsenal-mode .arsenal-card{
+      grid-template-columns:200px minmax(0,1fr)!important;
+      min-height:320px!important;
+      height:auto!important;
+    }
+    html body #picker.arsenal-mode .arsenal-art{
+      min-height:320px!important;
+      padding:24px 18px!important;
+    }
+    html body #picker.arsenal-mode .arsenal-art img{
+      height:170px!important;
+      max-height:170px!important;
+    }
+    html body #picker.arsenal-mode .arsenal-copy{
+      padding:14px 15px 12px!important;
+    }
+    html body #picker.arsenal-mode .arsenal-description:not(.unavailable) .arsenal-description-copy{
+      font-size:var(--ds-type-xs)!important;
+      line-height:1.5!important;
+      -webkit-line-clamp:3!important;
+    }
+    html body #picker.arsenal-mode .arsenal-description.unavailable{
+      display:flex!important;
+      align-items:center!important;
+      gap:7px!important;
+      min-height:27px!important;
+      margin-top:8px!important;
+      padding:4px 7px!important;
+      border:1px solid #28343b!important;
+      border-radius:5px!important;
+      background:#070c10!important;
+    }
+    html body #picker.arsenal-mode .arsenal-description.unavailable .arsenal-section-label{
+      margin:0!important;
+      white-space:nowrap!important;
+    }
+    html body #picker.arsenal-mode .arsenal-description.unavailable .arsenal-description-copy{
+      display:none!important;
+    }
+    html body #picker.arsenal-mode .arsenal-description.unavailable::after{
+      content:'NOT VERIFIED FOR PUBLICATION';
+      display:inline-flex!important;
+      align-items:center!important;
+      min-height:17px!important;
+      padding:1px 6px!important;
+      border:1px solid #3c464c!important;
+      border-radius:999px!important;
+      color:#87949b!important;
+      font-size:var(--ds-type-micro)!important;
+      font-style:normal!important;
+      font-weight:900!important;
+      letter-spacing:.04em!important;
+    }
+    html body #picker.arsenal-mode .arsenal-skill-copy{
+      font-size:var(--ds-type-xs)!important;
+      line-height:1.5!important;
+      -webkit-line-clamp:4!important;
+    }
+
+    @media(max-width:1050px){
+      html body #picker.arsenal-mode .bl-picker-list{
+        grid-template-columns:1fr!important;
+      }
+      html body #picker.arsenal-mode .arsenal-card{
+        grid-template-columns:190px minmax(0,1fr)!important;
+        min-height:310px!important;
+      }
+      html body #picker.arsenal-mode .arsenal-art{
+        min-height:310px!important;
+      }
+      html body #picker.arsenal-mode .arsenal-art img{
+        height:155px!important;
+        max-height:155px!important;
+      }
+    }
+
+    /* Mobile: the whole modal is the scroll surface. This avoids nested-scroll traps
+       while still preserving exactly ten paginated records. */
     @media(max-width:680px){
       html body #picker.arsenal-mode{
         display:block!important;
@@ -46,11 +167,14 @@ if(/^\/build-planner\/?$/i.test(location.pathname)){
       html body #picker.arsenal-mode .arsenal-center,
       html body #picker.arsenal-mode .bl-picker-list,
       html body #picker.arsenal-mode .arsenal-footer{
-        display:block!important;
         position:static!important;
         height:auto!important;
         max-height:none!important;
         min-height:0!important;
+      }
+      html body #picker.arsenal-mode .arsenal-body,
+      html body #picker.arsenal-mode .arsenal-center,
+      html body #picker.arsenal-mode .bl-picker-list{
         overflow:visible!important;
       }
       html body #picker.arsenal-mode .bl-picker-list{
@@ -74,6 +198,12 @@ if(/^\/build-planner\/?$/i.test(location.pathname)){
       html body #picker.arsenal-mode .arsenal-art img{
         height:115px!important;
         max-height:115px!important;
+      }
+      html body #picker.arsenal-mode .arsenal-description:not(.unavailable) .arsenal-description-copy{
+        -webkit-line-clamp:4!important;
+      }
+      html body #picker.arsenal-mode .arsenal-skill-copy{
+        -webkit-line-clamp:5!important;
       }
       html body #picker.arsenal-mode .arsenal-footer{
         display:flex!important;
