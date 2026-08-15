@@ -1,9 +1,9 @@
 """Standalone Dead Signal Data Intelligence compiler.
 
 Runs the research extensions against an already-completed Miner snapshot without
-re-reading or modifying the installed game.  It regenerates research reports,
+re-reading or modifying the installed game. It regenerates research reports,
 analytics, discovery products, the advisory publication gate, and a compact ZIP
-bundle suitable for review or upload.  No public website dataset is modified.
+bundle suitable for review or upload. No public website dataset is modified.
 """
 
 from __future__ import annotations
@@ -49,9 +49,16 @@ def resolve_snapshot(output: Path | str) -> dict[str, Path]:
     last_run = _read_json(output / "last-run.json", {}) or {}
     active = last_run.get("active_snapshots") if isinstance(last_run, dict) else {}
     active = active if isinstance(active, dict) else {}
+    base_text = str(active.get("base") or "").strip()
+    current_text = str(active.get("current") or "").strip()
+    if not base_text or not current_text:
+        raise ValueError(
+            "The completed snapshot metadata does not identify both base and current NeoX layers. "
+            "Run a Complete Database harvest once with the current Miner, then Data Intelligence can be recompiled independently."
+        )
 
-    base = Path(str(active.get("base") or "")).expanduser()
-    current = Path(str(active.get("current") or "")).expanduser()
+    base = Path(base_text).expanduser()
+    current = Path(current_text).expanduser()
     if not base.is_absolute():
         base = (output / base).resolve()
     else:
