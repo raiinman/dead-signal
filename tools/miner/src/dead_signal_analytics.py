@@ -1,8 +1,8 @@
 """Dead Signal embedded analytics engine.
 
 DuckDB, Polars, and Arrow are implementation details beneath the branded Data
-Intelligence workspace.  This module builds a local analytical warehouse from
-research-only reports and exact-reference occurrences.  It never replaces the
+Intelligence workspace. This module builds a local analytical warehouse from
+research-only reports and exact-reference occurrences. It never replaces the
 SQLite reference tracer as identity authority and never publishes game data.
 """
 
@@ -97,17 +97,25 @@ def flatten_source_finder(payload: dict[str, Any]) -> list[dict[str, Any]]:
     return rows
 
 
+def _active_profile(row: dict[str, Any]) -> dict[str, Any]:
+    active = row.get("active_profile")
+    if isinstance(active, dict):
+        return active
+    return row
+
+
 def flatten_table_profiles(payload: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     tables: list[dict[str, Any]] = []
     fields: list[dict[str, Any]] = []
     profiles = payload.get("profiles") if isinstance(payload, dict) else None
     if not isinstance(profiles, list):
         profiles = payload.get("tables") if isinstance(payload, dict) else []
-    for profile in profiles or []:
-        if not isinstance(profile, dict):
+    for wrapper in profiles or []:
+        if not isinstance(wrapper, dict):
             continue
-        table = str(profile.get("table") or "")
-        layer = str(profile.get("layer") or "")
+        profile = _active_profile(wrapper)
+        table = str(wrapper.get("table") or profile.get("table") or "")
+        layer = str(profile.get("layer") or ("current" if wrapper.get("current_present") else "base" if wrapper.get("base_present") else ""))
         tables.append({
             "table_name": table,
             "layer": layer,
@@ -116,6 +124,8 @@ def flatten_table_profiles(payload: dict[str, Any]) -> tuple[list[dict[str, Any]
             "record_shape_count": int(profile.get("record_shape_count") or 0),
             "description_shared_warnings": int((profile.get("warnings") or {}).get("description_like_shared_values") or 0),
             "rare_field_count": int((profile.get("warnings") or {}).get("rare_field_count") or 0),
+            "base_present": bool(wrapper.get("base_present", layer == "base")),
+            "current_present": bool(wrapper.get("current_present", layer == "current")),
         })
         for field in profile.get("fields") or []:
             if not isinstance(field, dict):
@@ -160,13 +170,25 @@ class DeadSignalAnalytics:
         uri = f"file:{self.tracer.as_posix()}?mode=ro"
         connection = sqlite3.connect(uri, uri=True)
         try:
-            cursor = connection.execute(
+            return connection.execute(
                 "SELECT value,layer,table_name,record_id,field,json_pointer FROM occurrences LIMIT ?",
                 (limit,),
-            )
-            return cursor.fetchall()
+            ).fetchall()
         finally:
             connection.close()
+
+    @staticmethod
+    def _create_dataset(connection, pl, name: str, rows: list[dict[str, Any]], empty_sql: str) -> None:
+        if rows:
+            frame = pl.DataFrame(rows)
+            view = f"_{name}"
+            connection.register(view, frame.to_arrow())
+            try:
+                connection.execute(f"CREATE TABLE {name} AS SELECT * FROM {view}")
+            finally:
+                connection.unregister(view)
+        else:
+            connection.execute(empty_sql)
 
     def build(self) -> dict[str, Any]:
         duckdb, pl, _pa = self._modules()
@@ -182,19 +204,18 @@ class DeadSignalAnalytics:
             for name in ("source_finder", "table_profiles", "field_profiles", "exact_references"):
                 connection.execute(f"DROP TABLE IF EXISTS {name}")
 
-            datasets = {
-                "source_finder": source_rows,
-                "table_profiles": table_rows,
-                "field_profiles": field_rows,
-            }
-            for name, rows in datasets.items():
-                if rows:
-                    frame = pl.DataFrame(rows)
-                    connection.register(f"_{name}", frame.to_arrow())
-                    connection.execute(f"CREATE TABLE {name} AS SELECT * FROM _{name}")
-                    connection.unregister(f"_{name}")
-                else:
-                    connection.execute(f"CREATE TABLE {name} AS SELECT NULL::VARCHAR AS empty WHERE FALSE")
+            self._create_dataset(
+                connection, pl, "source_finder", source_rows,
+                "CREATE TABLE source_finder(blueprint_id VARCHAR,item_id VARCHAR,weapon VARCHAR,category VARCHAR,weapon_state VARCHAR,candidate_state VARCHAR,score BIGINT,table_name VARCHAR,record_id VARCHAR,field VARCHAR,text VARCHAR,shared BOOLEAN,owner_count BIGINT,blockers VARCHAR)",
+            )
+            self._create_dataset(
+                connection, pl, "table_profiles", table_rows,
+                "CREATE TABLE table_profiles(table_name VARCHAR,layer VARCHAR,record_count BIGINT,field_count BIGINT,record_shape_count BIGINT,description_shared_warnings BIGINT,rare_field_count BIGINT,base_present BOOLEAN,current_present BOOLEAN)",
+            )
+            self._create_dataset(
+                connection, pl, "field_profiles", field_rows,
+                "CREATE TABLE field_profiles(table_name VARCHAR,layer VARCHAR,field VARCHAR,coverage DOUBLE,present_records BIGINT,missing_records BIGINT,unique_scalar_values BIGINT,repeated_scalar_values BIGINT,identity_like BOOLEAN,description_like BOOLEAN)",
+            )
 
             if reference_rows:
                 frame = pl.DataFrame(
@@ -203,8 +224,10 @@ class DeadSignalAnalytics:
                     orient="row",
                 )
                 connection.register("_exact_references", frame.to_arrow())
-                connection.execute("CREATE TABLE exact_references AS SELECT * FROM _exact_references")
-                connection.unregister("_exact_references")
+                try:
+                    connection.execute("CREATE TABLE exact_references AS SELECT * FROM _exact_references")
+                finally:
+                    connection.unregister("_exact_references")
             else:
                 connection.execute(
                     "CREATE TABLE exact_references(value VARCHAR,layer VARCHAR,table_name VARCHAR,record_id VARCHAR,field VARCHAR,json_pointer VARCHAR)"
@@ -240,8 +263,11 @@ class DeadSignalAnalytics:
         duckdb, _pl, _pa = self._modules()
         connection = duckdb.connect(str(self.database), read_only=True)
         try:
-            relation = connection.sql(f"SELECT * FROM ({statement}) AS ds_query LIMIT {int(limit)}") if statement.casefold().startswith(("select", "with")) else connection.sql(statement)
-            arrow = relation.arrow()
+            if statement.casefold().startswith(("select", "with")):
+                relation = connection.sql(f"SELECT * FROM ({statement}) AS ds_query LIMIT {int(limit)}")
+            else:
+                relation = connection.sql(statement)
+            arrow = relation.fetch_arrow_table()
             columns = list(arrow.schema.names)
             rows = arrow.to_pylist()[:limit]
         finally:
