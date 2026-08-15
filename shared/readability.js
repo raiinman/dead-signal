@@ -15,13 +15,17 @@ const root=document.documentElement;
 /*
  * Build Lab weapon-selector ownership lives in weapon-public-adapter.js.
  * Keep readability.js out of selector rendering/geometry so the two layers do not
- * fight each other. The only selector rule here is the mobile viewport/scroll fix,
- * because this shared asset is already guaranteed to load after page CSS.
+ * fight each other. The only selector rules here are late-loading viewport guards,
+ * because this shared asset is guaranteed to load after page CSS.
  */
 if(/^\/build-planner\/?$/i.test(location.pathname)){
   const style=document.createElement('style');
   style.id='ds-build-lab-mobile-selector-scroll';
   style.textContent=`
+    /* Pagination/filter state must always win over any card display rule. */
+    html body #picker.arsenal-mode .bl-picker-list > .bl-pick[hidden]{
+      display:none!important;
+    }
     @media(max-width:680px){
       html body #picker.arsenal-mode{
         display:block!important;
@@ -54,6 +58,9 @@ if(/^\/build-planner\/?$/i.test(location.pathname)){
         grid-template-columns:1fr!important;
         padding:10px!important;
         gap:10px!important;
+      }
+      html body #picker.arsenal-mode .bl-picker-list > .bl-pick[hidden]{
+        display:none!important;
       }
       html body #picker.arsenal-mode .arsenal-card{
         grid-template-columns:1fr!important;
