@@ -86,17 +86,9 @@
   'use strict';
   if (typeof location === 'undefined' || !/^\/build-planner\/?$/i.test(location.pathname)) return;
 
-  const selectorStyleId = 'ds-build-lab-weapon-selector-css';
-  if (typeof document !== 'undefined' && !document.getElementById(selectorStyleId)) {
-    const link = document.createElement('link');
-    link.id = selectorStyleId;
-    link.rel = 'stylesheet';
-    link.href = '/build-planner/weapon-selector.css?v=20260814-2033';
-    document.head.append(link);
-  }
-
   const RARITY_RANK = { Common: 1, Uncommon: 2, Rare: 3, Epic: 4, Legendary: 5 };
   const FAVORITES_KEY = 'dead-signal-weapon-favorites';
+  const PAGE_SIZE = 10;
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
   const finite = (value) => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
   const num = (value) => finite(value) ? Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '—';
@@ -140,11 +132,12 @@
   let pendingButton = null;
   let pendingWeapon = null;
   let allowBaseSelection = false;
+  let currentPage = 1;
 
   function enforceTwoColumnLayout() {
     const body = document.getElementById('arsenalBody');
-    if (body) body.style.gridTemplateColumns = '150px minmax(0,1fr)';
-    document.querySelectorAll('#arsenalInspector,.arsenal-inspector').forEach((node) => node.remove());
+    if (body) body.style.gridTemplateColumns = 'minmax(0,1fr)';
+    document.querySelectorAll('#arsenalInspector,.arsenal-inspector,.arsenal-rail').forEach((node) => node.remove());
   }
 
   function enrichCard(card, weapon) {
@@ -180,10 +173,64 @@
     if (confirm) confirm.disabled = false;
   }
 
-  function applyFilters() {
+  function renderPagination(totalItems, totalPages) {
+    const host = document.getElementById('arsPagination');
+    if (!host) return;
+    host.innerHTML = '';
+
+    const addButton = (label, page, disabled = false, active = false) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = label;
+      button.disabled = disabled;
+      button.className = active ? 'active' : '';
+      button.addEventListener('click', () => {
+        if (disabled || page === currentPage) return;
+        currentPage = page;
+        applyFilters(false);
+        document.getElementById('pickerList')?.scrollTo({ top: 0, behavior: 'auto' });
+      });
+      host.append(button);
+    };
+
+    addButton('‹', Math.max(1, currentPage - 1), currentPage <= 1);
+
+    const pages = [];
+    if (totalPages <= 7) {
+      for (let page = 1; page <= totalPages; page += 1) pages.push(page);
+    } else {
+      pages.push(1);
+      const start = Math.max(2, currentPage - 1);
+      const end = Math.min(totalPages - 1, currentPage + 1);
+      if (start > 2) pages.push('…');
+      for (let page = start; page <= end; page += 1) pages.push(page);
+      if (end < totalPages - 1) pages.push('…');
+      pages.push(totalPages);
+    }
+
+    pages.forEach((page) => {
+      if (page === '…') {
+        const ellipsis = document.createElement('span');
+        ellipsis.className = 'ars-page-ellipsis';
+        ellipsis.textContent = '…';
+        host.append(ellipsis);
+      } else {
+        addButton(String(page), page, false, page === currentPage);
+      }
+    });
+
+    addButton('›', Math.min(totalPages, currentPage + 1), currentPage >= totalPages);
+
+    const label = document.getElementById('arsPageLabel');
+    if (label) label.textContent = totalItems ? `Page ${currentPage} of ${totalPages}` : 'No results';
+  }
+
+  function applyFilters(resetPage = false) {
     const picker = document.getElementById('picker');
     if (!picker?.classList.contains('arsenal-mode')) return;
     enforceTwoColumnLayout();
+    if (resetPage) currentPage = 1;
+
     const query = String(document.getElementById('pickerSearch')?.value || '').trim().toLowerCase();
     const type = document.getElementById('pickerFilter')?.value || '';
     const rarity = document.getElementById('arsRarity')?.value || '';
@@ -193,11 +240,12 @@
     const craftableOnly = document.getElementById('arsCraftable')?.classList.contains('active');
     const favs = favorites();
     const cards = [...picker.querySelectorAll('#pickerList > .bl-pick')];
-    const visible = [];
+    const matches = [];
+
     for (const card of cards) {
       const weapon = recordForCard(card);
+      card.hidden = true;
       if (!weapon) continue;
-      enrichCard(card, weapon);
       const acq = acquisition(weapon);
       const mechanic = effectText(weapon) ? 'resolved' : effectStatus(weapon) || 'none';
       const haystack = `${weapon.name} ${weapon.category} ${weapon.rarity} ${effectText(weapon)} ${acq.label} ${acq.detail}`.toLowerCase();
@@ -208,20 +256,36 @@
         && (!mechanicFilter || mechanic === mechanicFilter)
         && (!favoriteOnly || favs.has(weapon.canonical_id))
         && (!craftableOnly || acq.status === 'craftable');
-      card.hidden = !show;
-      if (show) visible.push({ card, weapon });
+      if (show) matches.push({ card, weapon });
     }
+
     const sort = document.getElementById('arsSort')?.value || 'name';
-    visible.sort((a, b) => {
+    matches.sort((a, b) => {
       if (sort === 'rarity') return (RARITY_RANK[b.weapon.rarity] || 0) - (RARITY_RANK[a.weapon.rarity] || 0) || a.weapon.name.localeCompare(b.weapon.name);
       if (sort === 'damage') return (Number(tierOne(b.weapon)?.base_attack) || 0) - (Number(tierOne(a.weapon)?.base_attack) || 0) || a.weapon.name.localeCompare(b.weapon.name);
       if (sort === 'rpm') return (Number(ranged(b.weapon).rpm) || 0) - (Number(ranged(a.weapon).rpm) || 0) || a.weapon.name.localeCompare(b.weapon.name);
       return a.weapon.name.localeCompare(b.weapon.name);
     });
+
+    const totalPages = Math.max(1, Math.ceil(matches.length / PAGE_SIZE));
+    currentPage = Math.min(Math.max(1, currentPage), totalPages);
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const pageItems = matches.slice(start, start + PAGE_SIZE);
     const list = document.getElementById('pickerList');
-    visible.forEach(({ card }) => list.append(card));
+
+    pageItems.forEach(({ card, weapon }) => {
+      enrichCard(card, weapon);
+      card.hidden = false;
+      list.append(card);
+    });
+
     const count = document.getElementById('arsResultCount');
-    if (count) count.textContent = `${visible.length} of ${cards.length} weapons`;
+    if (count) {
+      const first = matches.length ? start + 1 : 0;
+      const last = Math.min(start + PAGE_SIZE, matches.length);
+      count.textContent = matches.length ? `Showing ${first}–${last} of ${matches.length} weapons` : '0 weapons';
+    }
+    renderPagination(matches.length, totalPages);
   }
 
   function installArsenal() {
@@ -233,47 +297,32 @@
     if (!tools || !list) return;
 
     if (!document.getElementById('arsenalBody')) {
-      const types = [...new Set(allWeapons().map((weapon) => weapon.category).filter(Boolean))].sort();
       const rarities = [...new Set(allWeapons().map((weapon) => weapon.rarity).filter(Boolean))].sort((a, b) => (RARITY_RANK[b] || 0) - (RARITY_RANK[a] || 0));
       tools.insertAdjacentHTML('beforeend', `<select id="arsRarity"><option value="">All Rarities</option>${rarities.map((value) => `<option>${esc(value)}</option>`).join('')}</select><select id="arsAcquisition"><option value="">All Acquisition</option><option value="craftable">Recipes proven</option><option value="direct">Direct acquisition</option><option value="unresolved">Unresolved</option></select><select id="arsMechanic"><option value="">All Mechanic Evidence</option><option value="resolved">Resolved mechanic</option><option value="no-fixed-skill-reference">No fixed-skill reference</option><option value="exact-fixed-skill-record-missing">Exact skill record missing</option></select><select id="arsSort"><option value="name">Sort: Name A–Z</option><option value="rarity">Sort: Rarity</option><option value="damage">Sort: Damage high–low</option><option value="rpm">Sort: Fire rate high–low</option></select><button id="arsCraftable" type="button">Craftable</button><button id="arsFavorites" type="button">★ Favorites</button><button type="button" disabled title="Owned inventory is not connected to a player account contract">Owned — not connected</button>`);
 
       const body = document.createElement('div');
       body.id = 'arsenalBody';
       body.className = 'arsenal-body';
-      body.style.gridTemplateColumns = '150px minmax(0,1fr)';
-
-      const rail = document.createElement('aside');
-      rail.className = 'arsenal-rail';
-      rail.innerHTML = `<small>WEAPON TYPE</small><button class="active" data-ars-type="">All Weapons</button>${types.map((value) => `<button data-ars-type="${esc(value)}">${esc(value)}</button>`).join('')}<small>RARITY</small>${rarities.map((value) => `<button data-ars-rarity="${esc(value)}">${esc(value)}</button>`).join('')}`;
+      body.style.gridTemplateColumns = 'minmax(0,1fr)';
 
       const center = document.createElement('div');
       center.className = 'arsenal-center';
       list.parentNode.insertBefore(body, list);
       center.append(list);
-      body.append(rail, center);
+      body.append(center);
 
       const footer = document.createElement('div');
       footer.className = 'arsenal-footer';
-      footer.innerHTML = '<span id="arsResultCount">Weapons</span><span class="arsenal-footer-spacer"></span><button id="arsCancel" type="button">Cancel</button><button id="arsConfirm" type="button" class="primary" disabled>Confirm Selection</button>';
+      footer.innerHTML = '<span id="arsResultCount">Weapons</span><span id="arsPageLabel" class="ars-page-label">Page 1</span><span id="arsPagination" class="ars-pagination" aria-label="Weapon pages"></span><span class="arsenal-footer-spacer"></span><button id="arsCancel" type="button">Cancel</button><button id="arsConfirm" type="button" class="primary" disabled>Confirm Selection</button>';
       picker.append(footer);
 
-      tools.querySelectorAll('select').forEach((control) => control.addEventListener('change', applyFilters));
-      document.getElementById('pickerSearch')?.addEventListener('input', () => requestAnimationFrame(applyFilters));
-      document.getElementById('pickerFilter')?.addEventListener('change', () => requestAnimationFrame(applyFilters));
-      ['arsCraftable', 'arsFavorites'].forEach((id) => document.getElementById(id)?.addEventListener('click', (event) => { event.currentTarget.classList.toggle('active'); applyFilters(); }));
-      rail.addEventListener('click', (event) => {
-        const typeButton = event.target.closest('[data-ars-type]');
-        const rarityButton = event.target.closest('[data-ars-rarity]');
-        if (typeButton) {
-          document.getElementById('pickerFilter').value = typeButton.dataset.arsType;
-          rail.querySelectorAll('[data-ars-type]').forEach((button) => button.classList.toggle('active', button === typeButton));
-        }
-        if (rarityButton) {
-          document.getElementById('arsRarity').value = rarityButton.dataset.arsRarity;
-          rail.querySelectorAll('[data-ars-rarity]').forEach((button) => button.classList.toggle('active', button === rarityButton));
-        }
-        applyFilters();
-      });
+      tools.querySelectorAll('select').forEach((control) => control.addEventListener('change', () => applyFilters(true)));
+      document.getElementById('pickerSearch')?.addEventListener('input', () => requestAnimationFrame(() => applyFilters(true)));
+      document.getElementById('pickerFilter')?.addEventListener('change', () => requestAnimationFrame(() => applyFilters(true)));
+      ['arsCraftable', 'arsFavorites'].forEach((id) => document.getElementById(id)?.addEventListener('click', (event) => {
+        event.currentTarget.classList.toggle('active');
+        applyFilters(true);
+      }));
       document.getElementById('arsCancel').onclick = () => picker.close();
       document.getElementById('arsConfirm').onclick = () => {
         if (!pendingButton) return;
@@ -285,7 +334,7 @@
 
     enforceTwoColumnLayout();
     requestAnimationFrame(() => {
-      applyFilters();
+      applyFilters(false);
       if (!pendingWeapon) {
         const first = picker.querySelector('#pickerList > .bl-pick:not([hidden])');
         if (first) choosePending(first);
@@ -308,7 +357,7 @@
         set.has(id) ? set.delete(id) : set.add(id);
         storeFavorites(set);
         favorite.classList.toggle('active', set.has(id));
-        applyFilters();
+        applyFilters(false);
         return;
       }
       const card = event.target.closest('#pickerList > .bl-pick');
@@ -329,6 +378,7 @@
       picker.classList.remove('arsenal-mode');
       pendingButton = null;
       pendingWeapon = null;
+      currentPage = 1;
       const confirm = document.getElementById('arsConfirm');
       if (confirm) confirm.disabled = true;
     });
