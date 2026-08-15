@@ -3,5 +3,5 @@ lz4==4.4.5
 texture2ddecoder==1.0.6
 zstandard==0.25.0
 duckdb==1.5.5
-polars==1.43.0
+polars==1.42.1
 pyarrow==25.0.0
