@@ -120,9 +120,9 @@
     const recipeCount = tiers.filter((tier) => tier?.recipe).length;
     const gain = String(contract.acquisition?.gain_path || weapon?.item_gain_path || '').trim();
     const hint = String(contract.acquisition?.hint || weapon?.acquisition_hint || '').trim();
-    if (tiers.length && recipeCount === tiers.length) return { status: 'craftable', label: 'Recipes proven', detail: `${recipeCount}/${tiers.length} Gear Tier recipes`, source: hint || gain || 'Installed-game recipe evidence' };
-    if (/stronghold exploration/i.test(gain)) return { status: 'direct', label: 'Direct acquisition', detail: gain, source: hint || gain };
-    return { status: 'unresolved', label: 'Acquisition unresolved', detail: recipeCount ? `${recipeCount}/${tiers.length} recipes found` : 'No exact recipe or direct path proven', source: hint || gain || 'Exact source unresolved' };
+    if (tiers.length && recipeCount === tiers.length) return { status: 'craftable', label: 'Recipes proven', detail: `${recipeCount}/${tiers.length} Gear Tier recipes` };
+    if (/stronghold exploration/i.test(gain)) return { status: 'direct', label: 'Direct acquisition', detail: gain };
+    return { status: 'unresolved', label: 'Acquisition unresolved', detail: recipeCount ? `${recipeCount}/${tiers.length} recipes found` : 'No exact recipe or direct path proven' };
   };
   const favorites = () => { try { return new Set(JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]')); } catch (_) { return new Set(); } };
   const storeFavorites = (set) => { try { localStorage.setItem(FAVORITES_KEY, JSON.stringify([...set])); } catch (_) {} };
@@ -132,6 +132,12 @@
   let pendingButton = null;
   let pendingWeapon = null;
   let allowBaseSelection = false;
+
+  function enforceTwoColumnLayout() {
+    const body = document.getElementById('arsenalBody');
+    if (body) body.style.gridTemplateColumns = '150px minmax(0,1fr)';
+    document.querySelectorAll('#arsenalInspector,.arsenal-inspector').forEach((node) => node.remove());
+  }
 
   function enrichCard(card, weapon) {
     if (!weapon || card.dataset.arsenalEnhanced === '1') return;
@@ -156,26 +162,6 @@
       </span>`;
   }
 
-  function renderInspector(weapon) {
-    const host = document.getElementById('arsenalInspector');
-    if (!host) return;
-    if (!weapon) {
-      host.innerHTML = '<div class="arsenal-inspector-empty"><b>Select a weapon</b><span>Highlight a record to inspect exact player-facing evidence before confirming.</span></div>';
-      return;
-    }
-    const stats = ranged(weapon);
-    const cell = tierOne(weapon);
-    const image = imageUrl(weapon);
-    const acq = acquisition(weapon);
-    host.innerHTML = `
-      <div class="arsenal-inspector-head"><small>SELECTED WEAPON</small><h3>${esc(weapon.name)}</h3><div><span class="ars-chip ${rarityClass(weapon)}">${esc(weapon.rarity || 'Unverified')}</span><span class="ars-chip">${esc(weapon.category || 'Type unresolved')}</span></div></div>
-      <div class="arsenal-inspector-art">${image ? `<img src="${esc(image)}" alt="${esc(weapon.name)}">` : '<span>IMAGE PENDING</span>'}</div>
-      <dl class="arsenal-inspector-stats"><div><dt>Tier I · 1★ DMG</dt><dd>${formatDamage(cell?.base_attack, stats.projectile_count)}</dd></div><div><dt>Fire Rate</dt><dd>${num(stats.rpm)}</dd></div><div><dt>Range</dt><dd>${num(stats.range_meters)}</dd></div><div><dt>Accuracy</dt><dd>${num(stats.accuracy)}</dd></div><div><dt>Stability</dt><dd>${num(stats.stability)}</dd></div><div><dt>Mobility</dt><dd>${num(stats.mobility)}</dd></div></dl>
-      <section><small>EVIDENCE & ACQUISITION</small><p><b>${esc(acq.label)}</b><br>${esc(acq.source)}<br><span>${esc(acq.detail)}</span></p></section>
-      <section><small>WEAPON MECHANIC</small><p>${esc(effectText(weapon) || mechanicLabel(weapon))}</p></section>
-      <a class="arsenal-detail-link" href="/database/weapons/detail/?weapon=${encodeURIComponent(weapon.blueprint_id || '')}">View Full Details ↗</a>`;
-  }
-
   function choosePending(card) {
     const weapon = recordForCard(card);
     if (!weapon) return;
@@ -184,12 +170,12 @@
     document.querySelectorAll('#pickerList > .bl-pick').forEach((item) => item.classList.toggle('arsenal-selected', item === card));
     const confirm = document.getElementById('arsConfirm');
     if (confirm) confirm.disabled = false;
-    renderInspector(weapon);
   }
 
   function applyFilters() {
     const picker = document.getElementById('picker');
     if (!picker?.classList.contains('arsenal-mode')) return;
+    enforceTwoColumnLayout();
     const query = String(document.getElementById('pickerSearch')?.value || '').trim().toLowerCase();
     const type = document.getElementById('pickerFilter')?.value || '';
     const rarity = document.getElementById('arsRarity')?.value || '';
@@ -237,17 +223,32 @@
     const tools = picker.querySelector('.bl-picker-tools');
     const list = document.getElementById('pickerList');
     if (!tools || !list) return;
+
     if (!document.getElementById('arsenalBody')) {
       const types = [...new Set(allWeapons().map((weapon) => weapon.category).filter(Boolean))].sort();
       const rarities = [...new Set(allWeapons().map((weapon) => weapon.rarity).filter(Boolean))].sort((a, b) => (RARITY_RANK[b] || 0) - (RARITY_RANK[a] || 0));
       tools.insertAdjacentHTML('beforeend', `<select id="arsRarity"><option value="">All Rarities</option>${rarities.map((value) => `<option>${esc(value)}</option>`).join('')}</select><select id="arsAcquisition"><option value="">All Acquisition</option><option value="craftable">Recipes proven</option><option value="direct">Direct acquisition</option><option value="unresolved">Unresolved</option></select><select id="arsMechanic"><option value="">All Mechanic Evidence</option><option value="resolved">Resolved mechanic</option><option value="no-fixed-skill-reference">No fixed-skill reference</option><option value="exact-fixed-skill-record-missing">Exact skill record missing</option></select><select id="arsSort"><option value="name">Sort: Name A–Z</option><option value="rarity">Sort: Rarity</option><option value="damage">Sort: Damage high–low</option><option value="rpm">Sort: Fire rate high–low</option></select><button id="arsCraftable" type="button">Craftable</button><button id="arsFavorites" type="button">★ Favorites</button><button type="button" disabled title="Owned inventory is not connected to a player account contract">Owned — not connected</button>`);
-      const body = document.createElement('div'); body.id = 'arsenalBody'; body.className = 'arsenal-body';
-      const rail = document.createElement('aside'); rail.className = 'arsenal-rail'; rail.innerHTML = `<small>WEAPON TYPE</small><button class="active" data-ars-type="">All Weapons</button>${types.map((value) => `<button data-ars-type="${esc(value)}">${esc(value)}</button>`).join('')}<small>RARITY</small>${rarities.map((value) => `<button data-ars-rarity="${esc(value)}">${esc(value)}</button>`).join('')}`;
-      const center = document.createElement('div'); center.className = 'arsenal-center';
-      list.parentNode.insertBefore(body, list); center.append(list); body.append(rail, center);
-      const inspector = document.createElement('aside'); inspector.id = 'arsenalInspector'; inspector.className = 'arsenal-inspector'; body.append(inspector);
-      const footer = document.createElement('div'); footer.className = 'arsenal-footer'; footer.innerHTML = '<span id="arsResultCount">Weapons</span><span class="arsenal-footer-spacer"></span><button id="arsCancel" type="button">Cancel</button><button id="arsConfirm" type="button" class="primary" disabled>Confirm Selection</button>'; picker.append(footer);
-      renderInspector(null);
+
+      const body = document.createElement('div');
+      body.id = 'arsenalBody';
+      body.className = 'arsenal-body';
+      body.style.gridTemplateColumns = '150px minmax(0,1fr)';
+
+      const rail = document.createElement('aside');
+      rail.className = 'arsenal-rail';
+      rail.innerHTML = `<small>WEAPON TYPE</small><button class="active" data-ars-type="">All Weapons</button>${types.map((value) => `<button data-ars-type="${esc(value)}">${esc(value)}</button>`).join('')}<small>RARITY</small>${rarities.map((value) => `<button data-ars-rarity="${esc(value)}">${esc(value)}</button>`).join('')}`;
+
+      const center = document.createElement('div');
+      center.className = 'arsenal-center';
+      list.parentNode.insertBefore(body, list);
+      center.append(list);
+      body.append(rail, center);
+
+      const footer = document.createElement('div');
+      footer.className = 'arsenal-footer';
+      footer.innerHTML = '<span id="arsResultCount">Weapons</span><span class="arsenal-footer-spacer"></span><button id="arsCancel" type="button">Cancel</button><button id="arsConfirm" type="button" class="primary" disabled>Confirm Selection</button>';
+      picker.append(footer);
+
       tools.querySelectorAll('select').forEach((control) => control.addEventListener('change', applyFilters));
       document.getElementById('pickerSearch')?.addEventListener('input', () => requestAnimationFrame(applyFilters));
       document.getElementById('pickerFilter')?.addEventListener('change', () => requestAnimationFrame(applyFilters));
@@ -273,6 +274,8 @@
         allowBaseSelection = false;
       };
     }
+
+    enforceTwoColumnLayout();
     requestAnimationFrame(() => {
       applyFilters();
       if (!pendingWeapon) {
@@ -285,19 +288,31 @@
   function bind() {
     const picker = document.getElementById('picker');
     if (!picker) return;
+
     picker.addEventListener('click', (event) => {
       if (!picker.classList.contains('arsenal-mode') || allowBaseSelection) return;
       const favorite = event.target.closest('[data-ars-favorite]');
       if (favorite) {
-        event.preventDefault(); event.stopImmediatePropagation();
-        const set = favorites(); const id = favorite.dataset.arsFavorite;
-        set.has(id) ? set.delete(id) : set.add(id); storeFavorites(set); favorite.classList.toggle('active', set.has(id)); applyFilters(); return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        const set = favorites();
+        const id = favorite.dataset.arsFavorite;
+        set.has(id) ? set.delete(id) : set.add(id);
+        storeFavorites(set);
+        favorite.classList.toggle('active', set.has(id));
+        applyFilters();
+        return;
       }
       const card = event.target.closest('#pickerList > .bl-pick');
-      if (card) { event.preventDefault(); event.stopImmediatePropagation(); choosePending(card); }
+      if (card) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        choosePending(card);
+      }
     }, true);
 
     new MutationObserver((mutations) => {
+      enforceTwoColumnLayout();
       const needsRefresh = mutations.some((mutation) => [...mutation.addedNodes].some((node) => node.nodeType === 1 && ((node.matches?.('.bl-pick') && node.dataset.arsenalEnhanced !== '1') || node.querySelector?.('.bl-pick:not([data-arsenal-enhanced="1"])'))));
       if (needsRefresh || (document.getElementById('pickerTitle')?.textContent === 'Weapon' && !picker.classList.contains('arsenal-mode'))) requestAnimationFrame(installArsenal);
     }).observe(picker, { childList: true, subtree: true });
@@ -309,6 +324,7 @@
       const confirm = document.getElementById('arsConfirm');
       if (confirm) confirm.disabled = true;
     });
+
     installArsenal();
   }
 
