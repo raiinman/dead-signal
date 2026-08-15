@@ -26,6 +26,7 @@ class PackagingEntrypointTests(unittest.TestCase):
             "dead_signal_workflow_lab",
             "dead_signal_pipeline_inspector",
             "dead_signal_publication_gate",
+            "dead_signal_multihop_resolver",
             "neox_data_explorer",
         ):
             self.assertIn(module, build_script)
