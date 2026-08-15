@@ -62,6 +62,15 @@ The existing weapon evidence pipeline remains intact:
 - `published/data/gun-profiles.json` preserves the canonical item-to-gun spine and directly linked firing, stability, scatter, accessory-slot, range-template, reload-template, and downstream IDs.
 
 Runtime procs, enemy mitigation, conditional buffs, and configured DPS remain excluded until independently proven.
+
+## Dead Signal Data Intelligence
+
+The Miner now includes a branded, read-only **DEAD SIGNAL / DATA INTELLIGENCE** workspace layered on top of completed local snapshots. It combines the NeoX Explorer, Table Profiler, Weapon Description Source Finder, exact Evidence Graph, Identity Map, embedded DuckDB/Polars/Arrow analytics, Workflow Lab, Discovery, Pipeline Inspector, manual Verification registry, and generalized Publication Gate.
+
+The canonical Miner completes extraction/normalization/publishing first. Data Intelligence then generates non-publishing research products. Discovery, clustering, analytics, and workflows can suggest leads but cannot assign `VERIFIED`; only explicit manual evidence review can do that. Even a `PUBLISHABLE` Publication Gate decision is advisory and does not automatically rewrite `published/web/*`.
+
+See [`docs/DATA-INTELLIGENCE.md`](docs/DATA-INTELLIGENCE.md) for the complete architecture, evidence-state definitions, automatic report list, and Weapon Description verification policy.
+
 ## Verify
 
 ```powershell
@@ -85,4 +94,3 @@ The in-app updater accepts only GitHub-hosted HTTPS downloads and verifies decla
 - Do not commit generated snapshots, `reference-tracer.sqlite`, raw game archives, or packaged runtimes.
 - Do not turn discovered ratios into calculator formulas without multi-entity evidence and rounding validation.
 - Production hosting remains governed by the repository's copy-only cPanel process; Miner work must not modify it.
-
