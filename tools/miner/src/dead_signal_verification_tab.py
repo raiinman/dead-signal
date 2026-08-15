@@ -6,7 +6,7 @@ import json
 import tkinter as tk
 from tkinter import messagebox, ttk
 
-from dead_signal_publication_gate import build_gate_report
+from dead_signal_publication_gate import build_gate_report, candidate_key
 from dead_signal_verification import ALLOWED_EVIDENCE, delete_verification, load_verifications, save_verification
 
 
@@ -93,8 +93,8 @@ class VerificationTab:
         self.candidate_lookup = {}
         for weapon in payload.get("weapons") or []:
             weapon_key = str(weapon.get("blueprint_id") or weapon.get("item_id") or weapon.get("name") or "")
-            for index, candidate in enumerate(weapon.get("candidates") or []):
-                key = f"{weapon_key}:{index}"
+            for candidate in weapon.get("candidates") or []:
+                key = candidate_key(weapon_key, candidate)
                 label = (
                     f"{weapon.get('name')}  [{key}]  {candidate.get('state')}  "
                     f"{candidate.get('table') or 'table?'} / {candidate.get('field') or 'field?'}"
