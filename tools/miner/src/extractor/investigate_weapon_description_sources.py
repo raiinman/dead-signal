@@ -173,18 +173,18 @@ def _record_identity_hits(record_id: Any, record: Any, identities: set[str]) -> 
 
 def _record_id_is_domain_compatible(relative: str, identity_names: set[str]) -> bool:
     """Reject record-id collisions in unrelated tables without weakening typed hits."""
-    lowered = relative.casefold()
+    basename = Path(relative).name.casefold()
     for name in identity_names:
         normalized = re.sub(r"^tier_[^_]+_", "", name.casefold())
-        if normalized == "item_id" and any(token in lowered for token in ("item", "equip", "display", "ui", "preview")):
+        if normalized == "item_id" and basename.startswith(("item", "equip", "weapon", "gun")):
             return True
-        if normalized == "blueprint_id" and "blueprint" in lowered:
+        if normalized == "blueprint_id" and basename.startswith(("blueprint", "gun_blueprint", "equip_blueprint")):
             return True
-        if normalized == "prototype_id" and "prototype" in lowered:
+        if normalized == "prototype_id" and basename.startswith(("prototype", "weapon_prototype", "gun_prototype")):
             return True
-        if normalized == "gun_no" and any(token in lowered for token in ("gun", "weapon")):
+        if normalized == "gun_no" and basename.startswith(("gun", "weapon")):
             return True
-        if normalized == "fixed_skill_code" and any(token in lowered for token in ("skill", "passive", "buff")):
+        if normalized == "fixed_skill_code" and basename.startswith(("skill", "passive", "buff")):
             return True
     return False
 
@@ -200,7 +200,7 @@ def _record_text_candidates(record: Any, translations: list[tuple[str, dict[str,
         resolved = _resolve_text(value, translations)
         has_translation = bool(resolved.get("translation_matches"))
         # Fields such as item_filter_desc_type and item_detail_desc_type are
-        # metadata selectors, not player-facing copy.  Numeric handles remain
+        # metadata selectors, not player-facing copy. Numeric handles remain
         # eligible only when they actually resolve through translation data.
         if METADATA_TEXT_FIELD.search(field) and not has_translation:
             continue
@@ -298,7 +298,7 @@ def investigate(payload: dict[str, Any], base: Path, current: Path) -> dict[str,
         },
         "policy": {
             "source_of_truth": "installed-game Miner snapshot",
-            "identity": "Exact weapon identifiers only; names and similar IDs are never used for joins. Record-ID-only collisions must also be compatible with the table domain.",
+            "identity": "Exact weapon identifiers only; names and similar IDs are never used for joins. Record-ID-only collisions must also match the canonical table domain prefix.",
             "candidate": "Description-like fields are evidence candidates only; metadata selectors and unresolved numeric values are excluded.",
             "shared_copy": "Text/handles observed on multiple Weapon identities are flagged as shared and blocked from automatic promotion.",
         },
