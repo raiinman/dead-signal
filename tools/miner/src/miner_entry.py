@@ -238,6 +238,11 @@ def run_pipeline_with_intelligence(config, log, progress, cancel=None):
 
 def self_test_with_extended_publisher():
     checks = _original_self_test()
+    # Physical resource checks are reserved for extractor modules that are
+    # intentionally copied into the packaged app as data. Ordinary Python
+    # modules (including Data Intelligence) are frozen into PyInstaller's module
+    # archive and are validated by the import checks below instead of by a
+    # neighboring .py file existing on disk.
     resources = (
         miner_core.EXTRACTOR_ROOT / "publish_extended_web_data.py",
         miner_core.EXTRACTOR_ROOT / "publish_current_calibrations.py",
@@ -251,22 +256,6 @@ def self_test_with_extended_publisher():
         miner_core.EXTRACTOR_ROOT / "project_weapon_evidence.py",
         miner_core.EXTRACTOR_ROOT / "investigate_weapon_descriptions.py",
         miner_core.EXTRACTOR_ROOT / "investigate_weapon_description_sources.py",
-        miner_core.ROOT / "dead_signal_research_suite.py",
-        miner_core.ROOT / "dead_signal_source_finder.py",
-        miner_core.ROOT / "dead_signal_table_profiler.py",
-        miner_core.ROOT / "dead_signal_intelligence_window.py",
-        miner_core.ROOT / "dead_signal_intelligence_advanced.py",
-        miner_core.ROOT / "dead_signal_intelligence_hub.py",
-        miner_core.ROOT / "dead_signal_discovery.py",
-        miner_core.ROOT / "dead_signal_discovery_tab.py",
-        miner_core.ROOT / "dead_signal_verification.py",
-        miner_core.ROOT / "dead_signal_verification_tab.py",
-        miner_core.ROOT / "dead_signal_analytics.py",
-        miner_core.ROOT / "dead_signal_evidence_graph.py",
-        miner_core.ROOT / "dead_signal_workflow_lab.py",
-        miner_core.ROOT / "dead_signal_pipeline_inspector.py",
-        miner_core.ROOT / "dead_signal_publication_gate.py",
-        miner_core.ROOT / "neox_data_explorer.py",
     )
     for resource in resources:
         checks.setdefault("resources", {})[str(resource)] = resource.is_file()
