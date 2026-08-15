@@ -41,6 +41,22 @@ DEFAULT_POLICIES = {
 }
 
 
+def _stable_reference_path(candidate: dict[str, Any]) -> list[dict[str, str]]:
+    """Project only exact path provenance into the verification hash."""
+    stable = []
+    for hop in candidate.get("reference_path") or []:
+        if not isinstance(hop, dict):
+            continue
+        stable.append({
+            key: str(hop.get(key) or "")
+            for key in (
+                "kind", "field", "value", "source", "table", "record_id",
+                "json_pointer", "depth",
+            )
+        })
+    return stable
+
+
 def candidate_key(weapon_key: object, candidate: dict[str, Any]) -> str:
     """Return a stable review key bound to exact candidate provenance and content."""
     weapon = str(weapon_key or "").strip()
@@ -53,6 +69,7 @@ def candidate_key(weapon_key: object, candidate: dict[str, Any]) -> str:
         "json_pointer": str(candidate.get("json_pointer") or ""),
         "raw_value": str(candidate.get("raw_value") or ""),
         "text": str(candidate.get("text") or ""),
+        "reference_path": _stable_reference_path(candidate),
     }
     encoded = json.dumps(provenance, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return f"{weapon}:{hashlib.sha256(encoded).hexdigest()[:20]}"
@@ -136,7 +153,7 @@ def gate_source_finder(source_finder: dict[str, Any], verifications: dict[str, A
         "policy": {
             "separation": "Extraction, resolution, candidacy, verification, and publication are separate states.",
             "verification": "Only explicit independent verification can satisfy the gate.",
-            "verification_keys": "Candidate verification keys are stable hashes of exact provenance and content; changed evidence requires fresh review.",
+            "verification_keys": "Candidate verification keys are stable hashes of exact endpoint provenance, exact reference path, and content; changed evidence requires fresh review.",
             "write_path": "This report is advisory; it does not rewrite public website datasets.",
         },
     }
