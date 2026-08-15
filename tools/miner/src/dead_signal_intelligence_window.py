@@ -27,6 +27,35 @@ GREEN = "#4ed083"
 AMBER = "#d5a23a"
 
 
+def configure_data_intelligence_styles(style) -> None:
+    """Configure ttk styles using widget-class suffixes that inherit valid layouts.
+
+    ttk.Notebook's base style is ``TNotebook``. A custom style therefore has to
+    end in ``.TNotebook`` (and its tab in ``.TNotebook.Tab``) so ttk can inherit
+    the native notebook layout on Windows and other themes. Using ``.Notebook``
+    only configures colors; it does not provide a widget layout and raises
+    ``Layout <style> not found`` when the widget is created.
+    """
+    style.configure("DSI.TNotebook", background=BG, borderwidth=0)
+    style.configure("DSI.TNotebook.Tab", background=PANEL, foreground=TEXT, padding=(13, 8))
+    style.map("DSI.TNotebook.Tab", background=[("selected", RED)], foreground=[("selected", "white")])
+    style.configure(
+        "DSI.Treeview",
+        background=BG,
+        fieldbackground=BG,
+        foreground=TEXT,
+        bordercolor=BORDER,
+        rowheight=25,
+    )
+    style.configure(
+        "DSI.Treeview.Heading",
+        background="#d8d6d1",
+        foreground="#15181b",
+        font=("Segoe UI", 8, "bold"),
+    )
+    style.map("DSI.Treeview", background=[("selected", RED)], foreground=[("selected", "white")])
+
+
 class DataIntelligenceWindow:
     def __init__(self, parent: tk.Misc, output: Path, open_evidence_console):
         self.parent = parent
@@ -85,16 +114,9 @@ class DataIntelligenceWindow:
         ).pack(side="right", padx=(0, 14), pady=(9, 0))
 
         style = ttk.Style(self.window)
-        style.configure("DSI.Notebook", background=BG, borderwidth=0)
-        style.configure("DSI.Notebook.Tab", background=PANEL, foreground=TEXT, padding=(13, 8))
-        style.map("DSI.Notebook.Tab", background=[("selected", RED)], foreground=[("selected", "white")])
-        style.configure("DSI.Treeview", background=BG, fieldbackground=BG, foreground=TEXT,
-                        bordercolor=BORDER, rowheight=25)
-        style.configure("DSI.Treeview.Heading", background="#d8d6d1", foreground="#15181b",
-                        font=("Segoe UI", 8, "bold"))
-        style.map("DSI.Treeview", background=[("selected", RED)], foreground=[("selected", "white")])
+        configure_data_intelligence_styles(style)
 
-        notebook = ttk.Notebook(self.window, style="DSI.Notebook")
+        notebook = ttk.Notebook(self.window, style="DSI.TNotebook")
         notebook.pack(fill="both", expand=True, padx=22, pady=(0, 22))
         self._build_explorer(notebook)
         self._build_profiler(notebook)
