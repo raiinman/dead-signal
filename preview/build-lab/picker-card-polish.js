@@ -84,29 +84,12 @@ function syncCalibrationEffect(card){
   if(norm(visible.textContent)!==text)visible.textContent=text;
 }
 
-function repairWeaponArsenalCards(){
-  if(typeof location==='undefined'||!/^\/build-planner\/?$/i.test(location.pathname))return;
-  if(norm(document.getElementById('pickerTitle')?.textContent)!=='Weapon')return;
-
-  const stale=[...document.querySelectorAll('#pickerList > .bl-pick:not([hidden])')]
-    .filter(card=>!card.querySelector('.arsenal-art')||!card.querySelector('.arsenal-copy'));
-
-  for(const card of stale){
-    delete card.dataset.arsenalEnhanced;
-    const parent=card.parentElement;
-    if(parent)parent.append(card);
-  }
-}
-
 function polishCard(card){
   tagTitleControls(card);
   syncCalibrationEffect(card);
 }
 
-function run(){
-  repairWeaponArsenalCards();
-  document.querySelectorAll('#picker .pick-card').forEach(polishCard);
-}
+function run(){document.querySelectorAll('#picker .pick-card').forEach(polishCard);}
 function queue(){
   if(queued)return;
   queued=true;
