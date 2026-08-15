@@ -13,6 +13,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from dead_signal_analytics import flatten_source_finder, flatten_table_profiles  # noqa: E402
+from dead_signal_discovery import description_hotspots, schema_clusters  # noqa: E402
 from dead_signal_evidence_graph import DeadSignalEvidenceGraph  # noqa: E402
 from dead_signal_pipeline_inspector import PipelineRecorder, inspect_existing_run  # noqa: E402
 from dead_signal_publication_gate import decide, gate_source_finder  # noqa: E402
@@ -51,6 +52,58 @@ class DataIntelligenceCoreTests(unittest.TestCase):
             "active_snapshots": {"base": str(base), "current": str(current)},
         }), encoding="utf-8")
 
+        table_payloads = {
+            ("base", "game_common/data/gun_blueprint_data.json"): {"100": {"blueprint_id": 100, "description": "DESC_A"}},
+            ("current", "game_common/data/item_data.json"): {"200": {"item_id": 200, "name": "Test Pathfinder"}},
+            ("base", "game_common/data/weapon_prototype_data.json"): {"300": {"prototype_id": 300}},
+            ("base", "game_common/data/passive_skill_data.json"): {"400": {"skill_no": 400, "description": "Special skill text"}},
+        }
+        roots = {"base": base, "current": current}
+        for (layer, relative), rows in table_payloads.items():
+            path = roots[layer] / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps({"data": rows}), encoding="utf-8")
+
+        catalogs = self.root / "catalogs"
+        catalogs.mkdir()
+        catalog = sqlite3.connect(catalogs / "structured-tables.sqlite")
+        catalog.executescript("""
+            CREATE TABLE tables (
+                relative_path TEXT PRIMARY KEY,
+                base_json_path TEXT,
+                current_json_path TEXT,
+                base_records INTEGER,
+                current_records INTEGER,
+                base_bytes INTEGER,
+                current_bytes INTEGER,
+                layer_status TEXT NOT NULL
+            );
+            CREATE TABLE domain_tables (
+                domain TEXT NOT NULL,
+                relative_path TEXT NOT NULL,
+                PRIMARY KEY (domain, relative_path)
+            );
+        """)
+        for relative in sorted({key[1] for key in table_payloads}):
+            base_path = base / relative
+            current_path = current / relative
+            base_present = base_path.is_file()
+            current_present = current_path.is_file()
+            status = "base-and-current-patch" if base_present and current_present else "current-patch-only" if current_present else "base-only"
+            catalog.execute("INSERT INTO tables VALUES (?,?,?,?,?,?,?,?)", (
+                relative,
+                str(base_path) if base_present else None,
+                str(current_path) if current_present else None,
+                1 if base_present else 0,
+                1 if current_present else 0,
+                base_path.stat().st_size if base_present else 0,
+                current_path.stat().st_size if current_present else 0,
+                status,
+            ))
+            catalog.execute("INSERT INTO domain_tables VALUES (?,?)", ("weapons", relative))
+        catalog.commit()
+        catalog.close()
+
         tracer = sqlite3.connect(published / "indexes" / "reference-tracer.sqlite")
         tracer.execute("CREATE TABLE occurrences(value TEXT, layer TEXT, table_name TEXT, record_id TEXT, field TEXT, json_pointer TEXT)")
         tracer.executemany("INSERT INTO occurrences VALUES (?,?,?,?,?,?)", [
@@ -77,12 +130,14 @@ class DataIntelligenceCoreTests(unittest.TestCase):
         self.assertIn("blueprint_id", kinds)
         self.assertIn("item_id", kinds)
 
-    def test_workflow_lab_cannot_verify_or_publish(self):
+    def test_workflow_lab_opens_exact_records_and_never_publishes(self):
         result = DeadSignalWorkflowLab(self.root).run(
             default_description_workflow(), context={"weapon_identity": "weapon-100"}
         )
         self.assertEqual("BLOCKED", result["result"]["publication"])
         self.assertNotEqual("VERIFIED", result["result"]["state"])
+        self.assertGreater(result["result"]["candidate_count"], 0)
+        self.assertTrue(any(row.get("field") == "description" for row in result["result"]["result"]))
         self.assertIn("cannot assign VERIFIED", result["policy"]["verification"])
 
     def test_publication_gate_requires_independent_verification(self):
@@ -121,6 +176,26 @@ class DataIntelligenceCoreTests(unittest.TestCase):
         }]})
         self.assertEqual(1, len(tables))
         self.assertEqual("description", fields[0]["field"])
+
+    def test_discovery_is_structural_and_marked_non_authoritative(self):
+        payload = {"tables": [
+            {"table": "a.json", "active_profile": {"fields": [
+                {"field": "item_id", "coverage": 1, "identity_like": True},
+                {"field": "description", "coverage": 1, "description_like": True},
+            ], "description_like_fields": [{"field": "description", "coverage": 1}],
+               "identity_like_fields": [{"field": "item_id", "coverage": 1}], "warnings": {}, "record_count": 10}},
+            {"table": "b.json", "active_profile": {"fields": [
+                {"field": "item_id", "coverage": 1, "identity_like": True},
+                {"field": "description", "coverage": 0.8, "description_like": True},
+            ], "description_like_fields": [{"field": "description", "coverage": 0.8}],
+               "identity_like_fields": [{"field": "item_id", "coverage": 1}], "warnings": {}, "record_count": 8}},
+        ]}
+        clusters = schema_clusters(payload, threshold=0.5)
+        hotspots = description_hotspots(payload)
+        self.assertEqual(1, clusters["record_counts"]["clusters"])
+        self.assertEqual(2, hotspots["record_counts"]["hotspots"])
+        self.assertIn("discovery-only", clusters["policy"])
+        self.assertIn("exact IDs", hotspots["policy"])
 
     def test_pipeline_inspector_writes_branded_report(self):
         recorder = PipelineRecorder()
