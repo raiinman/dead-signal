@@ -11,6 +11,8 @@ import mod_frame_enrichment
 import weapon_evidence_enrichment
 import weapon_reference_filter
 import weapon_typed_seed_trace
+import research_window
+from dead_signal_intelligence_window import open_data_intelligence
 from dead_signal_research_suite import run_research_suite
 
 
@@ -20,6 +22,12 @@ weapon_typed_seed_trace.install(weapon_evidence_enrichment)
 _original_link_published_images = miner_core.link_published_images
 _original_run_module_main = miner_core.run_module_main
 _original_self_test = miner_core.self_test
+_original_open_research_console = research_window.open_research_console
+
+
+def open_dead_signal_data_intelligence(parent, output):
+    """Open the branded research hub while preserving the exact-evidence console."""
+    return open_data_intelligence(parent, output, _original_open_research_console)
 
 
 def run_module_main_with_completion(module_name, arguments, log):
@@ -90,6 +98,7 @@ def self_test_with_extended_publisher():
         miner_core.ROOT / "dead_signal_research_suite.py",
         miner_core.ROOT / "dead_signal_source_finder.py",
         miner_core.ROOT / "dead_signal_table_profiler.py",
+        miner_core.ROOT / "dead_signal_intelligence_window.py",
         miner_core.ROOT / "neox_data_explorer.py",
     )
     for resource in resources:
@@ -100,7 +109,8 @@ def self_test_with_extended_publisher():
         "weapon_evidence_enrichment", "weapon_reference_filter", "weapon_typed_seed_trace",
         "project_weapon_evidence", "research_console", "research_window",
         "dead_signal_research_suite", "dead_signal_source_finder", "dead_signal_table_profiler",
-        "neox_data_explorer", "investigate_weapon_descriptions", "investigate_weapon_description_sources",
+        "dead_signal_intelligence_window", "neox_data_explorer",
+        "investigate_weapon_descriptions", "investigate_weapon_description_sources",
     ):
         try:
             module = importlib.import_module(module_name)
@@ -114,6 +124,7 @@ def self_test_with_extended_publisher():
 miner_core.run_module_main = run_module_main_with_completion
 miner_core.link_published_images = link_images_and_publish_extended
 miner_core.self_test = self_test_with_extended_publisher
+research_window.open_research_console = open_dead_signal_data_intelligence
 
 from dead_signal_miner import main  # noqa: E402
 
