@@ -518,11 +518,23 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _safe_console_write(value: object) -> None:
+    """Write diagnostics only when the current process actually has a console."""
+    stream = sys.__stdout__ or sys.stdout
+    if stream is None:
+        return
+    try:
+        stream.write(str(value) + "\n")
+        stream.flush()
+    except (AttributeError, OSError, ValueError):
+        return
+
+
 def main() -> int:
     args = parse_args()
     if args.self_test:
         result = self_test()
-        print(json.dumps(result, indent=2))
+        _safe_console_write(json.dumps(result, indent=2))
         return 0 if result.get("ok") else 1
     if args.run:
         installations = discover_installations()
@@ -536,10 +548,7 @@ def main() -> int:
             line = str(value)
             with log_path.open("a", encoding="utf-8") as destination:
                 destination.write(line + "\n")
-            # sys.__stdout__ is None in the packaged windowed executable.
-            if sys.__stdout__ is not None:
-                sys.__stdout__.write(line + "\n")
-                sys.__stdout__.flush()
+            _safe_console_write(line)
 
         try:
             manifest = run_pipeline(
