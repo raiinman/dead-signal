@@ -11,7 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from dead_signal_source_finder import build_source_finder_report
 from dead_signal_table_profiler import compare_profiles, profile_table
@@ -25,6 +25,7 @@ PROFILE_TABLE_HINTS = (
     "display", "ui", "tooltip", "desc", "copy",
 )
 MAX_PROFILE_TABLES = 500
+ActivityCallback = Callable[[str], None]
 
 
 def _read_json(path: Path, default: Any = None) -> Any:
@@ -54,9 +55,20 @@ def _candidate_profile_paths(base: Path, current: Path) -> list[str]:
     return sorted(paths)[:MAX_PROFILE_TABLES]
 
 
-def build_table_profile_report(base: Path, current: Path) -> dict[str, Any]:
+def build_table_profile_report(
+    base: Path,
+    current: Path,
+    *,
+    activity: ActivityCallback | None = None,
+) -> dict[str, Any]:
+    activity = activity or (lambda _message: None)
+    candidates = _candidate_profile_paths(base, current)
+    total = len(candidates)
+    activity(f"Table Profiler found {total} candidate NeoX tables")
+
     tables = []
-    for relative in _candidate_profile_paths(base, current):
+    for index, relative in enumerate(candidates, start=1):
+        activity(f"Table Profiler {index}/{total}: {relative}")
         base_path = base / relative
         current_path = current / relative
         base_profile = profile_table(base_path, layer="base", table=relative) if base_path.is_file() else None
@@ -80,6 +92,7 @@ def build_table_profile_report(base: Path, current: Path) -> dict[str, Any]:
             row["table"],
         ),
     )
+    activity(f"Table Profiler complete: {len(tables)} tables profiled")
     return {
         "schema": "dead-signal-table-profiler-catalog",
         "schema_version": SCHEMA_VERSION,
@@ -99,35 +112,54 @@ def build_table_profile_report(base: Path, current: Path) -> dict[str, Any]:
     }
 
 
-def run_research_suite(base: Path, current: Path, weapons_path: Path, reports_dir: Path) -> dict[str, Any]:
+def run_research_suite(
+    base: Path,
+    current: Path,
+    weapons_path: Path,
+    reports_dir: Path,
+    *,
+    activity: ActivityCallback | None = None,
+) -> dict[str, Any]:
+    activity = activity or (lambda _message: None)
+    activity(f"Loading Weapon dataset: {weapons_path.name}")
     weapons = _read_json(weapons_path, {}) or {}
     if not isinstance(weapons, dict):
         raise ValueError("Weapon dataset must be a JSON object")
+    weapon_count = len(weapons.get("weapons") or [])
+    activity(f"Loaded {weapon_count} weapons")
 
     reports_dir.mkdir(parents=True, exist_ok=True)
 
+    activity("Weapon Description Identity Investigator: tracing exact co-occurrences")
     description_identity = investigate_description_identity(weapons, base, current)
     identity_path = reports_dir / "weapon-description-identity-investigation.json"
     _write_json(identity_path, description_identity)
+    activity(f"Wrote {identity_path.name}")
 
+    activity("Weapon Description Source Investigator: scanning exact-ID source candidates")
     description_sources = investigate_description_sources(weapons, base, current)
     sources_path = reports_dir / "weapon-description-source-investigation.json"
     _write_json(sources_path, description_sources)
+    activity(f"Wrote {sources_path.name}")
 
+    activity("Dead Signal Source Finder: classifying description candidates")
     source_finder = build_source_finder_report(description_sources)
     source_finder_path = reports_dir / "dead-signal-source-finder.json"
     _write_json(source_finder_path, source_finder)
+    activity(f"Wrote {source_finder_path.name}")
 
-    table_profiles = build_table_profile_report(base, current)
+    activity("Dead Signal Table Profiler: scanning candidate NeoX tables")
+    table_profiles = build_table_profile_report(base, current, activity=activity)
     table_profiles_path = reports_dir / "dead-signal-table-profiles.json"
     _write_json(table_profiles_path, table_profiles)
+    activity(f"Wrote {table_profiles_path.name}")
 
     manifest = {
         "schema": "dead-signal-research-suite",
         "schema_version": SCHEMA_VERSION,
         "brand": "Dead Signal",
         "record_counts": {
-            "weapons": len(weapons.get("weapons") or []),
+            "weapons": weapon_count,
             "profiled_tables": table_profiles["record_counts"]["profiled_tables"],
             "source_finder_states": source_finder["record_counts"]["states"],
         },
@@ -142,7 +174,9 @@ def run_research_suite(base: Path, current: Path, weapons_path: Path, reports_di
             "normalized or player-facing data by this suite."
         ),
     }
-    _write_json(reports_dir / "dead-signal-research-suite.json", manifest)
+    manifest_path = reports_dir / "dead-signal-research-suite.json"
+    _write_json(manifest_path, manifest)
+    activity(f"Research Suite complete: {manifest_path.name}")
     return manifest
 
 
@@ -153,7 +187,13 @@ def main() -> int:
     parser.add_argument("--weapons", type=Path, required=True)
     parser.add_argument("--reports", type=Path, required=True)
     args = parser.parse_args()
-    manifest = run_research_suite(args.base, args.current, args.weapons, args.reports)
+    manifest = run_research_suite(
+        args.base,
+        args.current,
+        args.weapons,
+        args.reports,
+        activity=print,
+    )
     print(json.dumps(manifest["record_counts"], indent=2))
     return 0
 
