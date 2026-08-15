@@ -34,8 +34,13 @@ TEXT_FIELD = re.compile(
     r"(?:short_?desc|description|desc(?:ription)?_?(?:id|key|no)?|tooltip|copywriting|copy_?writing|flavor|lore|intro|remark|quote|story|tips?)",
     re.IGNORECASE,
 )
+METADATA_TEXT_FIELD = re.compile(
+    r"(?:^|_)(?:filter|type|mode|flag|multiple|count|status|category|kind|style|format|switch|index|order|sort)(?:$|_)",
+    re.IGNORECASE,
+)
 TRANSLATION_MARKER = re.compile(r"_\$S@TIDS\$_[^|]*(?:\|.)?$")
 FORMAT_TAG = re.compile(r"#(?:[a-zA-Z]+[^#]*)?#|#\[s(?:=[^\]]+)?\]|#l")
+DIRECT_COPY_TEXT = re.compile(r"[A-Za-z\u0080-\uffff]")
 MAX_VALUE = 800
 MAX_MATCHES_PER_WEAPON = 160
 
@@ -166,6 +171,24 @@ def _record_identity_hits(record_id: Any, record: Any, identities: set[str]) -> 
     return hits
 
 
+def _record_id_is_domain_compatible(relative: str, identity_names: set[str]) -> bool:
+    """Reject record-id collisions in unrelated tables without weakening typed hits."""
+    lowered = relative.casefold()
+    for name in identity_names:
+        normalized = re.sub(r"^tier_[^_]+_", "", name.casefold())
+        if normalized == "item_id" and any(token in lowered for token in ("item", "equip", "display", "ui", "preview")):
+            return True
+        if normalized == "blueprint_id" and "blueprint" in lowered:
+            return True
+        if normalized == "prototype_id" and "prototype" in lowered:
+            return True
+        if normalized == "gun_no" and any(token in lowered for token in ("gun", "weapon")):
+            return True
+        if normalized == "fixed_skill_code" and any(token in lowered for token in ("skill", "passive", "buff")):
+            return True
+    return False
+
+
 def _record_text_candidates(record: Any, translations: list[tuple[str, dict[str, str]]]) -> list[dict[str, Any]]:
     candidates = []
     for pointer, field, raw in _walk(record):
@@ -174,8 +197,16 @@ def _record_text_candidates(record: Any, translations: list[tuple[str, dict[str,
         value = _scalar(raw)
         if not value:
             continue
-        candidate = {"field": field, "json_pointer": pointer, **_resolve_text(value, translations)}
-        candidates.append(candidate)
+        resolved = _resolve_text(value, translations)
+        has_translation = bool(resolved.get("translation_matches"))
+        # Fields such as item_filter_desc_type and item_detail_desc_type are
+        # metadata selectors, not player-facing copy.  Numeric handles remain
+        # eligible only when they actually resolve through translation data.
+        if METADATA_TEXT_FIELD.search(field) and not has_translation:
+            continue
+        if not has_translation and not TRANSLATION_MARKER.search(value) and not DIRECT_COPY_TEXT.search(value):
+            continue
+        candidates.append({"field": field, "json_pointer": pointer, **resolved})
     return candidates
 
 
@@ -189,6 +220,9 @@ def investigate(payload: dict[str, Any], base: Path, current: Path) -> dict[str,
     for weapon in weapons:
         identities = weapon_identities(weapon)
         identity_values = set(identities.values())
+        identity_names_by_value: dict[str, set[str]] = defaultdict(set)
+        for name, value in identities.items():
+            identity_names_by_value[value].add(name)
         matches = []
         if identity_values:
             for layer, root, path in tables:
@@ -196,6 +230,14 @@ def investigate(payload: dict[str, Any], base: Path, current: Path) -> dict[str,
                 for record_id, record in _rows(path).items():
                     identity_hits = _record_identity_hits(record_id, record, identity_values)
                     if not identity_hits:
+                        continue
+                    typed_hits = [hit for hit in identity_hits if hit.get("field") != "record_id"]
+                    hit_names = {
+                        name
+                        for hit in identity_hits
+                        for name in identity_names_by_value.get(str(hit.get("value") or ""), set())
+                    }
+                    if not typed_hits and not _record_id_is_domain_compatible(relative, hit_names):
                         continue
                     text_candidates = _record_text_candidates(record, translations)
                     for candidate in text_candidates:
@@ -209,6 +251,7 @@ def investigate(payload: dict[str, Any], base: Path, current: Path) -> dict[str,
                             "table": relative,
                             "record_id": str(record_id),
                             "identity_hits": identity_hits,
+                            "identity_names": sorted(hit_names),
                             **candidate,
                         })
                     if len(matches) >= MAX_MATCHES_PER_WEAPON:
@@ -255,8 +298,8 @@ def investigate(payload: dict[str, Any], base: Path, current: Path) -> dict[str,
         },
         "policy": {
             "source_of_truth": "installed-game Miner snapshot",
-            "identity": "Exact weapon identifiers only; names and similar IDs are never used for joins.",
-            "candidate": "Description-like fields are evidence candidates only and are not automatically published.",
+            "identity": "Exact weapon identifiers only; names and similar IDs are never used for joins. Record-ID-only collisions must also be compatible with the table domain.",
+            "candidate": "Description-like fields are evidence candidates only; metadata selectors and unresolved numeric values are excluded.",
             "shared_copy": "Text/handles observed on multiple Weapon identities are flagged as shared and blocked from automatic promotion.",
         },
         "weapons": rows,
