@@ -84,3 +84,15 @@ def test_research_suite_writes_non_publishing_reports(tmp_path: Path) -> None:
     assert profiles["record_counts"]["profiled_tables"] == 1
     active = profiles["tables"][0]["active_profile"]
     assert any(row["field"] == "tooltip" for row in active["description_like_fields"])
+
+
+def test_profile_path_priority_favors_description_and_weapon_tables(tmp_path: Path) -> None:
+    base = tmp_path / "base"
+    current = tmp_path / "current"
+    write_table(base, "client_data/item_misc_data.json", {"1": {"item_id": 1}})
+    write_table(base, "game_common/data/weapon_display_tooltip_data.json", {"1": {"weapon_id": 1}})
+    write_table(base, "game_common/data/gun_blueprint_data.json", {"1": {"gun_no": 1}})
+
+    paths = module._candidate_profile_paths(base, current)
+    assert paths[0] == "game_common/data/weapon_display_tooltip_data.json"
+    assert module._profile_path_score(paths[0]) > module._profile_path_score("client_data/item_misc_data.json")
