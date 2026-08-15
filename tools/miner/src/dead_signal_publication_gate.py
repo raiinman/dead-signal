@@ -1,8 +1,8 @@
 """Generalized Dead Signal Publication Gate.
 
 Publication eligibility is intentionally separate from extraction, resolution,
-analytics, and workflow discovery.  A field can only become publishable through an
-explicit policy plus independent verification evidence.  This module does not
+analytics, and workflow discovery. A field can only become publishable through an
+explicit policy plus independent verification evidence. This module does not
 rewrite public datasets; it emits gate decisions for review and later projectors.
 """
 
@@ -11,6 +11,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any
+
+from dead_signal_verification import load_verifications
 
 
 SCHEMA_VERSION = 1
@@ -49,7 +51,7 @@ def decide(subject: str, candidate: dict[str, Any], verification: dict[str, Any]
     shared = bool(candidate.get("shared_across_weapons") or candidate.get("shared"))
     blockers = list(candidate.get("blockers") or [])
 
-    if candidate_state == "CONFLICT" or verification.get("conflict"):
+    if candidate_state == "CONFLICT" or verified_state == "CONFLICT" or verification.get("conflict"):
         blockers.append("conflicting-evidence")
     if shared and not policy.get("allow_shared"):
         blockers.append("shared-value-not-allowed")
@@ -71,6 +73,8 @@ def decide(subject: str, candidate: dict[str, Any], verification: dict[str, Any]
         "blockers": unique_blockers,
         "required_evidence": list(policy.get("required_evidence") or ()),
         "evidence_present": sorted(evidence),
+        "verification_note": verification.get("note"),
+        "verification_source_ref": verification.get("source_ref"),
         "policy": policy,
     }
 
@@ -85,9 +89,10 @@ def gate_source_finder(source_finder: dict[str, Any], verifications: dict[str, A
         weapon_key = str(weapon.get("blueprint_id") or weapon.get("item_id") or weapon.get("name") or "")
         candidate_rows = []
         for index, candidate in enumerate(weapon.get("candidates") or []):
-            verification = verifications.get(f"{weapon_key}:{index}") or verifications.get(weapon_key) or {}
+            candidate_key = f"{weapon_key}:{index}"
+            verification = verifications.get(candidate_key) or verifications.get(weapon_key) or {}
             decision = decide("weapon.description", candidate, verification)
-            candidate_rows.append({"candidate": candidate, "gate": decision})
+            candidate_rows.append({"candidate_key": candidate_key, "candidate": candidate, "verification": verification, "gate": decision})
             publishable += int(decision["publishable"])
         rows.append({
             "blueprint_id": weapon.get("blueprint_id"),
@@ -101,7 +106,7 @@ def gate_source_finder(source_finder: dict[str, Any], verifications: dict[str, A
         "schema_version": SCHEMA_VERSION,
         "brand": "Dead Signal",
         "subject": "Weapon Description",
-        "record_counts": {"weapons": len(rows), "publishable_candidates": publishable},
+        "record_counts": {"weapons": len(rows), "publishable_candidates": publishable, "manual_verifications": len(verifications)},
         "weapons": rows,
         "policy": {
             "separation": "Extraction, resolution, candidacy, verification, and publication are separate states.",
@@ -114,17 +119,15 @@ def gate_source_finder(source_finder: dict[str, Any], verifications: dict[str, A
 def build_gate_report(reports: Path | str) -> dict[str, Any]:
     reports = Path(reports).expanduser().resolve()
     source_path = reports / "dead-signal-source-finder.json"
-    verification_path = reports / "dead-signal-verifications.json"
+    output = reports.parent.parent
     try:
         source = json.loads(source_path.read_text(encoding="utf-8"))
     except (OSError, ValueError, TypeError):
         source = {"weapons": []}
-    try:
-        verification_payload = json.loads(verification_path.read_text(encoding="utf-8"))
-        verifications = verification_payload.get("verifications") or {}
-    except (OSError, ValueError, TypeError):
-        verifications = {}
+    verification_payload = load_verifications(output)
+    verifications = verification_payload.get("verifications") or {}
     report = gate_source_finder(source, verifications)
+    report["verification_registry"] = str(output / "research" / "verifications.json")
     reports.mkdir(parents=True, exist_ok=True)
     (reports / "dead-signal-publication-gate.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
