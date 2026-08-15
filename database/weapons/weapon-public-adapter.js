@@ -84,7 +84,7 @@
 /* Detailed Build Lab weapon selector. Only active on the planner route. */
 (() => {
   'use strict';
-  if (!/^\/build-planner\/?$/i.test(location.pathname)) return;
+  if (typeof location === 'undefined' || !/^\/build-planner\/?$/i.test(location.pathname)) return;
 
   const RARITY_RANK = { Common: 1, Uncommon: 2, Rare: 3, Epic: 4, Legendary: 5 };
   const FAVORITES_KEY = 'dead-signal-weapon-favorites';
@@ -299,7 +299,7 @@
 
     new MutationObserver((mutations) => {
       const needsRefresh = mutations.some((mutation) => [...mutation.addedNodes].some((node) => node.nodeType === 1 && ((node.matches?.('.bl-pick') && node.dataset.arsenalEnhanced !== '1') || node.querySelector?.('.bl-pick:not([data-arsenal-enhanced="1"])'))));
-      if (needsRefresh || document.getElementById('pickerTitle')?.textContent === 'Weapon' && !picker.classList.contains('arsenal-mode')) requestAnimationFrame(installArsenal);
+      if (needsRefresh || (document.getElementById('pickerTitle')?.textContent === 'Weapon' && !picker.classList.contains('arsenal-mode'))) requestAnimationFrame(installArsenal);
     }).observe(picker, { childList: true, subtree: true });
 
     picker.addEventListener('close', () => {
