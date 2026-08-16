@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+from dead_signal_bindict_schema_audit import run_weapon_prototype_bindict_audit
 from dead_signal_description_dataflow import run_description_dataflow_trace
 from dead_signal_description_dataflow_fallback import recover_persisted_description_capsules
 from dead_signal_intelligence_compiler import resolve_snapshot
@@ -75,19 +76,30 @@ def _merge_persisted_fallback(report: dict[str, Any], fallback: dict[str, Any]) 
     return report
 
 
-def _build_bundle(paths: dict[str, Path], report: dict[str, Any], duration: float) -> Path:
+def _build_bundle(
+    paths: dict[str, Path],
+    report: dict[str, Any],
+    bindict_audit: dict[str, Any],
+    duration: float,
+) -> Path:
     intelligence = paths["output"] / "intelligence"
     intelligence.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%SZ")
     archive = intelligence / f"Dead-Signal-Description-DataFlow-{stamp}.zip"
     report_path = paths["reports"] / "weapon-description-static-dataflow.json"
+    bindict_path = paths["reports"] / "weapon-prototype-bindict-schema-audit.json"
     summary = {
         "schema": "dead-signal-description-dataflow-bundle",
-        "schema_version": 1,
+        "schema_version": 2,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "duration_seconds": duration,
         "record_counts": report.get("record_counts") or {},
         "target_presence": report.get("target_presence") or {},
+        "bindict_schema_audit": {
+            "status": (bindict_audit.get("interpretation") or {}).get("status"),
+            "record_counts": bindict_audit.get("record_counts") or {},
+            "field_presence": bindict_audit.get("field_presence") or {},
+        },
         "mode": "offline-static-pyc-only",
         "safety": report.get("safety") or {},
     }
@@ -97,6 +109,8 @@ def _build_bundle(paths: dict[str, Path], report: dict[str, Any], duration: floa
             json.dumps(summary, ensure_ascii=False, indent=2) + "\n",
         )
         destination.write(report_path, "published/reports/weapon-description-static-dataflow.json")
+        if bindict_path.is_file():
+            destination.write(bindict_path, "published/reports/weapon-prototype-bindict-schema-audit.json")
         last_run = paths["output"] / "last-run.json"
         if last_run.is_file():
             destination.write(last_run, "last-run.json")
@@ -142,25 +156,35 @@ def compile_description_dataflow_trace(
         "get_weapon_prototype_data_val_by_key",
     }
     if not needed.issubset(target_functions):
-        progress(55, "Persisted PYC Capsule Fallback")
+        progress(50, "Persisted PYC Capsule Fallback")
         fallback = recover_persisted_description_capsules(paths["reports"], activity=activity)
         report = _merge_persisted_fallback(report, fallback)
         _write_json(paths["reports"] / "weapon-description-static-dataflow.json", report)
+
+    progress(68, "Weapon Prototype Bindict Schema Audit")
+    bindict_audit = run_weapon_prototype_bindict_audit(
+        paths["base"], paths["current"], paths["reports"], activity=activity
+    )
 
     duration = round(time.perf_counter() - started, 6)
 
     progress(90, "Package Data Flow Trace")
     activity(f"Static Description Data Flow finished in {duration:.1f}s")
-    archive = _build_bundle(paths, report, duration)
+    archive = _build_bundle(paths, report, bindict_audit, duration)
     activity(f"Description data-flow bundle ready: {archive.name}")
     progress(100, "Description Data Flow ready")
     log(f"Dead Signal Description Data Flow bundle ready: {archive}")
     return {
         "schema": "dead-signal-description-dataflow-compiled",
-        "schema_version": 1,
+        "schema_version": 2,
         "duration_seconds": duration,
         "record_counts": report.get("record_counts") or {},
         "target_presence": report.get("target_presence") or {},
+        "bindict_schema_audit": {
+            "status": (bindict_audit.get("interpretation") or {}).get("status"),
+            "field_presence": bindict_audit.get("field_presence") or {},
+        },
         "report": str(paths["reports"] / "weapon-description-static-dataflow.json"),
+        "bindict_report": str(paths["reports"] / "weapon-prototype-bindict-schema-audit.json"),
         "bundle": str(archive),
     }
