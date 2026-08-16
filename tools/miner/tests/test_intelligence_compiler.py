@@ -30,7 +30,7 @@ class IntelligenceCompilerTests(unittest.TestCase):
         (published / "indexes").mkdir(parents=True)
         (self.root / "catalogs").mkdir(parents=True)
         (published / "data" / "weapons.json").write_text(
-            json.dumps({"weapons": [{"blueprint_id": 100, "name": "Test Weapon"}]}), encoding="utf-8"
+            json.dumps({"weapons": [{"blueprint_id": 100, "prototype_id": 300, "name": "Test Weapon"}]}), encoding="utf-8"
         )
         (self.root / "last-run.json").write_text(json.dumps({
             "active_snapshots": {"base": str(self.base), "current": str(self.current)},
@@ -55,10 +55,25 @@ class IntelligenceCompilerTests(unittest.TestCase):
     @mock.patch.object(compiler, "DeadSignalAnalytics")
     @mock.patch.object(compiler, "DeadSignalDiscovery")
     @mock.patch.object(compiler, "run_research_suite")
+    @mock.patch.object(compiler, "run_weapon_description_consumer_trace")
     def test_compile_runs_extensions_builds_bundle_and_reports_activity(
-        self, research_mock, discovery_class, analytics_class, gate_mock
+        self, consumer_mock, research_mock, discovery_class, analytics_class, gate_mock
     ):
         reports = self.root / "published" / "reports"
+
+        def consumer_side_effect(base, current, weapons, reports_dir, *, activity=None):
+            if activity:
+                activity("UI Consumer Trace: resolved 120/120 weapons")
+            payload = {"record_counts": {
+                "weapons": 120,
+                "prototype_desc_fields_found": 90,
+                "consistent_resolutions": 88,
+                "consumer_backed_candidates": 84,
+            }}
+            (reports_dir / "weapon-description-ui-consumer-trace.json").write_text(json.dumps(payload), encoding="utf-8")
+            return payload
+
+        consumer_mock.side_effect = consumer_side_effect
 
         def research_side_effect(base, current, weapons, reports_dir, *, activity=None):
             if activity:
@@ -103,6 +118,9 @@ class IntelligenceCompilerTests(unittest.TestCase):
             activity=activity.append,
         )
 
+        self.assertEqual(84, result["record_counts"]["ui_consumer_candidates"])
+        self.assertEqual(90, result["record_counts"]["prototype_desc_fields_found"])
+        self.assertEqual(88, result["record_counts"]["prototype_desc_resolved"])
         self.assertEqual(42, result["record_counts"]["profiled_tables"])
         self.assertEqual(7, result["record_counts"]["multihop_candidates"])
         self.assertEqual(321, result["record_counts"]["multihop_expanded_records"])
@@ -110,9 +128,10 @@ class IntelligenceCompilerTests(unittest.TestCase):
         self.assertEqual(3, result["record_counts"]["description_leads"])
         self.assertEqual(0, result["record_counts"]["publishable_candidates"])
         self.assertEqual(100, progress[-1][0])
+        self.assertTrue(any("Starting Weapon UI Consumer Trace" in line for line in activity))
+        self.assertTrue(any("UI Consumer Trace: resolved 120/120" in line for line in activity))
         self.assertTrue(any("Starting Research Suite" in line for line in activity))
         self.assertTrue(any("Multi-hop Resolver 1/120" in line for line in activity))
-        self.assertTrue(any("Table Profiler 1/2" in line for line in activity))
         self.assertTrue(any("Starting Analytics Warehouse" in line for line in activity))
         self.assertTrue(any("Bundle" in line for line in activity))
         archive = Path(result["bundle"])
@@ -120,10 +139,51 @@ class IntelligenceCompilerTests(unittest.TestCase):
         with zipfile.ZipFile(archive) as bundle:
             names = set(bundle.namelist())
         self.assertIn("dead-signal-intelligence-compiled.json", names)
+        self.assertIn("published/reports/weapon-description-ui-consumer-trace.json", names)
         self.assertIn("published/reports/weapon-description-multihop.json", names)
         self.assertIn("published/reports/dead-signal-description-leads.json", names)
         self.assertIn("published/data/weapons.json", names)
         self.assertTrue((reports / "dead-signal-intelligence-compiled.json").is_file())
+
+    @mock.patch.object(compiler, "DeadSignalAnalytics")
+    @mock.patch.object(compiler, "DeadSignalDiscovery")
+    @mock.patch.object(compiler, "run_research_suite")
+    @mock.patch.object(compiler, "run_weapon_description_consumer_trace")
+    def test_fast_ui_trace_does_not_run_full_research_stack(
+        self, consumer_mock, research_mock, discovery_class, analytics_class
+    ):
+        reports = self.root / "published" / "reports"
+
+        def consumer_side_effect(base, current, weapons, reports_dir, *, activity=None):
+            payload = {"record_counts": {
+                "weapons": 120,
+                "prototype_desc_fields_found": 87,
+                "consistent_resolutions": 85,
+                "consumer_backed_candidates": 81,
+            }}
+            (reports_dir / "weapon-description-ui-consumer-trace.json").write_text(json.dumps(payload), encoding="utf-8")
+            if activity:
+                activity("UI Consumer Trace complete: 81 candidates")
+            return payload
+
+        consumer_mock.side_effect = consumer_side_effect
+        activity = []
+        result = compiler.compile_weapon_description_ui_trace(self.root, activity=activity.append)
+
+        self.assertEqual(81, result["record_counts"]["consumer_backed_candidates"])
+        self.assertEqual(100, result["record_counts"]["weapons"] - 20)
+        research_mock.assert_not_called()
+        discovery_class.assert_not_called()
+        analytics_class.assert_not_called()
+        archive = Path(result["bundle"])
+        self.assertTrue(archive.is_file())
+        self.assertTrue(archive.name.startswith("Dead-Signal-Weapon-UI-Trace-"))
+        with zipfile.ZipFile(archive) as bundle:
+            names = set(bundle.namelist())
+        self.assertIn("dead-signal-weapon-ui-trace-summary.json", names)
+        self.assertIn("published/reports/weapon-description-ui-consumer-trace.json", names)
+        self.assertIn("published/data/weapons.json", names)
+        self.assertTrue(any("UI Consumer Trace complete" in line for line in activity))
 
 
 if __name__ == "__main__":
