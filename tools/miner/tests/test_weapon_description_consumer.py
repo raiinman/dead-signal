@@ -131,3 +131,30 @@ def test_consumer_evidence_rejects_longer_near_match_tokens(tmp_path: Path) -> N
     assert evidence["all_required_tokens_found"] is False
     assert "prototype_desc" in evidence["missing_tokens"]
     assert "get_weapon_item_data" in evidence["missing_tokens"]
+
+
+def test_current_patch_does_not_hide_base_prototype_record(tmp_path: Path) -> None:
+    base = tmp_path / "base"
+    current = tmp_path / "current"
+    reports = tmp_path / "published" / "reports"
+    weapons = tmp_path / "published" / "data" / "weapons.json"
+
+    write_json(base / "game_common/data/weapon_prototype_data.json", {
+        "data": {"300": {"prototype_desc": "DESC_PROTO_300"}}
+    })
+    write_json(current / "game_common/data/weapon_prototype_data.json", {
+        "data": {"999": {"prototype_desc": "DESC_OTHER"}}
+    })
+    write_json(base / "translate/translate_data_en.json", {"strings": {
+        "DESC_PROTO_300": "Base prototype description.", "DESC_OTHER": "Other description."
+    }})
+    write_json(weapons, {"weapons": [{"blueprint_id": 100, "prototype_id": 300, "name": "Test"}]})
+    write_pyc_report(reports)
+
+    report = run_weapon_description_consumer_trace(base, current, weapons, reports)
+    row = report["weapons"][0]
+    assert row["status"] == "prototype-desc-resolved-consistently"
+    assert row["text"] == "Base prototype description."
+    assert row["source"]["layer"] == "base"
+    assert report["source_table"]["current_patch_records"] == 1
+    assert report["source_table"]["overlay_policy"].startswith("Exact current record overrides")
