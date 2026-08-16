@@ -12,6 +12,7 @@ from typing import Any, Callable
 from dead_signal_bindict_schema_audit import run_weapon_prototype_bindict_audit
 from dead_signal_blueprint_module_audit import run_blueprint_module_audit
 from dead_signal_common_data_registry_audit import run_common_data_registry_audit
+from dead_signal_data_proxy_architecture import run_data_proxy_architecture_audit
 from dead_signal_description_dataflow import run_description_dataflow_trace
 from dead_signal_description_dataflow_fallback import recover_persisted_description_capsules
 from dead_signal_intelligence_compiler import resolve_snapshot
@@ -86,6 +87,7 @@ def _build_bundle(
     prototype_projection: dict[str, Any],
     blueprint_audit: dict[str, Any],
     common_data_audit: dict[str, Any],
+    data_proxy_audit: dict[str, Any],
     duration: float,
 ) -> Path:
     intelligence = paths["output"] / "intelligence"
@@ -97,9 +99,10 @@ def _build_bundle(
     projection_path = paths["reports"] / "weapon-description-prototype-projection.json"
     blueprint_path = paths["reports"] / "blueprint-scroll-view-full-static-audit.json"
     common_data_path = paths["reports"] / "common-data-registry-static-audit.json"
+    data_proxy_path = paths["reports"] / "data-proxy-architecture-static-audit.json"
     summary = {
         "schema": "dead-signal-description-dataflow-bundle",
-        "schema_version": 5,
+        "schema_version": 6,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "duration_seconds": duration,
         "record_counts": report.get("record_counts") or {},
@@ -122,6 +125,10 @@ def _build_bundle(
             "record_counts": common_data_audit.get("record_counts") or {},
             "mode": common_data_audit.get("mode"),
         },
+        "data_proxy_architecture_audit": {
+            "record_counts": data_proxy_audit.get("record_counts") or {},
+            "mode": data_proxy_audit.get("mode"),
+        },
         "mode": "offline-static-pyc-only",
         "safety": report.get("safety") or {},
     }
@@ -139,6 +146,8 @@ def _build_bundle(
             destination.write(blueprint_path, "published/reports/blueprint-scroll-view-full-static-audit.json")
         if common_data_path.is_file():
             destination.write(common_data_path, "published/reports/common-data-registry-static-audit.json")
+        if data_proxy_path.is_file():
+            destination.write(data_proxy_path, "published/reports/data-proxy-architecture-static-audit.json")
         last_run = paths["output"] / "last-run.json"
         if last_run.is_file():
             destination.write(last_run, "last-run.json")
@@ -156,7 +165,7 @@ def compile_description_dataflow_trace(
     progress: ProgressCallback | None = None,
     activity: ActivityCallback | None = None,
 ) -> dict[str, Any]:
-    """Run the offline static description, Blueprint UI, and common-data registry audits."""
+    """Run the offline static description, Blueprint UI, registry, and data-proxy audits."""
     log = log or (lambda _value: None)
     progress = progress or (lambda _value, _label: None)
     activity = activity or log
@@ -184,44 +193,56 @@ def compile_description_dataflow_trace(
         "get_weapon_prototype_data_val_by_key",
     }
     if not needed.issubset(target_functions):
-        progress(34, "Persisted PYC Capsule Fallback")
+        progress(32, "Persisted PYC Capsule Fallback")
         fallback = recover_persisted_description_capsules(paths["reports"], activity=activity)
         report = _merge_persisted_fallback(report, fallback)
         _write_json(paths["reports"] / "weapon-description-static-dataflow.json", report)
 
-    progress(46, "Weapon Prototype Bindict Schema Audit")
+    progress(43, "Weapon Prototype Bindict Schema Audit")
     bindict_audit = run_weapon_prototype_bindict_audit(
         paths["base"], paths["current"], paths["reports"], activity=activity
     )
 
-    progress(57, "Exact Prototype Description Projection")
+    progress(53, "Exact Prototype Description Projection")
     prototype_projection = run_weapon_prototype_projection(
         paths["base"], paths["current"], paths["weapons"], paths["reports"], activity=activity
     )
 
-    progress(69, "Full BlueprintScrollViewPart Audit")
+    progress(63, "Full BlueprintScrollViewPart Audit")
     blueprint_audit = run_blueprint_module_audit(
         paths["base"], paths["current"], paths["reports"], activity=activity
     )
 
-    progress(81, "Common Data Registry Audit")
+    progress(73, "Common Data Registry Audit")
     common_data_audit = run_common_data_registry_audit(
+        paths["base"], paths["current"], paths["reports"], activity=activity
+    )
+
+    progress(86, "Common / Client / Server Data Proxy Architecture")
+    data_proxy_audit = run_data_proxy_architecture_audit(
         paths["base"], paths["current"], paths["reports"], activity=activity
     )
 
     duration = round(time.perf_counter() - started, 6)
 
-    progress(95, "Package Data Flow Trace")
+    progress(96, "Package Data Flow Trace")
     activity(f"Static Description Data Flow finished in {duration:.1f}s")
     archive = _build_bundle(
-        paths, report, bindict_audit, prototype_projection, blueprint_audit, common_data_audit, duration
+        paths,
+        report,
+        bindict_audit,
+        prototype_projection,
+        blueprint_audit,
+        common_data_audit,
+        data_proxy_audit,
+        duration,
     )
     activity(f"Description data-flow bundle ready: {archive.name}")
     progress(100, "Description Data Flow ready")
     log(f"Dead Signal Description Data Flow bundle ready: {archive}")
     return {
         "schema": "dead-signal-description-dataflow-compiled",
-        "schema_version": 5,
+        "schema_version": 6,
         "duration_seconds": duration,
         "record_counts": report.get("record_counts") or {},
         "target_presence": report.get("target_presence") or {},
@@ -232,10 +253,12 @@ def compile_description_dataflow_trace(
         "prototype_projection": prototype_projection.get("record_counts") or {},
         "blueprint_scroll_view_full_audit": blueprint_audit.get("record_counts") or {},
         "common_data_registry_audit": common_data_audit.get("record_counts") or {},
+        "data_proxy_architecture_audit": data_proxy_audit.get("record_counts") or {},
         "report": str(paths["reports"] / "weapon-description-static-dataflow.json"),
         "bindict_report": str(paths["reports"] / "weapon-prototype-bindict-schema-audit.json"),
         "projection_report": str(paths["reports"] / "weapon-description-prototype-projection.json"),
         "blueprint_audit_report": str(paths["reports"] / "blueprint-scroll-view-full-static-audit.json"),
         "common_data_registry_report": str(paths["reports"] / "common-data-registry-static-audit.json"),
+        "data_proxy_architecture_report": str(paths["reports"] / "data-proxy-architecture-static-audit.json"),
         "bundle": str(archive),
     }
