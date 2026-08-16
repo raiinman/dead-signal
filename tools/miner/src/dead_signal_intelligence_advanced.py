@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
 
@@ -38,6 +39,7 @@ class AdvancedIntelligenceTabs:
             f"{row.get('name')}  [{row.get('canonical_id') or row.get('blueprint_id')}]"
             for row in self.console.weapons()
         ]
+        self._identity_scan_running = False
         self._build_evidence_graph()
         self._build_identity_map()
         self._build_analytics()
@@ -131,6 +133,29 @@ class AdvancedIntelligenceTabs:
     def _build_identity_map(self):
         frame = self._tab("Identity Map")
         self.identity_weapon = self._weapon_bar(frame, self._load_identity_map, "MAP EXACT IDENTITY")
+        export_bar = tk.Frame(frame, bg=PANEL)
+        export_bar.pack(fill="x", pady=(0, 8))
+        self.identity_scan_button = self._button(
+            export_bar,
+            "SCAN ALL CONNECTED DATA + EXPORT ZIP",
+            self._start_identity_scan,
+        )
+        self.identity_scan_button.pack(side="left")
+        self.identity_scan_status = tk.StringVar(value="Exact-reference neighborhood export ready")
+        tk.Label(
+            export_bar,
+            textvariable=self.identity_scan_status,
+            bg=PANEL,
+            fg=MUTED,
+            font=("Segoe UI", 8, "bold"),
+        ).pack(side="left", padx=(12, 0))
+        tk.Label(
+            export_bar,
+            text="READ-ONLY SNAPSHOT / STREAMING JSONL / NO FUZZY JOINS",
+            bg=PANEL,
+            fg=AMBER,
+            font=("Segoe UI", 8, "bold"),
+        ).pack(side="right")
         self.identity_text = self._text(frame)
         self.identity_text.pack(fill="both", expand=True)
 
@@ -148,10 +173,87 @@ class AdvancedIntelligenceTabs:
                     lines.append(f"  {value.get('value')}  [{value.get('state')}]  {value.get('exact_reference_count')} exact refs")
                     for table in (value.get("tables") or [])[:12]:
                         lines.append(f"    • {table.get('table')}  ×{table.get('occurrences')}")
-            lines.extend(["", "POLICY", result.get("policy") or ""])
+            lines.extend([
+                "",
+                "FULL EXPORT",
+                "Use SCAN ALL CONNECTED DATA + EXPORT ZIP to recursively walk every exact connected record from these seed identities.",
+                "Every scalar in discovered records is exported; only identifier-like fields are recursively expanded.",
+                "",
+                "POLICY",
+                result.get("policy") or "",
+            ])
             self.identity_text.insert("1.0", "\n".join(lines))
         except Exception as error:
             messagebox.showerror("Dead Signal Identity Map", str(error), parent=self.host.window)
+
+    def _start_identity_scan(self):
+        if self._identity_scan_running:
+            return
+        identity = self._identity(self.identity_weapon.get())
+        if not identity:
+            messagebox.showinfo(
+                "Dead Signal Identity Map",
+                "Choose a Weapon first, then run the full connected-data export.",
+                parent=self.host.window,
+            )
+            return
+        self._identity_scan_running = True
+        self.identity_scan_button.configure(state="disabled")
+        self.identity_scan_status.set("Starting full exact-reference scan…")
+        self.identity_text.delete("1.0", "end")
+        self.identity_text.insert(
+            "1.0",
+            "FULL IDENTITY SCAN RUNNING\n\n"
+            "The Reference Tracer is walking exact connected records and streaming the export to disk.\n"
+            "The UI remains available while the scan runs.\n",
+        )
+
+        def activity(message):
+            self.host.window.after(0, lambda text=str(message): self.identity_scan_status.set(text))
+
+        def worker():
+            try:
+                result = self.graph.scan_identity_everything(identity, activity=activity)
+            except Exception as error:
+                self.host.window.after(0, lambda exc=error: self._identity_scan_failed(exc))
+                return
+            self.host.window.after(0, lambda payload=result: self._identity_scan_complete(payload))
+
+        threading.Thread(target=worker, name="DeadSignalIdentityScan", daemon=True).start()
+
+    def _identity_scan_failed(self, error):
+        self._identity_scan_running = False
+        self.identity_scan_button.configure(state="normal")
+        self.identity_scan_status.set("Identity scan failed — progress breadcrumb preserved")
+        messagebox.showerror("Dead Signal Identity Map", str(error), parent=self.host.window)
+
+    def _identity_scan_complete(self, result):
+        self._identity_scan_running = False
+        self.identity_scan_button.configure(state="normal")
+        counts = result.get("record_counts") or {}
+        archive = str(result.get("archive") or "")
+        self.identity_scan_status.set(
+            f"DONE — {int(counts.get('connected_records') or 0):,} records / "
+            f"{int(counts.get('connected_tables') or 0):,} tables"
+        )
+        summary = {
+            "weapon": result.get("weapon"),
+            "record_counts": counts,
+            "depth_counts": result.get("depth_counts"),
+            "limits": result.get("limits"),
+            "truncated": result.get("truncated"),
+            "truncated_reasons": result.get("truncated_reasons"),
+            "archive": archive,
+            "archive_size": result.get("archive_size"),
+            "policy": result.get("policy"),
+        }
+        self.identity_text.delete("1.0", "end")
+        self.identity_text.insert("1.0", json.dumps(summary, ensure_ascii=False, indent=2))
+        messagebox.showinfo(
+            "Dead Signal Identity Map",
+            f"Full connected-data ZIP export complete.\n\n{archive}",
+            parent=self.host.window,
+        )
 
     def _build_analytics(self):
         frame = self._tab("Analytics")
