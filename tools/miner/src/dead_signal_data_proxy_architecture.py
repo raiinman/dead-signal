@@ -12,7 +12,7 @@ import json
 import marshal
 import re
 import types
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
 from typing import Any, Callable
 
@@ -123,7 +123,10 @@ def _strings(code: types.CodeType) -> list[str]:
 def _symbols(names: list[str], strings: list[str]) -> tuple[list[str], list[str]]:
     values = set(names) | set(strings)
     tables = sorted(value for value in values if TABLE_RE.fullmatch(value))
-    data_names = sorted(value for value in values if DATA_NAME_RE.fullmatch(value))
+    data_names = sorted(
+        value for value in values
+        if value not in PROXIES and DATA_NAME_RE.fullmatch(value)
+    )
     return tables, data_names
 
 
@@ -183,9 +186,6 @@ def _stream_has_proxy(path: Path) -> tuple[list[str], int]:
                     if not hits[proxy] and proxy.encode("ascii") in data:
                         hits[proxy] = True
                 overlap = data[-32:]
-                if all(hits.values()):
-                    # Continue reading only to preserve a stable byte count.
-                    continue
     except OSError:
         return [], total
     return [proxy for proxy in PROXIES if hits[proxy]], total
@@ -291,12 +291,8 @@ def run_data_proxy_architecture_audit(
         summary["all_code_objects"] = all_code_objects
         module_summaries.append(summary)
         if is_target:
-            full_targets.append({
-                **summary,
-                "code_objects": target_rows,
-            })
+            full_targets.append({**summary, "code_objects": target_rows})
 
-    # Some target modules may not contain a raw proxy signature. Audit them anyway.
     already = {row["relative_path"] for row in full_targets}
     for candidate in target_modules:
         if candidate["relative_path"] in already:
