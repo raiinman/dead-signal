@@ -4,11 +4,13 @@ from __future__ import annotations
 import json
 import time
 import zipfile
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
 from dead_signal_description_dataflow import run_description_dataflow_trace
+from dead_signal_description_dataflow_fallback import recover_persisted_description_capsules
 from dead_signal_intelligence_compiler import resolve_snapshot
 
 LogCallback = Callable[[str], None]
@@ -21,6 +23,56 @@ def _write_json(path: Path, payload: Any) -> None:
     temporary = path.with_suffix(path.suffix + ".tmp")
     temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     temporary.replace(path)
+
+
+def _merge_persisted_fallback(report: dict[str, Any], fallback: dict[str, Any]) -> dict[str, Any]:
+    report["persisted_fallback"] = fallback
+    recovered = [row for row in fallback.get("functions") or [] if isinstance(row, dict)]
+    existing = {
+        (str(row.get("function") or ""), str((row.get("code_capsule") or {}).get("co_filename") or ""))
+        for row in report.get("code_objects") or []
+        if isinstance(row, dict)
+    }
+    for row in recovered:
+        key = (str(row.get("function") or ""), str((row.get("code_capsule") or {}).get("co_filename") or ""))
+        if key in existing:
+            continue
+        report.setdefault("code_objects", []).append(row)
+        existing.add(key)
+
+    code_objects = [row for row in report.get("code_objects") or [] if isinstance(row, dict)]
+    counts = report.setdefault("record_counts", {})
+    counts["selected_code_objects"] = len(code_objects)
+    counts["persisted_code_capsules_recovered"] = len(recovered)
+    counts["functions"] = dict(sorted(Counter(str(row.get("function") or "") for row in code_objects).items()))
+
+    cooccurrence = []
+    for row in code_objects:
+        signals = row.get("relationship_signals") or {}
+        if signals.get("prototype_desc_and_desc_helper_cooccur") or (
+            signals.get("contains_prototype_desc") and signals.get("calls_get_item_desc_text")
+        ):
+            cooccurrence.append({
+                "pyc": row.get("pyc") or (row.get("code_capsule") or {}).get("co_filename"),
+                "qualname": row.get("qualname"),
+                "function": row.get("function"),
+                "signals": signals,
+                "source_mode": row.get("source_mode") or "snapshot-pyc",
+            })
+    report["cooccurrence_signals"] = cooccurrence
+    counts["prototype_desc_get_item_desc_text_cooccurrences"] = len(cooccurrence)
+
+    target_presence = report.setdefault("target_presence", {})
+    for row in recovered:
+        function = str(row.get("function") or "")
+        if function:
+            target_presence[function] = int(target_presence.get(function) or 0) + 1
+        names = set(map(str, row.get("co_names") or []))
+        consts = set(map(str, row.get("string_constants") or []))
+        for target in ("prototype_desc", "get_item_desc_text", "get_weapon_prototype_data", "get_weapon_prototype_data_val_by_key", "weapon_prototype_data"):
+            if target in names or target in consts:
+                target_presence[target] = int(target_presence.get(target) or 0) + 1
+    return report
 
 
 def _build_bundle(paths: dict[str, Path], report: dict[str, Any], duration: float) -> Path:
@@ -77,6 +129,24 @@ def compile_description_dataflow_trace(
     report = run_description_dataflow_trace(
         paths["base"], paths["current"], paths["reports"], activity=activity
     )
+
+    target_functions = {
+        str(row.get("function") or "")
+        for row in report.get("code_objects") or []
+        if isinstance(row, dict)
+    }
+    needed = {
+        "get_weapon_item_data",
+        "get_item_desc_text",
+        "get_weapon_prototype_data",
+        "get_weapon_prototype_data_val_by_key",
+    }
+    if not needed.issubset(target_functions):
+        progress(55, "Persisted PYC Capsule Fallback")
+        fallback = recover_persisted_description_capsules(paths["reports"], activity=activity)
+        report = _merge_persisted_fallback(report, fallback)
+        _write_json(paths["reports"] / "weapon-description-static-dataflow.json", report)
+
     duration = round(time.perf_counter() - started, 6)
 
     progress(90, "Package Data Flow Trace")
