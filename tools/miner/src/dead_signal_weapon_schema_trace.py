@@ -9,6 +9,10 @@ reference index. Each identity kind has a bounded set of canonical/diagnostic
 owner tables *and* accepted owning fields. Exact occurrences outside those
 owner rules are counted as references for provenance, but they are not traversed.
 
+Some exact schema values are terminal configuration handles rather than rows in
+another structured NeoX table. Those are recorded explicitly as terminal exact
+references instead of being mislabeled as unresolved data gaps.
+
 The output is research evidence only. It never modifies published web data and
 never promotes a field to VERIFIED/PUBLISHABLE by itself.
 """
@@ -22,7 +26,7 @@ from neox_data_explorer import NeoXDataExplorer
 from research_console import ResearchConsole
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 MAX_DEPTH = 6
 MAX_IDENTITIES = 250
 MAX_OWNER_RECORDS_PER_IDENTITY = 12
@@ -30,9 +34,8 @@ MAX_EXACT_REFS = 5000
 
 # A table match alone is not enough. The full 120-weapon trace proved that equal
 # scalars inside an otherwise relevant table can still jump into a neighboring
-# weapon family (for example blueprint_template_no=10 being mistaken for a
-# blueprint identity). Each rule therefore names both the table and the fields
-# that are allowed to establish ownership for that identity kind.
+# weapon family. Each rule therefore names both the table and the fields that
+# are allowed to establish ownership for that identity kind.
 OWNER_RULES: dict[str, dict[str, frozenset[str]]] = {
     "blueprint_id": {
         "game_common/data/gun_blueprint_data.json": frozenset({"record_id", "blueprint_id", "blueprint_no"}),
@@ -88,6 +91,7 @@ OWNER_RULES: dict[str, dict[str, frozenset[str]]] = {
     "skill_id": {
         "game_common/data/passive_skill_data.json": frozenset({"record_id", "skill_id", "skill_no", "skill_code"}),
         "game_common/data/skill_data.json": frozenset({"record_id", "skill_id", "skill_no", "skill_code"}),
+        "game_common/data/stardust_gun_skill_data.json": frozenset({"record_id"}),
     },
     "buff_id": {
         "game_common/data/buff/buff_data.json": frozenset({"record_id", "buff_id", "buff_no"}),
@@ -98,6 +102,14 @@ OWNER_RULES: dict[str, dict[str, frozenset[str]]] = {
     "forge_id": {
         "game_common/data/forge_data.json": frozenset({"record_id", "forge_id", "forge_no"}),
     },
+}
+
+# Exact values of these kinds can legitimately terminate at their source field.
+# The second real 120-weapon fleet trace showed Xhair* values only as
+# gun_base_params_data.bullet_aim_no references and no structured owner record.
+# That is evidence of a terminal configuration handle, not a missing weapon row.
+TERMINAL_REFERENCE_KINDS: dict[str, str] = {
+    "crosshair_id": "Exact aiming/crosshair configuration handle; no structured NeoX owner row is present in the snapshot.",
 }
 
 # Compatibility for UI/tests that only need the ordered table list.
@@ -111,12 +123,7 @@ def _scalar(value: object) -> str:
 
 
 def _field_kind(field: object) -> str | None:
-    """Map an explicit schema field to the identity type it carries.
-
-    This is intentionally explicit. The first fleet trace showed that a generic
-    suffix heuristic turns metadata fields such as blueprint_template_no into
-    false identities and then walks unrelated Weapon families.
-    """
+    """Map an explicit schema field to the identity type it carries."""
     name = str(field or "").strip().casefold()
     exact = {
         "blueprint_id": "blueprint_id",
@@ -143,6 +150,7 @@ def _field_kind(field: object) -> str | None:
         "skill_id": "skill_id",
         "skill_no": "skill_id",
         "gun_skill_no": "skill_id",
+        "star_skill_no": "skill_id",
         "buff_id": "buff_id",
         "buff_no": "buff_id",
         "keyword_buff_id": "buff_id",
@@ -161,11 +169,6 @@ def _owner_ref_matches(kind: str, row: dict[str, Any]) -> bool:
 
 
 def _reference_candidates(rows: list[dict[str, Any]], limit: int = 12) -> list[dict[str, Any]]:
-    """Summarize where an unresolved exact value actually occurs.
-
-    This lets a real snapshot teach us a missing owner rule without promoting any
-    of those candidates automatically.
-    """
     counts: Counter[tuple[str, str]] = Counter()
     for row in rows:
         counts[(str(row.get("table") or ""), str(row.get("field") or ""))] += 1
@@ -261,7 +264,16 @@ class DeadSignalWeaponSchemaTrace:
             ))
             owner_refs = owner_refs[:MAX_OWNER_RECORDS_PER_IDENTITY]
             skipped_reference_counts[kind] += max(0, len(all_refs) - len(owner_refs))
-            state = "VERIFIED" if owner_refs else ("EXACT-REFS-NO-TYPED-OWNER" if all_refs else "UNRESOLVED")
+
+            if owner_refs:
+                state = "VERIFIED"
+            elif kind in TERMINAL_REFERENCE_KINDS and all_refs:
+                state = "TERMINAL-EXACT-REFERENCE"
+            elif all_refs:
+                state = "EXACT-REFS-NO-TYPED-OWNER"
+            else:
+                state = "UNRESOLVED"
+
             identity_row = {
                 "kind": kind,
                 "value": value,
@@ -272,6 +284,8 @@ class DeadSignalWeaponSchemaTrace:
                 "owner_tables": list(allowed),
                 "state": state,
             }
+            if state == "TERMINAL-EXACT-REFERENCE":
+                identity_row["terminal_note"] = TERMINAL_REFERENCE_KINDS[kind]
             if not owner_refs and all_refs:
                 identity_row["reference_candidates"] = _reference_candidates(all_refs)
             identities.append(identity_row)
@@ -357,6 +371,7 @@ class DeadSignalWeaponSchemaTrace:
             "policy": {
                 "workflow": "Locate exact identity -> require typed owner table + owner field -> open exact NeoX record -> harvest explicit typed outbound fields -> independently exact-resolve the next owner.",
                 "matching": "No fuzzy, substring, similar-ID, bare-number, table-only, or metadata-field traversal. Equal scalars outside the identity kind's explicit owner table/field rules are provenance only and are not followed.",
+                "terminal_references": "Some exact configuration handles legitimately terminate at their source field. They are labeled TERMINAL-EXACT-REFERENCE and are not counted as unresolved owner gaps.",
                 "authority": "Identity-to-record edges are authoritative only when the exact tracer occurrence satisfies a typed owner table/field rule. Record-to-identity fields are typed schema leads until the next exact owner edge resolves.",
                 "scope": "Bounded guided research trace; the exhaustive Identity Map ZIP remains available separately.",
                 "publication": "Research evidence only. This trace never promotes or publishes player-facing data automatically.",
