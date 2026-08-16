@@ -16,7 +16,7 @@ from dead_signal_weapon_schema_trace import DeadSignalWeaponSchemaTrace
 from research_console import ResearchConsole
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 def _utc_now() -> str:
@@ -42,6 +42,7 @@ def summarize_trace(result: dict[str, Any]) -> dict[str, Any]:
             "state": row.get("state"),
             "exact_reference_count": row.get("exact_reference_count"),
             "owner_tables": row.get("owner_tables") or [],
+            "reference_candidates": row.get("reference_candidates") or [],
             "discovered_from": row.get("discovered_from"),
         }
         for row in identities
@@ -137,7 +138,8 @@ class DeadSignalSchemaTraceBatch:
             "failures": failures,
             "policy": {
                 "source": "published weapon identities plus installed-game exact reference tracer and NeoX tables",
-                "matching": "Same typed-owner rules as the guided one-item trace; no fuzzy, substring, similar-ID, or bare-number traversal.",
+                "matching": "Typed owner table + owner-field rules; no fuzzy, substring, similar-ID, bare-number, or table-only traversal.",
+                "unresolved": "Unresolved exact identities include compact table/field candidate counts so the next owner rule can be learned from evidence instead of guessed.",
                 "output": "Compact research-only summary. Full NeoX fields remain in the one-item Schema Trace view.",
                 "publication": "No automatic promotion or player-facing publication.",
             },
