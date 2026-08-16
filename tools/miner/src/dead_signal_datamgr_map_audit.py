@@ -1,9 +1,9 @@
-"""Targeted static audit of Once Human DataMgr data-type/package/proxy maps.
+"""Bounded static audit of Once Human DataMgr data-type/package/proxy maps.
 
-This audit is intentionally narrow: it only opens DataMgr.pyc from the completed
-snapshot, unmarshals its CodeType tree, and records map-related constants/code
-objects needed to reconstruct DataType -> package/proxy relationships. It never
-imports or executes game bytecode and never touches the live game process.
+Only game_common/helper/DataMgr.pyc from completed offline snapshots is opened.
+The game module is never imported or executed. The audit preserves compact,
+line-local structural evidence around the DataMgr map assignments without
+materializing or serializing the complete module bytecode multiple times.
 """
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Callable
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 ActivityCallback = Callable[[str], None]
 TARGET_RELATIVE_SUFFIX = "game_common/helper/DataMgr.pyc"
 MAP_NAMES = {
@@ -36,9 +36,12 @@ TARGET_FUNCTION_TOKENS = (
     "load_data",
 )
 MAX_DEEP_FILE_BYTES = 64 * 1024 * 1024
-MAX_SCALAR_STRING = 1024
-MAX_SEQUENCE_ITEMS = 512
-MAP_WINDOW_BYTES = 384
+MAX_NAME_ITEMS = 384
+MAX_STRING_ITEMS = 192
+MAX_STRING_LENGTH = 512
+MAX_CODE_PREFIX_BYTES = 256
+MAX_LINE_SLICE_BYTES = 1536
+MAX_LINE_WORDS = 768
 
 
 def _read_json(path: Path, default: Any = None) -> Any:
@@ -50,9 +53,9 @@ def _read_json(path: Path, default: Any = None) -> Any:
 
 def _write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    tmp.replace(path)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    temporary.replace(path)
 
 
 def _source_root(snapshot: Path) -> Path | None:
@@ -61,38 +64,36 @@ def _source_root(snapshot: Path) -> Path | None:
     if not raw:
         return None
     root = Path(str(raw)).expanduser()
-    root = (snapshot / root).resolve() if not root.is_absolute() else root.resolve()
+    if not root.is_absolute():
+        root = (snapshot / root).resolve()
+    else:
+        root = root.resolve()
     return root if root.is_dir() else None
 
 
-def _roots(base: Path, current: Path) -> list[tuple[str, Path]]:
-    result: list[tuple[str, Path]] = []
+def _targets(base: Path, current: Path) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
     seen: set[str] = set()
     for layer, snapshot in (("current", current), ("base", base)):
         root = _source_root(snapshot)
         if root is None:
             continue
-        key = str(root).casefold()
-        if key in seen:
+        root_key = str(root).casefold()
+        if root_key in seen:
             continue
-        seen.add(key)
-        result.append((layer, root))
-    return result
-
-
-def _find_targets(base: Path, current: Path) -> list[dict[str, Any]]:
-    targets: list[dict[str, Any]] = []
-    for layer, root in _roots(base, current):
+        seen.add(root_key)
         direct = root / Path(TARGET_RELATIVE_SUFFIX)
         if direct.is_file():
-            targets.append({"layer": layer, "root": root, "path": direct.resolve(), "relative_path": TARGET_RELATIVE_SUFFIX})
+            rows.append({"layer": layer, "path": direct.resolve(), "relative_path": TARGET_RELATIVE_SUFFIX})
             continue
         for path in root.rglob("DataMgr.pyc"):
-            rel = path.resolve().relative_to(root).as_posix()
-            if rel.endswith(TARGET_RELATIVE_SUFFIX):
-                targets.append({"layer": layer, "root": root, "path": path.resolve(), "relative_path": rel})
-    targets.sort(key=lambda row: (0 if row["layer"] == "current" else 1, row["relative_path"].casefold()))
-    return targets
+            resolved = path.resolve()
+            relative = resolved.relative_to(root).as_posix()
+            if relative.endswith(TARGET_RELATIVE_SUFFIX):
+                rows.append({"layer": layer, "path": resolved, "relative_path": relative})
+                break
+    rows.sort(key=lambda row: (0 if row["layer"] == "current" else 1, row["relative_path"].casefold()))
+    return rows
 
 
 def _load_code(path: Path) -> tuple[types.CodeType | None, str | None, int, str | None]:
@@ -120,41 +121,61 @@ def _load_code(path: Path) -> tuple[types.CodeType | None, str | None, int, str 
 
 def _walk(code: types.CodeType, qualname: str = "<module>"):
     yield qualname, code
-    occurrence: Counter[str] = Counter()
+    counts: Counter[str] = Counter()
     for value in code.co_consts:
         if not isinstance(value, types.CodeType):
             continue
-        occurrence[value.co_name] += 1
-        suffix = f"#{occurrence[value.co_name]}" if occurrence[value.co_name] > 1 else ""
+        counts[value.co_name] += 1
+        suffix = f"#{counts[value.co_name]}" if counts[value.co_name] > 1 else ""
         child = value.co_name + suffix
         child_qualname = child if qualname == "<module>" else f"{qualname}.{child}"
         yield from _walk(value, child_qualname)
 
 
-def _serializable_const(value: Any, depth: int = 0) -> Any:
-    if depth > 4:
-        return {"type": type(value).__name__, "truncated": True}
+def _scalar_const(value: Any) -> Any:
     if value is None or isinstance(value, (bool, int, float)):
         return value
     if isinstance(value, str):
-        return value[:MAX_SCALAR_STRING]
+        return value[:MAX_STRING_LENGTH]
     if isinstance(value, bytes):
-        return {"type": "bytes", "length": len(value), "prefix_hex": value[:128].hex()}
-    if isinstance(value, (tuple, list, frozenset, set)):
-        items = list(value)[:MAX_SEQUENCE_ITEMS]
-        return {
-            "type": type(value).__name__,
-            "length": len(value),
-            "items": [_serializable_const(item, depth + 1) for item in items],
-        }
+        return {"type": "bytes", "length": len(value), "prefix_hex": value[:64].hex()}
     if isinstance(value, types.CodeType):
         return {"type": "code", "co_name": value.co_name, "co_firstlineno": value.co_firstlineno}
-    return {"type": type(value).__name__, "repr": repr(value)[:MAX_SCALAR_STRING]}
+    if isinstance(value, tuple) and len(value) <= 32:
+        compact = []
+        for item in value:
+            if item is None or isinstance(item, (bool, int, float, str)):
+                compact.append(_scalar_const(item))
+            else:
+                return {"type": "tuple", "length": len(value)}
+        return {"type": "tuple", "length": len(value), "items": compact}
+    return {"type": type(value).__name__}
 
 
-def _code_row(index: int, qualname: str, code: types.CodeType) -> dict[str, Any]:
-    names = list(map(str, code.co_names))
-    string_constants = [value[:MAX_SCALAR_STRING] for value in code.co_consts if isinstance(value, str)]
+def _strings(code: types.CodeType) -> list[str]:
+    result: list[str] = []
+    for value in code.co_consts:
+        if isinstance(value, str):
+            result.append(value[:MAX_STRING_LENGTH])
+            if len(result) >= MAX_STRING_ITEMS:
+                break
+    return result
+
+
+def _is_relevant(qualname: str, code: types.CodeType) -> bool:
+    if qualname in {"<module>", "DataType", "_DataProxy", "_DataProxyBase", "_DataMgrBase"}:
+        return True
+    name = code.co_name.casefold()
+    if any(token in name for token in TARGET_FUNCTION_TOKENS):
+        return True
+    names = set(map(str, code.co_names))
+    strings = set(_strings(code))
+    return bool(MAP_NAMES.intersection(names | strings))
+
+
+def _code_summary(index: int, qualname: str, code: types.CodeType) -> dict[str, Any]:
+    names = list(map(str, code.co_names))[:MAX_NAME_ITEMS]
+    strings = _strings(code)
     return {
         "index": index,
         "qualname": qualname,
@@ -162,147 +183,142 @@ def _code_row(index: int, qualname: str, code: types.CodeType) -> dict[str, Any]
         "co_filename": code.co_filename,
         "co_firstlineno": code.co_firstlineno,
         "co_names": names,
-        "co_varnames": list(map(str, code.co_varnames)),
-        "string_constants": string_constants,
-        "constants": [_serializable_const(value) for value in code.co_consts],
-        "map_names_present": sorted(MAP_NAMES.intersection(names) | MAP_NAMES.intersection(string_constants)),
+        "co_varnames": list(map(str, code.co_varnames))[:MAX_NAME_ITEMS],
+        "string_constants": strings,
+        "map_names_present": sorted(MAP_NAMES.intersection(names) | MAP_NAMES.intersection(strings)),
+        "nested_code_names": [value.co_name for value in code.co_consts if isinstance(value, types.CodeType)][:MAX_NAME_ITEMS],
         "co_code_length": len(code.co_code),
         "co_code_sha256": hashlib.sha256(code.co_code).hexdigest(),
-        "co_code_hex": code.co_code.hex(),
+        "co_code_prefix_hex": code.co_code[:MAX_CODE_PREFIX_BYTES].hex(),
     }
 
 
-def _is_target_row(qualname: str, row: dict[str, Any]) -> bool:
-    name = str(row.get("co_name") or "")
-    names = set(row.get("co_names") or [])
-    strings = set(row.get("string_constants") or [])
-    if qualname in {"<module>", "DataType", "_DataProxy", "_DataProxyBase"}:
-        return True
-    if MAP_NAMES.intersection(names | strings):
-        return True
-    lowered = name.casefold()
-    return any(token in lowered for token in TARGET_FUNCTION_TOKENS)
-
-
-def _candidate_datatype_members(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    for row in rows:
-        if row.get("qualname") != "DataType":
+def _datatype_members(code: types.CodeType) -> list[dict[str, Any]]:
+    for qualname, obj in _walk(code):
+        if qualname != "DataType":
             continue
-        names = [name for name in row.get("co_names") or [] if name not in {"__name__", "__module__", "__qualname__"}]
+        names = [
+            name for name in map(str, obj.co_names)
+            if name not in {"__name__", "__module__", "__qualname__"}
+        ]
         return [{"name": name, "ordinal_candidate": index} for index, name in enumerate(names)]
     return []
 
 
-def _line_ranges(code: types.CodeType) -> list[dict[str, Any]]:
-    result = []
+def _line_ranges(code: types.CodeType) -> list[tuple[int, int, int | None]]:
     try:
-        for start, end, line in code.co_lines():
-            result.append({"start_offset": start, "end_offset": end, "line": line})
+        return list(code.co_lines())
     except Exception:
-        pass
-    return result
+        return []
 
 
-def _line_for_offset(ranges: list[dict[str, Any]], offset: int) -> int | None:
-    for row in ranges:
-        if row["start_offset"] <= offset < row["end_offset"]:
-            line = row.get("line")
+def _source_line_for_offset(ranges: list[tuple[int, int, int | None]], offset: int) -> int | None:
+    for start, end, line in ranges:
+        if start <= offset < end:
             return int(line) if isinstance(line, int) else None
     return None
 
 
-def _numeric_wordcode(code: types.CodeType, ranges: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+def _line_bounds(ranges: list[tuple[int, int, int | None]], source_line: int | None, fallback: int) -> tuple[int, int]:
+    if source_line is None:
+        return fallback, fallback + 2
+    hits = [(start, end) for start, end, line in ranges if line == source_line]
+    if not hits:
+        return fallback, fallback + 2
+    start = min(item[0] for item in hits)
+    end = max(item[1] for item in hits)
+    if end - start > MAX_LINE_SLICE_BYTES:
+        half = MAX_LINE_SLICE_BYTES // 2
+        start = max(start, fallback - half)
+        end = min(end, start + MAX_LINE_SLICE_BYTES)
+    return start, end
+
+
+def _word_rows(code: types.CodeType, start: int, end: int, source_line: int | None) -> list[dict[str, Any]]:
     raw = code.co_code
     names = list(map(str, code.co_names))
     consts = list(code.co_consts)
-    ranges = ranges if ranges is not None else _line_ranges(code)
-    rows = []
-    for offset in range(0, len(raw) - 1, 2):
+    result: list[dict[str, Any]] = []
+    aligned_start = start if start % 2 == 0 else start + 1
+    for offset in range(aligned_start, min(end, len(raw) - 1), 2):
+        if len(result) >= MAX_LINE_WORDS:
+            break
         opcode_byte = raw[offset]
         arg_byte = raw[offset + 1]
         row: dict[str, Any] = {
             "offset": offset,
-            "source_line": _line_for_offset(ranges, offset),
+            "source_line": source_line,
             "opcode_byte": opcode_byte,
-            "opcode_hex": f"0x{opcode_byte:02x}",
             "arg_byte": arg_byte,
         }
         if arg_byte < len(names):
             row["co_names_candidate"] = names[arg_byte]
         if arg_byte < len(consts):
-            row["co_consts_candidate"] = _serializable_const(consts[arg_byte])
-        rows.append(row)
-    return rows
-
-
-def _group_wordcode_by_line(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    grouped: dict[int | None, list[dict[str, Any]]] = {}
-    for row in rows:
-        grouped.setdefault(row.get("source_line"), []).append(row)
-    result = []
-    for line, items in grouped.items():
-        meaningful_names = []
-        meaningful_consts = []
-        seen_names: set[str] = set()
-        seen_consts: set[str] = set()
-        for item in items:
-            name = item.get("co_names_candidate")
-            if isinstance(name, str) and name not in seen_names:
-                seen_names.add(name)
-                meaningful_names.append(name)
-            const = item.get("co_consts_candidate")
-            if isinstance(const, (str, int, float, bool)) or const is None:
-                key = json.dumps(const, ensure_ascii=False, sort_keys=True)
-                if key not in seen_consts:
-                    seen_consts.add(key)
-                    meaningful_consts.append(const)
-        result.append({
-            "source_line": line,
-            "start_offset": min(item["offset"] for item in items),
-            "end_offset": max(item["offset"] for item in items) + 2,
-            "word_count": len(items),
-            "name_candidates": meaningful_names,
-            "scalar_const_candidates": meaningful_consts,
-            "numeric_wordcode": items,
-        })
-    result.sort(key=lambda row: (row["source_line"] is None, row["source_line"] if row["source_line"] is not None else 10**9, row["start_offset"]))
+            candidate = _scalar_const(consts[arg_byte])
+            if candidate is not None or isinstance(consts[arg_byte], (bool, int, float, str)):
+                row["co_consts_candidate"] = candidate
+        result.append(row)
     return result
 
 
-def _map_assignment_windows(code: types.CodeType) -> list[dict[str, Any]]:
-    """Locate numeric instruction words whose argument indexes a known map name.
+def _map_line_evidence(code: types.CodeType) -> list[dict[str, Any]]:
+    """Return one compact, deduplicated source-line slice per map-name hit.
 
-    We deliberately do not assign semantic opcode names. The output is structural
-    evidence only: raw opcode/argument bytes, nearby words, co_names/co_consts
-    candidates, and original source-line grouping from the preserved line table.
+    No opcode mnemonic is inferred. An instruction is only considered a map-name
+    hit when its raw argument byte directly indexes the map name in co_names.
+    This is structural evidence, not execution or semantic decompilation.
     """
-    names = list(map(str, code.co_names))
     raw = code.co_code
+    names = list(map(str, code.co_names))
     ranges = _line_ranges(code)
-    wordcode = _numeric_wordcode(code, ranges)
-    results: list[dict[str, Any]] = []
+    evidence: list[dict[str, Any]] = []
+    seen: set[tuple[str, int | None]] = set()
+
     for offset in range(0, len(raw) - 1, 2):
         arg = raw[offset + 1]
-        if arg >= len(names) or names[arg] not in MAP_NAMES:
+        if arg >= len(names):
             continue
-        start = max(0, offset - MAP_WINDOW_BYTES)
-        end = min(len(raw), offset + MAP_WINDOW_BYTES + 2)
-        nearby = [row for row in wordcode if start <= row["offset"] < end]
-        line_hits = [row for row in ranges if row["start_offset"] <= offset < row["end_offset"]]
-        results.append({
-            "map_name": names[arg],
-            "offset": offset,
-            "opcode_byte": raw[offset],
-            "opcode_hex": f"0x{raw[offset]:02x}",
-            "arg_byte": arg,
-            "window_start": start,
-            "window_end": end,
-            "raw_window_hex": raw[start:end].hex(),
-            "line_ranges_at_offset": line_hits,
-            "numeric_wordcode_window": nearby,
-            "source_line_groups": _group_wordcode_by_line(nearby),
+        map_name = names[arg]
+        if map_name not in MAP_NAMES:
+            continue
+        source_line = _source_line_for_offset(ranges, offset)
+        key = (map_name, source_line)
+        if key in seen:
+            continue
+        seen.add(key)
+        start, end = _line_bounds(ranges, source_line, offset)
+        words = _word_rows(code, start, end, source_line)
+        name_candidates: list[str] = []
+        scalar_candidates: list[Any] = []
+        seen_names: set[str] = set()
+        seen_scalars: set[str] = set()
+        for word in words:
+            name = word.get("co_names_candidate")
+            if isinstance(name, str) and name not in seen_names:
+                seen_names.add(name)
+                name_candidates.append(name)
+            if "co_consts_candidate" in word:
+                value = word["co_consts_candidate"]
+                if isinstance(value, (str, int, float, bool)) or value is None:
+                    marker = json.dumps(value, ensure_ascii=False, sort_keys=True)
+                    if marker not in seen_scalars:
+                        seen_scalars.add(marker)
+                        scalar_candidates.append(value)
+        evidence.append({
+            "map_name": map_name,
+            "assignment_offset": offset,
+            "source_line": source_line,
+            "line_start_offset": start,
+            "line_end_offset": end,
+            "line_byte_length": max(0, end - start),
+            "raw_line_hex": raw[start:end].hex(),
+            "name_candidates": name_candidates,
+            "scalar_const_candidates": scalar_candidates,
+            "numeric_words": words,
         })
-    return results
+
+    evidence.sort(key=lambda row: (row["source_line"] is None, row["source_line"] or 10**9, row["assignment_offset"]))
+    return evidence
 
 
 def run_datamgr_map_audit(
@@ -313,25 +329,35 @@ def run_datamgr_map_audit(
     activity: ActivityCallback | None = None,
 ) -> dict[str, Any]:
     activity = activity or (lambda _message: None)
-    targets = _find_targets(base, current)
+    progress_path = reports_dir / "datamgr-map-progress.json"
+    targets = _targets(base, current)
+    _write_json(progress_path, {"stage": "starting", "schema_version": SCHEMA_VERSION, "targets": len(targets)})
     activity(f"DataMgr Map Audit: found {len(targets)} target module(s)")
-    modules: list[dict[str, Any]] = []
 
+    modules: list[dict[str, Any]] = []
     for number, target in enumerate(targets, start=1):
+        _write_json(progress_path, {
+            "stage": "target",
+            "index": number,
+            "total": len(targets),
+            "layer": target["layer"],
+            "relative_path": target["relative_path"],
+        })
         activity(f"DataMgr Map Audit: inspecting {number}/{len(targets)} {target['relative_path']}")
         code, error, size, digest = _load_code(Path(target["path"]))
-        selected: list[dict[str, Any]] = []
-        all_count = 0
-        assignment_windows: list[dict[str, Any]] = []
-        module_line_ranges: list[dict[str, Any]] = []
+        summaries: list[dict[str, Any]] = []
+        evidence: list[dict[str, Any]] = []
+        members: list[dict[str, Any]] = []
+        all_code_objects = 0
+
         if code is not None:
-            assignment_windows = _map_assignment_windows(code)
-            module_line_ranges = _line_ranges(code)
+            evidence = _map_line_evidence(code)
+            members = _datatype_members(code)
             for index, (qualname, obj) in enumerate(_walk(code)):
-                all_count += 1
-                row = _code_row(index, qualname, obj)
-                if _is_target_row(qualname, row):
-                    selected.append(row)
+                all_code_objects += 1
+                if _is_relevant(qualname, obj):
+                    summaries.append(_code_summary(index, qualname, obj))
+
         modules.append({
             "layer": target["layer"],
             "relative_path": target["relative_path"],
@@ -339,41 +365,48 @@ def run_datamgr_map_audit(
             "file_sha256": digest,
             "marshal_compatible": code is not None,
             "error": error,
-            "all_code_objects": all_count,
-            "selected_code_objects": len(selected),
-            "code_objects": selected,
-            "datatype_member_candidates": _candidate_datatype_members(selected),
-            "module_line_ranges": module_line_ranges,
-            "map_assignment_windows": assignment_windows,
+            "all_code_objects": all_code_objects,
+            "selected_code_objects": len(summaries),
+            "code_objects": summaries,
+            "datatype_member_candidates": members,
+            "map_line_evidence": evidence,
         })
+        code = None
 
-    current_module = next((row for row in modules if row["layer"] == "current"), modules[0] if modules else None)
+    current_module = next((row for row in modules if row["layer"] == "current"), modules[0] if modules else {})
     report = {
         "schema": "dead-signal-datamgr-map-static-audit",
         "schema_version": SCHEMA_VERSION,
         "brand": "Dead Signal",
         "subject": "Once Human DataMgr DataType/package/proxy maps",
-        "mode": "offline-static-targeted-datamgr-pyc-audit",
+        "mode": "offline-static-targeted-datamgr-line-evidence-bounded",
         "record_counts": {
             "target_modules": len(modules),
             "marshal_compatible_modules": sum(bool(row["marshal_compatible"]) for row in modules),
-            "selected_code_objects": sum(row["selected_code_objects"] for row in modules),
-            "datatype_member_candidates": len((current_module or {}).get("datatype_member_candidates") or []),
-            "map_assignment_windows": sum(len(row.get("map_assignment_windows") or []) for row in modules),
+            "selected_code_objects": sum(int(row["selected_code_objects"]) for row in modules),
+            "datatype_member_candidates": len(current_module.get("datatype_member_candidates") or []),
+            "map_line_evidence_records": sum(len(row.get("map_line_evidence") or []) for row in modules),
         },
         "map_names": sorted(MAP_NAMES),
-        "current_datatype_member_candidates": (current_module or {}).get("datatype_member_candidates") or [],
-        "current_map_assignment_windows": (current_module or {}).get("map_assignment_windows") or [],
+        "current_datatype_member_candidates": current_module.get("datatype_member_candidates") or [],
+        "current_map_line_evidence": current_module.get("map_line_evidence") or [],
         "modules": modules,
         "policy": {
             "scope": "Only game_common/helper/DataMgr.pyc is deeply inspected from completed offline snapshots.",
-            "opcode_semantics": "Numeric opcode/argument bytes are retained without assigning stock Python opcode names. co_names/co_consts values are emitted only as index candidates for structural analysis.",
-            "datatype_ordinals": "ordinal_candidate is an observed class-member ordering candidate, not yet a verified enum numeric value unless independently corroborated.",
-            "map_windows": "Map assignment windows are structural evidence around numeric instruction words whose argument indexes a known map name; source_line_groups come only from CodeType.co_lines() and do not assert opcode semantics.",
+            "memory": "Complete module bytecode and complete line tables are not serialized. Evidence is deduplicated to bounded source-line slices around map-name hits.",
+            "opcode_semantics": "Numeric opcode/argument bytes are retained without assigning stock Python opcode names.",
+            "datatype_ordinals": "ordinal_candidate is observed DataType class-member ordering, not a verified enum numeric value unless independently corroborated.",
+            "map_line_evidence": "A map-line record proves only that the map name is indexed by a raw instruction argument on that preserved source line; candidate name/constant indices are structural leads until corroborated.",
             "execution": "No game module is imported or executed; marshal is used only to deserialize CodeType metadata.",
             "live_game": "No process handle, debugger, hook, injection, memory access, network interception, client modification, or anti-cheat interaction.",
         },
-        "next_step": "Use source-line-grouped numeric map evidence to reconstruct individual DATA_TYPE_MAP and DATA_TYPE_PROXY_MAP entries, then corroborate against accessor/converter functions before publication.",
+        "next_step": "Use bounded source-line records to reconstruct map entries and corroborate candidate pairs against DataMgr accessor/converter functions before publication.",
     }
     _write_json(reports_dir / "datamgr-map-static-audit.json", report)
+    _write_json(progress_path, {
+        "stage": "complete",
+        "schema_version": SCHEMA_VERSION,
+        "targets": len(modules),
+        "map_line_evidence_records": report["record_counts"]["map_line_evidence_records"],
+    })
     return report
