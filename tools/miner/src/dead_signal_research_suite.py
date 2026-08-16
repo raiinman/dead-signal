@@ -168,29 +168,19 @@ def _timed(label: str, operation, timings: list[dict[str, Any]], *, activity: Ac
     started = time.perf_counter()
     value = operation()
     seconds = round(time.perf_counter() - started, 6)
-    timings.append({"name": label, "duration_seconds": seconds, "cache_hit": False})
+    timings.append({"name": label, "duration_seconds": seconds, "cache_hit": None})
     activity(f"{label} complete in {seconds:.1f}s")
     return value
 
 
 def _cached_or_run(
-    *,
-    label: str,
-    path: Path,
-    revision: str,
-    dependencies: list[Path],
-    builder,
-    timings: list[dict[str, Any]],
-    activity: ActivityCallback,
-    allow_legacy_adoption: bool = True,
+    *, label: str, path: Path, revision: str, dependencies: list[Path], builder,
+    timings: list[dict[str, Any]], activity: ActivityCallback, allow_legacy_adoption: bool = True,
 ) -> dict[str, Any]:
     signature = fingerprint(dependencies, revision=revision)
     started = time.perf_counter()
     cached = load_cached_report(
-        path,
-        signature=signature,
-        revision=revision,
-        dependencies=dependencies,
+        path, signature=signature, revision=revision, dependencies=dependencies,
         allow_legacy_adoption=allow_legacy_adoption,
     )
     if cached is not None:
@@ -226,38 +216,33 @@ def run_research_suite(base: Path, current: Path, weapons_path: Path, reports_di
     description_identity = _cached_or_run(
         label="Weapon Description Identity Investigator", path=identity_path,
         revision="weapon-description-identity-v1", dependencies=deps,
-        builder=lambda: investigate_description_identity(weapons, base, current),
-        timings=timings, activity=activity,
+        builder=lambda: investigate_description_identity(weapons, base, current), timings=timings, activity=activity,
     )
 
     sources_path = reports_dir / "weapon-description-source-investigation.json"
     description_sources = _cached_or_run(
         label="Weapon Description Source Investigator", path=sources_path,
         revision="weapon-description-source-v1", dependencies=deps,
-        builder=lambda: investigate_description_sources(weapons, base, current),
-        timings=timings, activity=activity,
+        builder=lambda: investigate_description_sources(weapons, base, current), timings=timings, activity=activity,
     )
 
     multihop_path = reports_dir / "weapon-description-multihop.json"
     multihop = _cached_or_run(
         label="Dead Signal Multi-hop Resolver", path=multihop_path,
         revision="weapon-description-multihop-v1", dependencies=deps,
-        builder=lambda: MultiHopResolver(output).run(weapons, activity=activity),
-        timings=timings, activity=activity,
+        builder=lambda: MultiHopResolver(output).run(weapons, activity=activity), timings=timings, activity=activity,
     )
 
     combined_path = reports_dir / "weapon-description-combined-investigation.json"
     combined_sources = _timed(
-        "Combine Description Investigations",
-        lambda: _merge_source_investigations(description_sources, multihop),
+        "Combine Description Investigations", lambda: _merge_source_investigations(description_sources, multihop),
         timings, activity=activity,
     )
     _write_json(combined_path, combined_sources)
 
     source_finder_path = reports_dir / "dead-signal-source-finder.json"
     source_finder = _timed(
-        "Dead Signal Source Finder",
-        lambda: build_source_finder_report(combined_sources),
+        "Dead Signal Source Finder", lambda: build_source_finder_report(combined_sources),
         timings, activity=activity,
     )
     _write_json(source_finder_path, source_finder)
@@ -266,8 +251,7 @@ def run_research_suite(base: Path, current: Path, weapons_path: Path, reports_di
     table_profiles = _cached_or_run(
         label="Dead Signal Table Profiler", path=table_profiles_path,
         revision="dead-signal-table-profiler-v1", dependencies=deps,
-        builder=lambda: build_table_profile_report(base, current, activity=activity),
-        timings=timings, activity=activity,
+        builder=lambda: build_table_profile_report(base, current, activity=activity), timings=timings, activity=activity,
     )
 
     manifest = {
@@ -284,17 +268,15 @@ def run_research_suite(base: Path, current: Path, weapons_path: Path, reports_di
         "stage_timings": timings,
         "cache": {
             "enabled": True,
-            "cache_hits": sum(1 for row in timings if row.get("cache_hit")),
+            "cache_hits": sum(1 for row in timings if row.get("cache_hit") is True),
             "cache_misses": sum(1 for row in timings if row.get("cache_hit") is False),
+            "non_cacheable_stages": sum(1 for row in timings if row.get("cache_hit") is None),
             "policy": "Unchanged completed-snapshot reports are reused; changed inputs or analyzer revisions invalidate only the affected cached analyzer.",
         },
         "reports": {
-            "weapon_description_identity": str(identity_path),
-            "weapon_description_sources": str(sources_path),
-            "weapon_description_multihop": str(multihop_path),
-            "weapon_description_combined": str(combined_path),
-            "source_finder": str(source_finder_path),
-            "table_profiles": str(table_profiles_path),
+            "weapon_description_identity": str(identity_path), "weapon_description_sources": str(sources_path),
+            "weapon_description_multihop": str(multihop_path), "weapon_description_combined": str(combined_path),
+            "source_finder": str(source_finder_path), "table_profiles": str(table_profiles_path),
         },
         "publication_policy": "Research-suite reports are non-publishing evidence products. No value is promoted into normalized or player-facing data by this suite.",
     }
