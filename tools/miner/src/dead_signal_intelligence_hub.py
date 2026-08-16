@@ -15,6 +15,7 @@ from dead_signal_intelligence_window import (
     TEXT,
     DataIntelligenceWindow,
 )
+from dead_signal_schema_trace_tab import install_schema_trace_tab
 from dead_signal_verification_tab import install_verification_tab
 
 
@@ -67,6 +68,7 @@ class DeadSignalDataIntelligence(DataIntelligenceWindow):
         if notebook is None:
             raise RuntimeError("Dead Signal Data Intelligence notebook was not created")
         install_advanced_tabs(notebook, self)
+        install_schema_trace_tab(notebook, self)
         install_discovery_tab(notebook, self)
         install_verification_tab(notebook, self)
         install_description_flow_tab(notebook, self)
