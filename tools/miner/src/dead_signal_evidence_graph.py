@@ -21,7 +21,7 @@ from typing import Any, Callable
 from research_console import ResearchConsole
 
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 NODE_ORDER = {
     "weapon": 0, "blueprint_id": 1, "item_id": 2, "prototype_id": 3,
     "gun_no": 4, "fixed_skill_code": 5, "buff_id": 6, "forge_id": 7,
@@ -35,9 +35,6 @@ IDENTITY_FIELD_TOKENS = (
     "currency", "resource", "origin", "brand", "series", "source", "target",
     "translation", "handle",
 )
-# Generic id/no/code fields are intentionally excluded. They frequently mirror a
-# table's primary record key and caused the first full scan to fan out across the
-# entire database. Semantic relationship fields remain eligible.
 IDENTITY_EXACT_FIELDS = {
     "blueprint_id", "blueprint_no", "item_id", "item_no", "prototype_id",
     "prototype_no", "gun_no", "weapon_id", "weapon_no", "equip_id", "equip_no",
@@ -103,13 +100,52 @@ def _looks_like_identity(field: object, value: object) -> bool:
     if name in IDENTITY_EXACT_FIELDS:
         return True
     if name.endswith(("_id", "_ids", "_no", "_code", "_handle")):
-        # Reject bare/generic forms even if a suffix test would otherwise admit them.
         return name not in {"record_id", "id", "no", "code"}
     if any(token in name for token in IDENTITY_FIELD_TOKENS):
         if any(token in name for token in ("name", "desc", "description", "text", "label", "title")):
             return "handle" in name or name.endswith("_id")
         return True
     return False
+
+
+def _core_weapon_seeds(weapon: dict[str, Any], console: ResearchConsole) -> list[tuple[str, str]]:
+    """Return only the weapon's own identity spine, never enrichment provenance.
+
+    The published web record embeds recipes, materials, resolved stat source records,
+    currencies, and other already-expanded evidence. Feeding all of those back into
+    the crawler made the initial frontier equivalent to many unrelated subjects.
+    Start from the weapon itself and let exact tracer edges discover the rest.
+    """
+    seeds: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+
+    def add(kind: str, value: object) -> None:
+        if value in (None, "", 0, "0", False, True):
+            return
+        row = (kind, str(value))
+        if row not in seen:
+            seen.add(row)
+            seeds.append(row)
+
+    add("blueprint_id", weapon.get("blueprint_id"))
+    add("item_id", weapon.get("item_id"))
+    add("prototype_id", weapon.get("prototype_id"))
+
+    acquisition = weapon.get("acquisition") or {}
+    add("fragment_id", acquisition.get("fragment_id"))
+
+    ranged = (weapon.get("baseline") or {}).get("ranged") or {}
+    add("bullet_pattern_id", ranged.get("bullet_pattern_id"))
+
+    for tier in ((weapon.get("progression") or {}).get("gear_tiers") or []):
+        if not isinstance(tier, dict):
+            continue
+        add("tier_item_id", tier.get("item_id"))
+        add("gun_no", tier.get("gun_no"))
+
+    fixed_skill = console._fixed_skill(weapon)
+    add("fixed_skill_code", fixed_skill)
+    return seeds
 
 
 class DeadSignalEvidenceGraph:
@@ -178,13 +214,9 @@ class DeadSignalEvidenceGraph:
             raise ValueError("Identity scan occurrence cap must be between 1 and 100000")
         activity = activity or (lambda _message: None)
         weapon = self.console.find_weapon(identity)
-        known = self.console._known_ids(weapon)
-        seeds: list[tuple[str, str]] = []
-        for kind, values in known.items():
-            for value in values:
-                seeds.append((kind, str(value)))
+        seeds = _core_weapon_seeds(weapon, self.console)
         if not seeds:
-            raise ValueError("Selected Weapon has no extracted identity seeds")
+            raise ValueError("Selected Weapon has no extracted core identity seeds")
 
         export_root = self.output / "research" / "identity-map"
         export_root.mkdir(parents=True, exist_ok=True)
@@ -217,20 +249,20 @@ class DeadSignalEvidenceGraph:
         truncated_reasons: list[str] = []
         for kind, value in seeds:
             if value not in queued:
-                queue.append((kind, value, 0, "weapon-seed"))
+                queue.append((kind, value, 0, "weapon-core-seed"))
                 queued.add(value)
 
         def write_progress(stage: str) -> None:
-            payload = {"schema": "dead-signal-identity-scan-progress", "schema_version": 2, "stage": stage, "weapon": weapon.get("name"), "queued_values": len(queue), "processed_values": len(processed_values), "records": len(seen_records), "exact_edges": exact_edges, "depth_counts": dict(sorted(depth_counts.items())), "record_primary_keys_recursive": False, "updated_at": datetime.now(timezone.utc).isoformat()}
+            payload = {"schema": "dead-signal-identity-scan-progress", "schema_version": 3, "stage": stage, "weapon": weapon.get("name"), "queued_values": len(queue), "processed_values": len(processed_values), "records": len(seen_records), "exact_edges": exact_edges, "depth_counts": dict(sorted(depth_counts.items())), "seed_policy": "weapon-core-identity-spine", "record_primary_keys_recursive": False, "updated_at": datetime.now(timezone.utc).isoformat()}
             temporary = progress_path.with_suffix(".json.tmp")
             temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
             temporary.replace(progress_path)
 
         try:
             weapon_path.write_text(json.dumps(weapon, ensure_ascii=False, indent=2), encoding="utf-8")
-            readme_path.write_text("Dead Signal Identity Map — Full Connected Exact-Reference Export\n\nrecords.jsonl contains every scalar occurrence for each exact connected record.\nidentity-values.jsonl contains recursively traversed semantic identifier values.\nedges.jsonl contains exact value-to-record and record-to-identity relationships.\nunresolved-values.jsonl contains traversed identity values with no exact occurrence.\ntables.json summarizes connected tables. summary.json contains caps/policy/results.\n\nGeneric record primary keys (id/no/code/record_id) are exported as provenance but never recurse.\nNo fuzzy/name matching is used. No game bytecode is executed. No live process is touched.\n", encoding="utf-8")
+            readme_path.write_text("Dead Signal Identity Map — Full Connected Exact-Reference Export\n\nrecords.jsonl contains every scalar occurrence for each exact connected record.\nidentity-values.jsonl contains recursively traversed semantic identifier values.\nedges.jsonl contains exact value-to-record and record-to-identity relationships.\nunresolved-values.jsonl contains traversed identity values with no exact occurrence.\ntables.json summarizes connected tables. summary.json contains caps/policy/results.\n\nThe scan begins only from the selected weapon's core identity spine. Recipe materials, currencies, stat-source record IDs, and other enrichment embedded in the web record are not initial seeds; they must be discovered through exact connected records. Generic record primary keys (id/no/code/record_id) are exported as provenance but never recurse.\nNo fuzzy/name matching is used. No game bytecode is executed. No live process is touched.\n", encoding="utf-8")
             write_progress("starting")
-            activity(f"Identity Map: scanning semantic exact connected data for {weapon.get('name')}")
+            activity(f"Identity Map: scanning exact neighborhood from {len(seeds)} core seeds for {weapon.get('name')}")
             connection = sqlite3.connect(tracer_uri, uri=True)
             try:
                 with records_path.open("w", encoding="utf-8") as records_out, values_path.open("w", encoding="utf-8") as values_out, edges_path.open("w", encoding="utf-8") as edges_out, unresolved_path.open("w", encoding="utf-8") as unresolved_out:
@@ -285,7 +317,7 @@ class DeadSignalEvidenceGraph:
                 connection.close()
             tables_payload = {"schema": "dead-signal-identity-scan-tables", "schema_version": 1, "table_count": len(table_counts), "tables": [{"table": table, "records": count} for table, count in sorted(table_counts.items(), key=lambda row: (-row[1], row[0]))], "layers": dict(sorted(layer_counts.items()))}
             tables_path.write_text(json.dumps(tables_payload, ensure_ascii=False, indent=2), encoding="utf-8")
-            summary = {"schema": "dead-signal-identity-everything-export", "schema_version": 2, "brand": "Dead Signal", "generated_at": datetime.now(timezone.utc).isoformat(), "weapon": {"canonical_id": weapon.get("canonical_id"), "name": weapon.get("name"), "blueprint_id": weapon.get("blueprint_id"), "item_id": weapon.get("item_id"), "prototype_id": weapon.get("prototype_id"), "category": weapon.get("category"), "rarity": weapon.get("rarity")}, "seed_identities": [{"kind": kind, "value": value} for kind, value in seeds], "record_counts": {"identity_values_processed": len(processed_values), "connected_records": len(seen_records), "connected_tables": len(table_counts), "record_scalars_exported": record_scalar_count, "exact_value_to_record_edges": exact_edges, "unresolved_identity_values": unresolved, "occurrence_cap_hits": occurrence_cap_hits}, "depth_counts": {str(key): value for key, value in sorted(depth_counts.items())}, "limits": {"max_depth": max_depth, "max_records": max_records, "max_identity_values": max_identity_values, "max_occurrences_per_value": max_occurrences_per_value}, "truncated": bool(truncated_reasons or occurrence_cap_hits), "truncated_reasons": sorted(set(truncated_reasons)), "most_common_fields": [{"field": field, "occurrences": count} for field, count in field_counts.most_common(100)], "policy": {"record_capture": "Every scalar occurrence from every discovered exact record is exported.", "recursive_traversal": "Only semantic relationship fields recurse. Generic table primary keys id/no/code/record_id are exported but blocked from recursion.", "edge_authority": "Only value->record edges returned by reference-tracer.sqlite are authoritative exact joins. Record->candidate identity edges are traversal leads until tracer proves next hop.", "matching": "No fuzzy, substring, or name-based relationship is used.", "execution": "Read-only completed snapshot and reference tracer only; no game bytecode execution and no live process access.", "publication": "This ZIP is research evidence and does not automatically authorize player-facing publication."}}
+            summary = {"schema": "dead-signal-identity-everything-export", "schema_version": 3, "brand": "Dead Signal", "generated_at": datetime.now(timezone.utc).isoformat(), "weapon": {"canonical_id": weapon.get("canonical_id"), "name": weapon.get("name"), "blueprint_id": weapon.get("blueprint_id"), "item_id": weapon.get("item_id"), "prototype_id": weapon.get("prototype_id"), "category": weapon.get("category"), "rarity": weapon.get("rarity")}, "seed_policy": "weapon-core-identity-spine", "seed_identities": [{"kind": kind, "value": value} for kind, value in seeds], "record_counts": {"identity_values_processed": len(processed_values), "connected_records": len(seen_records), "connected_tables": len(table_counts), "record_scalars_exported": record_scalar_count, "exact_value_to_record_edges": exact_edges, "unresolved_identity_values": unresolved, "occurrence_cap_hits": occurrence_cap_hits}, "depth_counts": {str(key): value for key, value in sorted(depth_counts.items())}, "limits": {"max_depth": max_depth, "max_records": max_records, "max_identity_values": max_identity_values, "max_occurrences_per_value": max_occurrences_per_value}, "truncated": bool(truncated_reasons or occurrence_cap_hits), "truncated_reasons": sorted(set(truncated_reasons)), "most_common_fields": [{"field": field, "occurrences": count} for field, count in field_counts.most_common(100)], "policy": {"seed_scope": "Only the selected weapon's own identity spine seeds the scan. Embedded enrichment/provenance must be discovered through exact tracer edges.", "record_capture": "Every scalar occurrence from every discovered exact record is exported.", "recursive_traversal": "Only semantic relationship fields recurse. Generic table primary keys id/no/code/record_id are exported but blocked from recursion.", "edge_authority": "Only value->record edges returned by reference-tracer.sqlite are authoritative exact joins. Record->candidate identity edges are traversal leads until tracer proves next hop.", "matching": "No fuzzy, substring, or name-based relationship is used.", "execution": "Read-only completed snapshot and reference tracer only; no game bytecode execution and no live process access.", "publication": "This ZIP is research evidence and does not automatically authorize player-facing publication."}}
             summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
             write_progress("packaging"); activity(f"Identity Map: packaging {len(seen_records):,} connected records")
             with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as destination:
