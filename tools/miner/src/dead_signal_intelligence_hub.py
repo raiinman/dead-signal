@@ -6,6 +6,7 @@ from pathlib import Path
 from tkinter import ttk
 
 from dead_signal_compiler_tab import install_compiler_tab
+from dead_signal_description_flow_tab import install_description_flow_tab
 from dead_signal_discovery_tab import install_discovery_tab
 from dead_signal_intelligence_advanced import install_advanced_tabs
 from dead_signal_intelligence_window import DataIntelligenceWindow
@@ -26,6 +27,7 @@ class DeadSignalDataIntelligence(DataIntelligenceWindow):
         install_advanced_tabs(notebook, self)
         install_discovery_tab(notebook, self)
         install_verification_tab(notebook, self)
+        install_description_flow_tab(notebook, self)
         install_compiler_tab(notebook, self)
 
 
