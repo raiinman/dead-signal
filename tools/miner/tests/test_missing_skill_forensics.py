@@ -88,6 +88,33 @@ class MissingSkillForensicsTests(unittest.TestCase):
         hits = consumer["direct_consumer_candidates"][0]["code_hits"]
         self.assertTrue(any("fixed_skill_code" in hit["direct_consumer_symbols"] for hit in hits))
 
+    def test_direct_consumer_gets_bounded_static_instruction_flow(self):
+        self._write_pyc(
+            "game_common/guncore/BluePrintHelper.pyc",
+            "def get_blueprint_fixed_skill(row, passive_skill_data):\n"
+            "    fixed_skill_code = row.get('fixed_skill_code')\n"
+            "    return passive_skill_data.get(fixed_skill_code)\n",
+        )
+        report = run_missing_skill_forensics(
+            self.base,
+            self.current,
+            ["WS2001"],
+            self.reports,
+        )
+        flow = report["fixed_skill_flow_trace"]
+        self.assertEqual("complete", flow["status"])
+        self.assertEqual(1, flow["record_counts"]["candidate_files"])
+        self.assertEqual(1, flow["record_counts"]["consumer_functions"])
+        self.assertGreaterEqual(flow["record_counts"]["fixed_skill_instruction_anchors"], 1)
+        function = flow["functions"][0]
+        self.assertEqual("get_blueprint_fixed_skill", function["qualname"])
+        self.assertIn("passive_skill_data", function["local_names"])
+        self.assertTrue(any(row.get("is_fixed_skill_anchor") for row in function["instruction_window"] if not row.get("gap")))
+        self.assertEqual(
+            "PYC code objects are unmarshaled and disassembled only; game bytecode is never executed.",
+            flow["policy"]["execution"],
+        )
+
     def test_preload_table_reference_is_context_not_direct_consumer(self):
         self._write_pyc(
             "client_data_preload_pc.pyc",
