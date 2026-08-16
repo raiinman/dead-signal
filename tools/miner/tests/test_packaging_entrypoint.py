@@ -30,6 +30,7 @@ class PackagingEntrypointTests(unittest.TestCase):
             "dead_signal_research_cache",
             "dead_signal_weapon_description_consumer",
             "dead_signal_description_dataflow",
+            "dead_signal_bindict_schema_audit",
             "dead_signal_description_trace_compiler",
             "dead_signal_description_flow_tab",
             "neox_data_explorer",
@@ -68,10 +69,13 @@ class PackagingEntrypointTests(unittest.TestCase):
         miner_root = Path(__file__).resolve().parents[1]
         hub = (miner_root / "src" / "dead_signal_intelligence_hub.py").read_text(encoding="utf-8")
         flow = (miner_root / "src" / "dead_signal_description_flow_tab.py").read_text(encoding="utf-8")
+        compiler = (miner_root / "src" / "dead_signal_description_trace_compiler.py").read_text(encoding="utf-8")
         self.assertIn("install_description_flow_tab", hub)
         self.assertIn("TRACE DESCRIPTION DATA FLOW", flow)
         self.assertIn("No process handle", flow)
         self.assertIn("no anti-cheat interaction", flow.casefold())
+        self.assertIn("run_weapon_prototype_bindict_audit", compiler)
+        self.assertIn("weapon-prototype-bindict-schema-audit.json", compiler)
 
 
 if __name__ == "__main__":
