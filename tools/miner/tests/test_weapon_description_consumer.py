@@ -10,7 +10,10 @@ for candidate in (SRC, EXTRACTOR):
     if str(candidate) not in sys.path:
         sys.path.insert(0, str(candidate))
 
-from dead_signal_weapon_description_consumer import run_weapon_description_consumer_trace  # noqa: E402
+from dead_signal_weapon_description_consumer import (  # noqa: E402
+    _scan_consumer_evidence,
+    run_weapon_description_consumer_trace,
+)
 
 
 def write_json(path: Path, payload) -> None:
@@ -109,3 +112,22 @@ def test_missing_exact_prototype_never_falls_back_by_name(tmp_path: Path) -> Non
     assert row["status"] == "prototype-record-missing"
     assert row["consumer_backed_candidate"] is False
     assert "text" not in row
+
+
+def test_consumer_evidence_rejects_longer_near_match_tokens(tmp_path: Path) -> None:
+    report = tmp_path / "weapon-progression-pyc-consumers.json"
+    report.write_text(
+        '\n'.join([
+            '"weapon_prototype_data"',
+            '"get_weapon_prototype_data"',
+            '"get_weapon_prototype_data_val_by_key"',
+            '"prototype_descc"',
+            '"get_item_desc_text"',
+            '"get_weapon_item_data_by_item_id"',
+        ]) + '\n',
+        encoding="utf-8",
+    )
+    evidence = _scan_consumer_evidence(report)
+    assert evidence["all_required_tokens_found"] is False
+    assert "prototype_desc" in evidence["missing_tokens"]
+    assert "get_weapon_item_data" in evidence["missing_tokens"]
