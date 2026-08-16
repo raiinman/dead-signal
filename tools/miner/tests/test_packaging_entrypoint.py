@@ -29,6 +29,9 @@ class PackagingEntrypointTests(unittest.TestCase):
             "dead_signal_multihop_resolver",
             "dead_signal_research_cache",
             "dead_signal_weapon_description_consumer",
+            "dead_signal_description_dataflow",
+            "dead_signal_description_trace_compiler",
+            "dead_signal_description_flow_tab",
             "neox_data_explorer",
         ):
             self.assertIn(module, build_script)
@@ -60,6 +63,15 @@ class PackagingEntrypointTests(unittest.TestCase):
         self.assertLess(canonical_call, research_call)
         self.assertIn("_run_nonfatal_intelligence_stage", pipeline)
         self.assertIn("public data unchanged", pipeline)
+
+    def test_data_intelligence_hub_exposes_offline_description_flow(self) -> None:
+        miner_root = Path(__file__).resolve().parents[1]
+        hub = (miner_root / "src" / "dead_signal_intelligence_hub.py").read_text(encoding="utf-8")
+        flow = (miner_root / "src" / "dead_signal_description_flow_tab.py").read_text(encoding="utf-8")
+        self.assertIn("install_description_flow_tab", hub)
+        self.assertIn("TRACE DESCRIPTION DATA FLOW", flow)
+        self.assertIn("No process handle", flow)
+        self.assertIn("no anti-cheat interaction", flow.casefold())
 
 
 if __name__ == "__main__":
