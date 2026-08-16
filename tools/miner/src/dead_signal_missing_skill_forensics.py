@@ -1,9 +1,8 @@
 """Targeted offline forensics for unresolved Once Human weapon fixed-skill codes.
 
-This stage is intentionally narrow. It receives the exact unresolved WS... codes
-left by Schema Trace, searches likely skill/gun/weapon/buff PYC modules for exact
-code bytes, then separately searches the retained raw PYC corpus for the
-*consumer symbols* that read ``fixed_skill_code``.
+This stage receives exact unresolved WS... codes left by Schema Trace, searches
+likely skill/gun/weapon/buff PYC modules for exact code bytes, then separately
+searches the retained raw PYC corpus for exact fixed-skill consumer symbols.
 
 No game module is imported or executed.
 
@@ -24,17 +23,18 @@ from typing import Any, Callable, Iterable
 
 from neoxtractor.core.bindict.parser import BindictParser
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 MAX_FILE_BYTES = 32 * 1024 * 1024
 MAX_CANDIDATE_FILES = 5000
-MAX_CONSUMER_FILES_PER_ROOT = 25000
+MAX_CONSUMER_FILES_PER_ROOT = 100000
 NAME_TOKENS = ("skill", "weapon", "gun", "buff", "passive", "stardust")
-CONSUMER_SYMBOLS = (
-    "fixed_skill_code",
+DIRECT_CONSUMER_SYMBOLS = ("fixed_skill_code",)
+CONTEXT_SYMBOLS = (
     "gun_blueprint_attr_data",
     "passive_skill_data",
     "skill_data",
 )
+CONSUMER_SYMBOLS = DIRECT_CONSUMER_SYMBOLS + CONTEXT_SYMBOLS
 SOURCE_TABLE_SUFFIX = "game_common/data/gun_blueprint_attr_data.pyc"
 ActivityCallback = Callable[[str], None]
 
@@ -167,12 +167,15 @@ def _consumer_code_hits(raw: bytes) -> tuple[list[dict[str, Any]], str | None]:
     if root is None:
         return [], error
     targets = set(CONSUMER_SYMBOLS)
+    direct = set(DIRECT_CONSUMER_SYMBOLS)
+    context = set(CONTEXT_SYMBOLS)
     hits: list[dict[str, Any]] = []
     for qualname, code in _walk_code(root):
         strings = {value for value in code.co_consts if isinstance(value, str)}
         names = set(map(str, code.co_names))
         varnames = set(map(str, code.co_varnames))
-        matched = sorted(targets.intersection(strings | names | varnames))
+        universe = strings | names | varnames
+        matched = sorted(targets.intersection(universe))
         if not matched:
             continue
         hits.append({
@@ -181,6 +184,8 @@ def _consumer_code_hits(raw: bytes) -> tuple[list[dict[str, Any]], str | None]:
             "co_filename": code.co_filename,
             "co_firstlineno": code.co_firstlineno,
             "matched_symbols": matched,
+            "direct_consumer_symbols": sorted(direct.intersection(universe)),
+            "context_symbols": sorted(context.intersection(universe)),
             "co_names": sorted(name for name in names if name in targets or "skill" in name.casefold()),
             "co_varnames": sorted(name for name in varnames if name in targets or "skill" in name.casefold()),
             "string_constants": sorted(
@@ -195,6 +200,7 @@ def _scan_consumers(
     roots: list[tuple[str, Path]],
     *,
     activity: ActivityCallback,
+    max_files_per_root: int = MAX_CONSUMER_FILES_PER_ROOT,
 ) -> dict[str, Any]:
     rows: list[dict[str, Any]] = []
     files_scanned = 0
@@ -208,7 +214,7 @@ def _scan_consumers(
         layer_count = 0
         for path in root.rglob("*.pyc"):
             layer_count += 1
-            if layer_count > MAX_CONSUMER_FILES_PER_ROOT:
+            if layer_count > max_files_per_root:
                 roots_truncated.append(layer)
                 break
             files_scanned += 1
@@ -238,21 +244,36 @@ def _scan_consumers(
                 "code_hits": code_hits,
             })
 
-    actionable = [
+    direct_candidates = [
         row for row in rows
-        if not row["source_table"] and any(hit.get("matched_symbols") for hit in row.get("code_hits") or [])
+        if not row["source_table"]
+        and any(hit.get("direct_consumer_symbols") for hit in row.get("code_hits") or [])
     ]
+    context_candidates = [
+        row for row in rows
+        if not row["source_table"]
+        and not any(hit.get("direct_consumer_symbols") for hit in row.get("code_hits") or [])
+        and any(hit.get("context_symbols") for hit in row.get("code_hits") or [])
+    ]
+    status = "raw-source-roots-unavailable" if not roots else ("partial-limit" if roots_truncated else "complete")
     return {
-        "status": "complete" if roots else "raw-source-roots-unavailable",
+        "status": status,
         "record_counts": {
             "files_scanned": files_scanned,
             "files_with_symbol_bytes": files_with_symbol_bytes,
             "marshal_decoded_symbol_files": marshal_decoded,
-            "consumer_candidate_files": len(actionable),
+            "consumer_candidate_files": len(direct_candidates),
+            "direct_consumer_candidate_files": len(direct_candidates),
+            "context_reference_candidate_files": len(context_candidates),
         },
         "roots_truncated_at_limit": sorted(set(roots_truncated)),
-        "symbols": list(CONSUMER_SYMBOLS),
-        "candidates": actionable,
+        "symbols": {
+            "direct": list(DIRECT_CONSUMER_SYMBOLS),
+            "context": list(CONTEXT_SYMBOLS),
+        },
+        "candidates": direct_candidates,
+        "direct_consumer_candidates": direct_candidates,
+        "context_reference_candidates": context_candidates,
         "all_symbol_files": rows,
     }
 
@@ -308,7 +329,7 @@ def run_missing_skill_forensics(
                 by_code[row["code"]]["marshal_hits"].append({"layer": layer, "relative_path": relative, **row})
 
     status_counts: Counter[str] = Counter()
-    rows = []
+    skill_rows = []
     for code in sorted(by_code):
         row = by_code[code]
         if row["bindict_hits"]:
@@ -321,7 +342,7 @@ def run_missing_skill_forensics(
             status = "no-exact-raw-hit-in-targeted-modules"
         row["status"] = status
         status_counts[status] += 1
-        rows.append(row)
+        skill_rows.append(row)
 
     consumer_trace = _scan_consumers(roots, activity=activity)
 
@@ -341,7 +362,7 @@ def run_missing_skill_forensics(
             "consumer_candidate_files": consumer_trace["record_counts"]["consumer_candidate_files"],
         },
         "source_roots": [{"layer": layer, "root_present": True} for layer, _root in roots],
-        "skills": rows,
+        "skills": skill_rows,
         "consumer_trace": consumer_trace,
         "policy": {
             "scope": (
@@ -351,20 +372,23 @@ def run_missing_skill_forensics(
             "matching": "Exact skill-code or exact consumer-symbol bytes only; no fuzzy or substring identity promotion.",
             "parsing": "Exact-hit files are inspected through BindictParser and/or marshal CodeType metadata where compatible.",
             "consumer_evidence": (
-                "Consumer candidates require static CodeType metadata referencing fixed_skill_code or its exact data-table symbols; "
-                "the blueprint-attribute source table itself is labeled and excluded from candidate counts."
+                "Only static CodeType metadata containing the exact field symbol fixed_skill_code is classified as a "
+                "direct consumer. References to gun_blueprint_attr_data/passive_skill_data/skill_data are retained as "
+                "context references and are not promoted to consumers."
             ),
             "execution": "No game module is imported or executed; no game bytecode is executed.",
             "publication": "Research report only. No website/public weapon data is modified or promoted.",
         },
         "next_step": (
-            "Inspect consumer_trace.candidates to identify the client function that resolves fixed_skill_code when no "
-            "passive_skill_data/skill_data owner record exists."
+            "Inspect consumer_trace.direct_consumer_candidates. If none exist after a complete corpus pass, treat "
+            "Python-level fixed_skill_code resolution as unproven and pivot to data-loader/native-engine or adjacent "
+            "table relationships rather than inventing a consumer."
         ),
     }
     _write_json(destination, report)
     activity(
         f"Missing Skill Forensics complete: {len(codes)} codes; {exact_files} exact-hit files; "
-        f"{consumer_trace['record_counts']['consumer_candidate_files']} consumer candidates"
+        f"{consumer_trace['record_counts']['direct_consumer_candidate_files']} direct consumers; "
+        f"{consumer_trace['record_counts']['context_reference_candidate_files']} context references"
     )
     return report
