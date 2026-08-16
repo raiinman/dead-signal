@@ -12,7 +12,7 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import messagebox, ttk
 
-from dead_signal_intelligence_compiler import compile_intelligence
+from dead_signal_intelligence_compiler import compile_intelligence, compile_weapon_description_ui_trace
 from dead_signal_intelligence_window import BG, BORDER, MUTED, PANEL, PANEL_2, RED, TEXT
 
 
@@ -47,6 +47,7 @@ class CompilerTab:
         self.activity_count = 0
         self.current_stage = "Ready"
         self.current_detail = "Waiting for compiler start"
+        self.active_mode = ""
 
         self.frame = tk.Frame(notebook, bg=PANEL, padx=18, pady=18)
         notebook.add(self.frame, text="Compiler")
@@ -70,8 +71,8 @@ class CompilerTab:
         tk.Label(
             self.frame,
             text=(
-                "Re-run every Data Intelligence extension against the completed local snapshot. "
-                "No game mining is performed and no player-facing dataset is published."
+                "Use the fast Weapon UI trace for the current description investigation, or run the complete "
+                "Data Intelligence suite. Heavy unchanged research stages are cached. No game mining is performed."
             ),
             bg=PANEL,
             fg=MUTED,
@@ -82,10 +83,10 @@ class CompilerTab:
 
         actions = tk.Frame(self.frame, bg=PANEL)
         actions.pack(fill="x")
-        self.run_button = tk.Button(
+        self.trace_button = tk.Button(
             actions,
-            text="COMPILE DATA INTELLIGENCE",
-            command=self._start,
+            text="TRACE WEAPON UI DESCRIPTION",
+            command=self._start_ui_trace,
             bg=RED,
             activebackground="#ff4047",
             fg="white",
@@ -97,7 +98,23 @@ class CompilerTab:
             font=("Segoe UI", 9, "bold"),
             cursor="hand2",
         )
-        self.run_button.pack(side="left")
+        self.trace_button.pack(side="left")
+        self.run_button = tk.Button(
+            actions,
+            text="COMPILE DATA INTELLIGENCE",
+            command=self._start,
+            bg=PANEL_2,
+            activebackground=BORDER,
+            fg=TEXT,
+            activeforeground=TEXT,
+            relief="flat",
+            bd=0,
+            padx=20,
+            pady=10,
+            font=("Segoe UI", 9, "bold"),
+            cursor="hand2",
+        )
+        self.run_button.pack(side="left", padx=(10, 0))
         self.open_button = tk.Button(
             actions,
             text="OPEN INTELLIGENCE BUNDLES",
@@ -165,7 +182,8 @@ class CompilerTab:
             state="disabled",
         )
         self.log.pack(fill="both", expand=True)
-        self._append("Compiler is independent of the game harvest. Existing snapshots can be reprocessed at any time.")
+        self._append("Fast UI trace: exact prototype_id -> weapon_prototype_data -> prototype_desc -> English translation.")
+        self._append("Full Compiler: complete Data Intelligence suite; unchanged heavy stages are reused from cache.")
 
     def _append(self, message: object):
         self.log.configure(state="normal")
@@ -173,22 +191,27 @@ class CompilerTab:
         self.log.see("end")
         self.log.configure(state="disabled")
 
-    def _start(self):
-        if self.worker and self.worker.is_alive():
-            return
+    def _prepare_run(self, mode: str, stage: str, detail: str):
         now = time.monotonic()
+        self.active_mode = mode
         self.started_at = now
         self.last_activity_at = now
         self.activity_count = 0
-        self.current_stage = "Starting"
-        self.current_detail = "Resolving completed Miner snapshot"
+        self.current_stage = stage
+        self.current_detail = detail
         self.run_button.configure(state="disabled")
+        self.trace_button.configure(state="disabled")
         self.progress_var.set(0)
         self.percent_var.set("0%")
-        self.status_var.set("Starting Data Intelligence compiler")
-        self.detail_var.set(self.current_detail)
+        self.status_var.set(stage)
+        self.detail_var.set(detail)
         self.elapsed_var.set("Elapsed 00:00")
         self.heartbeat_var.set("Working • activity 0")
+
+    def _start(self):
+        if self.worker and self.worker.is_alive():
+            return
+        self._prepare_run("full", "Starting Data Intelligence compiler", "Resolving completed Miner snapshot")
         self._append("\n=== DATA INTELLIGENCE COMPILE ===")
 
         def worker():
@@ -206,6 +229,27 @@ class CompilerTab:
         self.worker = threading.Thread(target=worker, name="dead-signal-intelligence-compiler", daemon=True)
         self.worker.start()
 
+    def _start_ui_trace(self):
+        if self.worker and self.worker.is_alive():
+            return
+        self._prepare_run("ui-trace", "Starting Weapon UI description trace", "Opening exact Weapon prototype source")
+        self._append("\n=== WEAPON UI DESCRIPTION TRACE ===")
+
+        def worker():
+            try:
+                result = compile_weapon_description_ui_trace(
+                    self.output,
+                    log=lambda value: self.events.put(("log", value)),
+                    progress=lambda value, label: self.events.put(("progress", (value, label))),
+                    activity=lambda value: self.events.put(("activity", value)),
+                )
+                self.events.put(("complete", result))
+            except Exception as error:
+                self.events.put(("error", f"{type(error).__name__}: {error}"))
+
+        self.worker = threading.Thread(target=worker, name="dead-signal-weapon-ui-trace", daemon=True)
+        self.worker.start()
+
     def _refresh_heartbeat(self):
         if not (self.worker and self.worker.is_alive()) or self.started_at is None:
             return
@@ -220,6 +264,10 @@ class CompilerTab:
         else:
             pulse = f"Still working • {int(idle_for)}s since detail"
         self.heartbeat_var.set(f"{pulse} • activity {self.activity_count}")
+
+    def _enable_actions(self):
+        self.run_button.configure(state="normal")
+        self.trace_button.configure(state="normal")
 
     def _poll(self):
         try:
@@ -241,30 +289,42 @@ class CompilerTab:
                     self.status_var.set(self.current_stage)
                 elif event == "complete":
                     result = payload  # type: ignore[assignment]
+                    mode = self.active_mode
                     self.worker = None
                     self.progress_var.set(100)
                     self.percent_var.set("100%")
-                    self.status_var.set("Data Intelligence bundle ready")
-                    self.detail_var.set("All extensions completed and bundle compiled")
+                    if mode == "ui-trace":
+                        self.status_var.set("Weapon UI description trace ready")
+                        self.detail_var.set("Targeted prototype/consumer trace complete")
+                    else:
+                        self.status_var.set("Data Intelligence bundle ready")
+                        self.detail_var.set("All extensions completed and bundle compiled")
                     if self.started_at is not None:
                         self.elapsed_var.set(f"Elapsed {_format_elapsed(time.monotonic() - self.started_at)}")
                     self.heartbeat_var.set(f"Complete • {self.activity_count} activity events")
-                    self.run_button.configure(state="normal")
+                    self._enable_actions()
                     bundle = Path(str(result.get("bundle")))
                     self.last_bundle = bundle
                     self._append(f"Bundle: {bundle}")
                     counts = result.get("record_counts") or {}
-                    self._append(f"Profiled tables: {counts.get('profiled_tables', 0)}")
-                    self._append(f"Description hotspots: {counts.get('description_hotspots', 0)}")
-                    self._append(f"Description leads: {counts.get('description_leads', 0)}")
-                    messagebox.showinfo(
-                        "Dead Signal Data Intelligence",
-                        f"Compilation complete.\n\nBundle ready at:\n{bundle}",
-                        parent=self.host.window,
-                    )
+                    if mode == "ui-trace":
+                        self._append(f"Prototype description fields: {counts.get('prototype_desc_fields_found', 0)}")
+                        self._append(f"Consistent translations: {counts.get('consistent_resolutions', 0)}")
+                        self._append(f"Consumer-backed candidates: {counts.get('consumer_backed_candidates', 0)}")
+                        title = "Dead Signal Weapon UI Trace"
+                        body = f"Targeted Weapon UI trace complete.\n\nBundle ready at:\n{bundle}"
+                    else:
+                        self._append(f"Profiled tables: {counts.get('profiled_tables', 0)}")
+                        self._append(f"UI consumer candidates: {counts.get('ui_consumer_candidates', 0)}")
+                        self._append(f"Description hotspots: {counts.get('description_hotspots', 0)}")
+                        self._append(f"Description leads: {counts.get('description_leads', 0)}")
+                        title = "Dead Signal Data Intelligence"
+                        body = f"Compilation complete.\n\nBundle ready at:\n{bundle}"
+                    messagebox.showinfo(title, body, parent=self.host.window)
+                    self.active_mode = ""
                 elif event == "error":
                     self.worker = None
-                    self.run_button.configure(state="normal")
+                    self._enable_actions()
                     self.status_var.set("Compilation stopped — see details")
                     self.detail_var.set(str(payload))
                     if self.started_at is not None:
@@ -272,6 +332,7 @@ class CompilerTab:
                     self.heartbeat_var.set("Stopped")
                     self._append(payload)
                     messagebox.showerror("Dead Signal Data Intelligence", str(payload), parent=self.host.window)
+                    self.active_mode = ""
         except queue.Empty:
             pass
         self._refresh_heartbeat()
