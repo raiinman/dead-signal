@@ -15,7 +15,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Callable
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 ActivityCallback = Callable[[str], None]
 TARGET_RELATIVE_SUFFIX = "game_common/helper/DataMgr.pyc"
 MAP_NAMES = {
@@ -38,6 +38,7 @@ TARGET_FUNCTION_TOKENS = (
 MAX_DEEP_FILE_BYTES = 64 * 1024 * 1024
 MAX_SCALAR_STRING = 1024
 MAX_SEQUENCE_ITEMS = 512
+MAP_WINDOW_BYTES = 192
 
 
 def _read_json(path: Path, default: Any = None) -> Any:
@@ -188,10 +189,75 @@ def _candidate_datatype_members(rows: list[dict[str, Any]]) -> list[dict[str, An
         if row.get("qualname") != "DataType":
             continue
         names = [name for name in row.get("co_names") or [] if name not in {"__name__", "__module__", "__qualname__"}]
-        # The class code currently exhibits a repeated sequential assignment shape.
-        # We report ordinal candidates only; this does not rely on stock dis opcode names.
         return [{"name": name, "ordinal_candidate": index} for index, name in enumerate(names)]
     return []
+
+
+def _line_ranges(code: types.CodeType) -> list[dict[str, Any]]:
+    result = []
+    try:
+        for start, end, line in code.co_lines():
+            result.append({"start_offset": start, "end_offset": end, "line": line})
+    except Exception:
+        pass
+    return result
+
+
+def _numeric_wordcode(code: types.CodeType) -> list[dict[str, Any]]:
+    raw = code.co_code
+    names = list(map(str, code.co_names))
+    consts = list(code.co_consts)
+    rows = []
+    for offset in range(0, len(raw) - 1, 2):
+        opcode_byte = raw[offset]
+        arg_byte = raw[offset + 1]
+        row: dict[str, Any] = {
+            "offset": offset,
+            "opcode_byte": opcode_byte,
+            "opcode_hex": f"0x{opcode_byte:02x}",
+            "arg_byte": arg_byte,
+        }
+        if arg_byte < len(names):
+            row["co_names_candidate"] = names[arg_byte]
+        if arg_byte < len(consts):
+            row["co_consts_candidate"] = _serializable_const(consts[arg_byte])
+        rows.append(row)
+    return rows
+
+
+def _map_assignment_windows(code: types.CodeType) -> list[dict[str, Any]]:
+    """Locate numeric instruction words whose argument indexes a known map name.
+
+    We deliberately do not assign semantic opcode names. The output is structural
+    evidence only: raw opcode/argument bytes, nearby words, co_names/co_consts
+    candidates, and the code object's line-table ranges.
+    """
+    names = list(map(str, code.co_names))
+    raw = code.co_code
+    wordcode = _numeric_wordcode(code)
+    ranges = _line_ranges(code)
+    results: list[dict[str, Any]] = []
+    for offset in range(0, len(raw) - 1, 2):
+        arg = raw[offset + 1]
+        if arg >= len(names) or names[arg] not in MAP_NAMES:
+            continue
+        start = max(0, offset - MAP_WINDOW_BYTES)
+        end = min(len(raw), offset + MAP_WINDOW_BYTES + 2)
+        nearby = [row for row in wordcode if start <= row["offset"] < end]
+        line_hits = [row for row in ranges if row["start_offset"] <= offset < row["end_offset"]]
+        results.append({
+            "map_name": names[arg],
+            "offset": offset,
+            "opcode_byte": raw[offset],
+            "opcode_hex": f"0x{raw[offset]:02x}",
+            "arg_byte": arg,
+            "window_start": start,
+            "window_end": end,
+            "raw_window_hex": raw[start:end].hex(),
+            "line_ranges_at_offset": line_hits,
+            "numeric_wordcode_window": nearby,
+        })
+    return results
 
 
 def run_datamgr_map_audit(
@@ -211,7 +277,11 @@ def run_datamgr_map_audit(
         code, error, size, digest = _load_code(Path(target["path"]))
         selected: list[dict[str, Any]] = []
         all_count = 0
+        assignment_windows: list[dict[str, Any]] = []
+        module_line_ranges: list[dict[str, Any]] = []
         if code is not None:
+            assignment_windows = _map_assignment_windows(code)
+            module_line_ranges = _line_ranges(code)
             for index, (qualname, obj) in enumerate(_walk(code)):
                 all_count += 1
                 row = _code_row(index, qualname, obj)
@@ -228,6 +298,8 @@ def run_datamgr_map_audit(
             "selected_code_objects": len(selected),
             "code_objects": selected,
             "datatype_member_candidates": _candidate_datatype_members(selected),
+            "module_line_ranges": module_line_ranges,
+            "map_assignment_windows": assignment_windows,
         })
 
     current_module = next((row for row in modules if row["layer"] == "current"), modules[0] if modules else None)
@@ -242,18 +314,21 @@ def run_datamgr_map_audit(
             "marshal_compatible_modules": sum(bool(row["marshal_compatible"]) for row in modules),
             "selected_code_objects": sum(row["selected_code_objects"] for row in modules),
             "datatype_member_candidates": len((current_module or {}).get("datatype_member_candidates") or []),
+            "map_assignment_windows": sum(len(row.get("map_assignment_windows") or []) for row in modules),
         },
         "map_names": sorted(MAP_NAMES),
         "current_datatype_member_candidates": (current_module or {}).get("datatype_member_candidates") or [],
+        "current_map_assignment_windows": (current_module or {}).get("map_assignment_windows") or [],
         "modules": modules,
         "policy": {
             "scope": "Only game_common/helper/DataMgr.pyc is deeply inspected from completed offline snapshots.",
-            "opcode_semantics": "No stock dis opcode names are treated as authoritative. Full targeted code bytes and constants are retained for structural analysis.",
+            "opcode_semantics": "Numeric opcode/argument bytes are retained without assigning stock Python opcode names. co_names/co_consts values are emitted only as index candidates for structural analysis.",
             "datatype_ordinals": "ordinal_candidate is an observed class-member ordering candidate, not yet a verified enum numeric value unless independently corroborated.",
+            "map_windows": "Map assignment windows are structural evidence around numeric instruction words whose argument indexes a known map name; they do not by themselves assert dictionary semantics.",
             "execution": "No game module is imported or executed; marshal is used only to deserialize CodeType metadata.",
             "live_game": "No process handle, debugger, hook, injection, memory access, network interception, client modification, or anti-cheat interaction.",
         },
-        "next_step": "Reconstruct DATA_TYPE_MAP and DATA_TYPE_PROXY_MAP from module constants/code structure, then corroborate candidate pairs against DataMgr accessor/converter functions before publication.",
+        "next_step": "Use numeric map-assignment windows plus DataType ordering and package/proxy constants to reconstruct DATA_TYPE_MAP and DATA_TYPE_PROXY_MAP, then corroborate against accessor/converter functions.",
     }
     _write_json(reports_dir / "datamgr-map-static-audit.json", report)
     return report
