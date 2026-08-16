@@ -5,12 +5,12 @@ This automates the manual research loop used in NeoX Explorer:
     Weapon identity -> exact owning record -> typed outbound field -> next owner
 
 The tracer deliberately does *not* recursively follow every equal scalar in the
-reference index.  Each identity kind has a bounded set of canonical/diagnostic
-owner tables.  Exact occurrences outside those tables are counted as references
-for provenance, but they are not traversed.  This keeps short numeric values such
+reference index. Each identity kind has a bounded set of canonical/diagnostic
+owner tables. Exact occurrences outside those tables are counted as references
+for provenance, but they are not traversed. This keeps short numeric values such
 as prototype ``204`` from leaking into unrelated systems.
 
-The output is research evidence only.  It never modifies published web data and
+The output is research evidence only. It never modifies published web data and
 never promotes a field to VERIFIED/PUBLISHABLE by itself.
 """
 from __future__ import annotations
@@ -178,7 +178,12 @@ def _seed_rows(weapon: dict[str, Any], console: ResearchConsole) -> list[dict[st
 
 
 def _preferred_layer(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Prefer current-patch occurrences for one exact record, otherwise base."""
+    """Return one representative occurrence per exact record, preferring current.
+
+    One NeoX record can contain the same identity in several fields. The guided
+    tracer budgets owner *records*, not scalar occurrences, so duplicate fields in
+    the same record must never consume multiple owner-record slots.
+    """
     grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
     order: list[tuple[str, str]] = []
     for row in rows:
@@ -191,7 +196,8 @@ def _preferred_layer(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for key in order:
         candidates = grouped[key]
         current = [row for row in candidates if row.get("source") == "current"]
-        selected.extend(current or [row for row in candidates if row.get("source") == "base"] or candidates[:1])
+        base = [row for row in candidates if row.get("source") == "base"]
+        selected.append((current or base or candidates)[0])
     return selected
 
 
