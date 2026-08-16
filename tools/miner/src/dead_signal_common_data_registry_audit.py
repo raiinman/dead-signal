@@ -3,6 +3,9 @@
 The audit scans the already-extracted PYC snapshot for exact registry signatures
 (`common_data` and `*_TABLE`) and then walks every code object in matching modules.
 It never imports or executes game bytecode and never touches the live game process.
+
+The discovery pass is deliberately memory-bounded: it never retains PYC payloads.
+Matching modules are reopened and inspected one at a time during the analysis pass.
 """
 from __future__ import annotations
 
@@ -11,14 +14,18 @@ import json
 import marshal
 import re
 import types
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
 from typing import Any, Callable
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 ActivityCallback = Callable[[str], None]
 TABLE_RE_TEXT = re.compile(r"^[A-Z][A-Z0-9_]*_TABLE$")
 TABLE_RE_BYTES = re.compile(rb"[A-Z][A-Z0-9_]{2,}_TABLE")
+MAX_RETAINED_NAMES = 256
+MAX_RETAINED_STRINGS = 128
+MAX_RETAINED_STRING_LENGTH = 512
+MAX_BYTECODE_PREFIX = 256
 
 
 def _read_json(path: Path, default: Any = None) -> Any:
@@ -41,10 +48,7 @@ def _source_root(snapshot: Path) -> Path | None:
     if not raw:
         return None
     root = Path(str(raw)).expanduser()
-    if not root.is_absolute():
-        root = (snapshot / root).resolve()
-    else:
-        root = root.resolve()
+    root = (snapshot / root).resolve() if not root.is_absolute() else root.resolve()
     return root if root.is_dir() else None
 
 
@@ -91,12 +95,20 @@ def _walk(code: types.CodeType, qualname: str = "<module>"):
 def _string_constants(code: types.CodeType) -> list[str]:
     result: list[str] = []
     for value in code.co_consts:
+        values: tuple[Any, ...] | frozenset[Any]
         if isinstance(value, str):
-            result.append(value)
+            candidates = (value,)
         elif isinstance(value, tuple):
-            result.extend(str(item) for item in value if isinstance(item, str))
+            candidates = value
         elif isinstance(value, frozenset):
-            result.extend(str(item) for item in value if isinstance(item, str))
+            candidates = value
+        else:
+            continue
+        for item in candidates:
+            if isinstance(item, str):
+                result.append(item[:MAX_RETAINED_STRING_LENGTH])
+                if len(result) >= MAX_RETAINED_STRINGS:
+                    return result
     return result
 
 
@@ -105,31 +117,35 @@ def _table_symbols(names: list[str], strings: list[str]) -> list[str]:
 
 
 def _code_row(index: int, qualname: str, code: types.CodeType) -> dict[str, Any]:
-    names = list(map(str, code.co_names))
+    all_names = list(map(str, code.co_names))
     strings = _string_constants(code)
-    tables = _table_symbols(names, strings)
-    common_data = "common_data" in names or "common_data" in strings
-    env = "Env" in names or "Env" in strings
+    tables = _table_symbols(all_names, strings)
+    common_data = "common_data" in all_names or "common_data" in strings
+    env = "Env" in all_names or "Env" in strings
+    bytecode = code.co_code
     return {
         "index": index,
         "qualname": qualname,
         "co_name": code.co_name,
         "co_filename": code.co_filename,
         "co_firstlineno": code.co_firstlineno,
-        "co_names": names,
-        "co_varnames": list(map(str, code.co_varnames)),
+        "co_names": all_names[:MAX_RETAINED_NAMES],
+        "co_names_total": len(all_names),
+        "co_varnames": list(map(str, code.co_varnames))[:MAX_RETAINED_NAMES],
         "string_constants": strings,
         "table_symbols": tables,
         "references_common_data": common_data,
         "references_env": env,
         "common_data_and_table_cooccur": bool(common_data and tables),
-        "co_code_length": len(code.co_code),
-        "co_code_sha256": hashlib.sha256(code.co_code).hexdigest(),
-        "co_code_hex": code.co_code.hex(),
+        "co_code_length": len(bytecode),
+        "co_code_sha256": hashlib.sha256(bytecode).hexdigest(),
+        "co_code_prefix_hex": bytecode[:MAX_BYTECODE_PREFIX].hex(),
+        "co_code_prefix_bytes": min(len(bytecode), MAX_BYTECODE_PREFIX),
     }
 
 
 def _scan_candidates(base: Path, current: Path, *, activity: ActivityCallback) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Discover matching PYC paths without retaining any file payloads."""
     candidates: list[dict[str, Any]] = []
     seen: set[str] = set()
     scanned = 0
@@ -157,14 +173,14 @@ def _scan_candidates(base: Path, current: Path, *, activity: ActivityCallback) -
             candidates.append({
                 "layer": layer,
                 "source_root": str(root),
-                "path": resolved,
+                "path": str(resolved),
                 "relative_path": resolved.relative_to(root).as_posix(),
                 "file_size": len(raw),
                 "file_sha256": hashlib.sha256(raw).hexdigest(),
                 "raw_common_data_hit": has_common,
                 "raw_table_symbols": raw_tables,
-                "raw": raw,
             })
+            # `raw` falls out of scope each iteration; no candidate payload is retained.
     candidates.sort(key=lambda row: (0 if row["layer"] == "current" else 1, row["relative_path"].casefold()))
     return candidates, {
         "pyc_files_scanned": scanned,
@@ -214,28 +230,46 @@ def run_common_data_registry_audit(
     activity(f"Common Data Registry Audit: found {len(candidates)} registry-signature module candidate(s)")
 
     modules: list[dict[str, Any]] = []
-    for candidate in candidates:
-        raw = candidate.pop("raw")
+    for number, candidate in enumerate(candidates, start=1):
+        path = Path(str(candidate["path"]))
+        activity(
+            f"Common Data Registry Audit: inspecting {number}/{len(candidates)} "
+            f"{candidate['relative_path']}"
+        )
+        try:
+            raw = path.read_bytes()
+        except OSError as exc:
+            module = {key: value for key, value in candidate.items() if key != "path"}
+            module.update({"marshal_compatible": False, "error": f"{type(exc).__name__}: {exc}", "code_objects": []})
+            modules.append(module)
+            continue
+
         code, error = _load_code(raw)
-        module: dict[str, Any] = dict(candidate)
+        # Drop the raw module bytes before moving on to the next candidate. The CodeType
+        # tree contains its own compact metadata and is the only object needed below.
+        del raw
+        module = {key: value for key, value in candidate.items() if key != "path"}
         module["marshal_compatible"] = code is not None
         module["error"] = error
         module["code_objects"] = []
         if code is not None:
-            rows = [_code_row(index, qualname, obj) for index, (qualname, obj) in enumerate(_walk(code))]
-            relevant = [
-                row for row in rows
-                if row["references_common_data"] or row["references_env"] or row["table_symbols"]
-            ]
+            all_count = 0
+            relevant: list[dict[str, Any]] = []
+            for index, (qualname, obj) in enumerate(_walk(code)):
+                all_count += 1
+                row = _code_row(index, qualname, obj)
+                if row["references_common_data"] or row["references_env"] or row["table_symbols"]:
+                    relevant.append(row)
             module["code_objects"] = relevant
             module["record_counts"] = {
-                "all_code_objects": len(rows),
+                "all_code_objects": all_count,
                 "registry_relevant_code_objects": len(relevant),
                 "common_data_code_objects": sum(bool(row["references_common_data"]) for row in relevant),
                 "table_symbol_code_objects": sum(bool(row["table_symbols"]) for row in relevant),
                 "common_data_and_table_code_objects": sum(bool(row["common_data_and_table_cooccur"]) for row in relevant),
             }
         modules.append(module)
+        del code
 
     inventory = _table_inventory(modules)
     common_data_accesses = []
@@ -260,7 +294,7 @@ def run_common_data_registry_audit(
         "schema_version": SCHEMA_VERSION,
         "brand": "Dead Signal",
         "subject": "Once Human Env.common_data table registry",
-        "mode": "offline-static-pyc-registry-audit",
+        "mode": "offline-static-pyc-registry-audit-memory-bounded",
         "record_counts": {
             **scan_counts,
             "candidate_modules": len(modules),
@@ -274,7 +308,9 @@ def run_common_data_registry_audit(
         "common_data_accesses": common_data_accesses,
         "modules": modules,
         "policy": {
-            "discovery": "The complete extracted PYC tree is streamed for exact raw signatures common_data and uppercase *_TABLE tokens; matching modules are statically unmarshaled.",
+            "discovery": "The complete extracted PYC tree is scanned for exact raw signatures common_data and uppercase *_TABLE tokens. Discovery retains only paths and compact signature metadata.",
+            "analysis": "Candidate PYC files are reopened and statically inspected one at a time; raw payloads are released before advancing.",
+            "bytecode_retention": "Broad audit retains bytecode SHA-256, length, and a bounded 256-byte prefix only. Full PYC remains available at the recorded extracted path for later targeted audits.",
             "execution": "No game module is imported or executed. marshal is used only to inspect CodeType metadata.",
             "identity": "Only exact symbols/strings are reported. No fuzzy table-name inference is used.",
             "live_game": "No process handle, debugger, hook, injection, memory access, network interception, client modification, or anti-cheat interaction.",
