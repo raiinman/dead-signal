@@ -2,8 +2,8 @@
 
 Runs the research extensions against an already-completed Miner snapshot without
 re-reading or modifying the installed game. It regenerates research reports,
-analytics, discovery products, the advisory publication gate, and a compact ZIP
-bundle suitable for review or upload. No public website dataset is modified.
+analytics, discovery products, the advisory publication gate, and compact ZIP
+bundles suitable for review or upload. No public website dataset is modified.
 """
 
 from __future__ import annotations
@@ -19,9 +19,10 @@ from dead_signal_analytics import DeadSignalAnalytics
 from dead_signal_discovery import DeadSignalDiscovery
 from dead_signal_publication_gate import build_gate_report
 from dead_signal_research_suite import run_research_suite
+from dead_signal_weapon_description_consumer import run_weapon_description_consumer_trace
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 LogCallback = Callable[[str], None]
 ProgressCallback = Callable[[int, str], None]
 ActivityCallback = Callable[[str], None]
@@ -177,6 +178,67 @@ def build_bundle(
     return archive
 
 
+def build_ui_consumer_bundle(paths: dict[str, Path], report: dict[str, Any]) -> Path:
+    """Package only the surgical Weapon UI-consumer investigation."""
+    intelligence_dir = paths["output"] / "intelligence"
+    intelligence_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%SZ")
+    archive = intelligence_dir / f"Dead-Signal-Weapon-UI-Trace-{stamp}.zip"
+    report_path = paths["reports"] / "weapon-description-ui-consumer-trace.json"
+    summary = {
+        "schema": "dead-signal-weapon-ui-trace-bundle",
+        "schema_version": 1,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "record_counts": report.get("record_counts") or {},
+        "policy": "Targeted read-only UI-consumer research; no player-facing data was modified.",
+    }
+    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as destination:
+        destination.writestr("dead-signal-weapon-ui-trace-summary.json", json.dumps(summary, ensure_ascii=False, indent=2) + "\n")
+        destination.write(report_path, "published/reports/weapon-description-ui-consumer-trace.json")
+        destination.write(paths["weapons"], "published/data/weapons.json")
+        last_run = paths["output"] / "last-run.json"
+        if last_run.is_file():
+            destination.write(last_run, "last-run.json")
+    return archive
+
+
+def compile_weapon_description_ui_trace(
+    output: Path | str,
+    *,
+    log: LogCallback | None = None,
+    progress: ProgressCallback | None = None,
+    activity: ActivityCallback | None = None,
+) -> dict[str, Any]:
+    """Run only the targeted Weapon Description UI-consumer path."""
+    log = log or (lambda _value: None)
+    progress = progress or (lambda _value, _label: None)
+    activity = activity or log
+    progress(5, "Resolve Snapshot")
+    activity("Resolving completed Dead Signal Miner snapshot")
+    paths = resolve_snapshot(output)
+    paths["reports"].mkdir(parents=True, exist_ok=True)
+    progress(20, "Weapon UI Consumer Trace")
+    started = time.perf_counter()
+    report = run_weapon_description_consumer_trace(
+        paths["base"], paths["current"], paths["weapons"], paths["reports"], activity=activity
+    )
+    duration = round(time.perf_counter() - started, 6)
+    progress(90, "Package UI Trace")
+    activity(f"Targeted UI Consumer Trace finished in {duration:.1f}s")
+    archive = build_ui_consumer_bundle(paths, report)
+    activity(f"Weapon UI trace bundle ready: {archive.name}")
+    progress(100, "Weapon UI Trace ready")
+    log(f"Dead Signal Weapon UI trace bundle ready: {archive}")
+    return {
+        "schema": "dead-signal-weapon-ui-trace-compiled",
+        "schema_version": 1,
+        "duration_seconds": duration,
+        "record_counts": report.get("record_counts") or {},
+        "report": str(paths["reports"] / "weapon-description-ui-consumer-trace.json"),
+        "bundle": str(archive),
+    }
+
+
 def compile_intelligence(
     output: Path | str,
     *,
@@ -195,6 +257,17 @@ def compile_intelligence(
     paths["reports"].mkdir(parents=True, exist_ok=True)
     stages: list[dict[str, Any]] = []
 
+    ui_consumer = _stage(
+        stages,
+        "Weapon UI Consumer Trace",
+        lambda: run_weapon_description_consumer_trace(
+            paths["base"], paths["current"], paths["weapons"], paths["reports"], activity=activity
+        ),
+        log=log,
+        progress=progress,
+        activity=activity,
+        percent=5,
+    )
     research = _stage(
         stages,
         "Research Suite",
@@ -208,7 +281,7 @@ def compile_intelligence(
         log=log,
         progress=progress,
         activity=activity,
-        percent=10,
+        percent=12,
     )
     discovery = _stage(
         stages,
@@ -217,7 +290,7 @@ def compile_intelligence(
         log=log,
         progress=progress,
         activity=activity,
-        percent=45,
+        percent=48,
     )
     analytics_engine = DeadSignalAnalytics(paths["output"])
     analytics = _stage(
@@ -227,7 +300,7 @@ def compile_intelligence(
         log=log,
         progress=progress,
         activity=activity,
-        percent=65,
+        percent=68,
     )
     description_leads = _stage(
         stages,
@@ -236,7 +309,7 @@ def compile_intelligence(
         log=log,
         progress=progress,
         activity=activity,
-        percent=76,
+        percent=78,
     )
     suspicious_fields = _stage(
         stages,
@@ -245,7 +318,7 @@ def compile_intelligence(
         log=log,
         progress=progress,
         activity=activity,
-        percent=82,
+        percent=84,
     )
     _write_json(paths["reports"] / "dead-signal-description-leads.json", description_leads)
     activity("Wrote dead-signal-description-leads.json")
@@ -259,10 +332,11 @@ def compile_intelligence(
         log=log,
         progress=progress,
         activity=activity,
-        percent=90,
+        percent=91,
     )
 
     research_counts = research.get("record_counts") or {}
+    ui_counts = ui_consumer.get("record_counts") or {}
     compiled = {
         "schema": "dead-signal-intelligence-compiled",
         "schema_version": SCHEMA_VERSION,
@@ -278,6 +352,9 @@ def compile_intelligence(
         "stages": stages,
         "record_counts": {
             "weapons": research_counts.get("weapons", 0),
+            "ui_consumer_candidates": ui_counts.get("consumer_backed_candidates", 0),
+            "prototype_desc_fields_found": ui_counts.get("prototype_desc_fields_found", 0),
+            "prototype_desc_resolved": ui_counts.get("consistent_resolutions", 0),
             "profiled_tables": research_counts.get("profiled_tables", 0),
             "source_finder_states": research_counts.get("source_finder_states", {}),
             "multihop_candidates": research_counts.get("multihop_candidates", 0),
@@ -290,6 +367,7 @@ def compile_intelligence(
             "publishable_candidates": (gate.get("record_counts") or {}).get("publishable_candidates", 0),
         },
         "reports": {
+            "weapon_description_ui_consumer": str(paths["reports"] / "weapon-description-ui-consumer-trace.json"),
             "research_suite": str(paths["reports"] / "dead-signal-research-suite.json"),
             "weapon_description_multihop": str(paths["reports"] / "weapon-description-multihop.json"),
             "weapon_description_combined": str(paths["reports"] / "weapon-description-combined-investigation.json"),
