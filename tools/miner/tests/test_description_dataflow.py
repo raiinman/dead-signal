@@ -29,7 +29,7 @@ def write_snapshot(path: Path, source_root: Path) -> None:
     (path / "snapshot.json").write_text(json.dumps({"source_root": str(source_root)}), encoding="utf-8")
 
 
-def test_trace_captures_description_functions_without_executing_module(tmp_path: Path) -> None:
+def test_trace_captures_runtime_prototype_description_path_without_executing_module(tmp_path: Path) -> None:
     root = tmp_path / "extracted"
     base = tmp_path / "base"
     current = tmp_path / "current"
@@ -40,45 +40,68 @@ def test_trace_captures_description_functions_without_executing_module(tmp_path:
 from pathlib import Path
 Path(r"{sentinel}").write_text("BAD")
 
-def get_item_desc_text(item):
-    return item.get("detail_desc")
+class BluePrintHelper:
+    @staticmethod
+    def get_weapon_prototype_data_val_by_key(prototype_no, key, default):
+        return default
 
-def get_weapon_item_data(item):
-    prototype_desc = get_item_desc_text(item)
-    return {{"prototype_desc": prototype_desc}}
+def get_item_desc_text(item):
+    return item.get("short_desc")
+
+def prototype_desc_formula(prototype_no):
+    return BluePrintHelper.get_weapon_prototype_data_val_by_key(prototype_no, "prototype_desc", "")
+
+def get_gun_info(item_id):
+    return prototype_desc_formula(item_id)
+
+def get_gun_item_data(item_no, item_star=1):
+    return get_gun_info(item_no)
+
+def get_weapon_item_data(item_no, item_star=1, is_melee=False):
+    return get_gun_item_data(item_no, item_star)
 '''
     blueprint_source = '''
-weapon_prototype_data = {}
+WEAPON_PROTOTYPE_TABLE = "weapon_prototype_data"
+class Env:
+    common_data = {"weapon_prototype_data": {}}
 
 def get_weapon_prototype_data(prototype_id):
-    return weapon_prototype_data.get(prototype_id)
+    return Env.common_data.get(WEAPON_PROTOTYPE_TABLE, {}).get(prototype_id)
 
-def get_weapon_prototype_data_val_by_key(prototype_id, key):
+def get_weapon_prototype_data_val_by_key(prototype_id, key, default=None):
     data = get_weapon_prototype_data(prototype_id)
-    return data.get(key) if data else None
+    return data.get(key, default) if data else default
+'''
+    producer_source = '''
+data = {101: {"prototype_name": "Example", "prototype_desc": "Example description"}}
 '''
     write_pyc(root / "ui/data_tools/ItemDataTools.pyc", item_source, "ui/data_tools/ItemDataTools.py")
     write_pyc(root / "game_common/guncore/BluePrintHelper.pyc", blueprint_source, "game_common/guncore/BluePrintHelper.py")
+    write_pyc(root / "game_common/data/weapon_prototype_data.pyc", producer_source, "game_common/data/weapon_prototype_data.py")
     write_snapshot(base, root)
     write_snapshot(current, root)
 
     report = run_description_dataflow_trace(base, current, reports)
     assert sentinel.exists() is False
     assert report["mode"] == "offline-static-pyc-only"
-    assert report["record_counts"]["target_pyc_files"] == 2
-    assert report["record_counts"]["marshal_compatible_pycs"] == 2
-    assert report["record_counts"]["prototype_desc_get_item_desc_text_cooccurrences"] >= 1
+    assert report["record_counts"]["target_pyc_files"] == 3
+    assert report["record_counts"]["consumer_modules"] == 2
+    assert report["record_counts"]["producer_candidate_modules"] == 1
+    assert report["record_counts"]["marshal_compatible_pycs"] == 3
+    assert report["record_counts"]["prototype_desc_prototype_lookup_functions"] >= 1
     assert report["target_presence"]["prototype_desc"] >= 1
-    assert report["target_presence"]["get_item_desc_text"] >= 1
+    assert report["target_presence"]["weapon_prototype_data"] >= 1
     functions = {row["function"] for row in report["code_objects"]}
     assert "get_weapon_item_data" in functions
-    assert "get_item_desc_text" in functions
+    assert "get_gun_item_data" in functions
+    assert "get_gun_info" in functions
     assert "get_weapon_prototype_data_val_by_key" in functions
-    weapon_row = next(row for row in report["code_objects"] if row["function"] == "get_weapon_item_data")
-    assert weapon_row["relationship_signals"]["prototype_desc_and_desc_helper_cooccur"] is True
-    assert weapon_row["code_capsule"]["co_code_hex"]
-    assert weapon_row["raw_wordcode"]
-    assert "Diagnostic only" in weapon_row["diagnostic_disassembly"]["warning"]
+    formula_row = next(row for row in report["code_objects"] if row["function"] == "prototype_desc_formula")
+    assert formula_row["relationship_signals"]["prototype_desc_and_prototype_lookup_cooccur"] is True
+    assert formula_row["code_capsule"]["co_code_hex"]
+    assert formula_row["raw_wordcode"]
+    assert "Diagnostic only" in formula_row["diagnostic_disassembly"]["warning"]
+    assert report["producer_candidates"][0]["relative_path"].endswith("weapon_prototype_data.pyc")
     assert "Never opened" in report["safety"]["game_process"]
     assert (reports / "weapon-description-static-dataflow.json").is_file()
 
@@ -120,18 +143,17 @@ def test_compact_compiler_builds_only_description_trace_bundle(tmp_path: Path) -
     base = tmp_path / "base"
     current = tmp_path / "current"
     published = tmp_path / "published"
-    reports = published / "reports"
     (published / "data").mkdir(parents=True)
     (published / "data" / "weapons.json").write_text(json.dumps({"weapons": []}), encoding="utf-8")
 
     write_pyc(
         root / "ui/data_tools/ItemDataTools.pyc",
-        'def get_item_desc_text(item):\n    return item.get("detail_desc")\n\ndef get_weapon_item_data(item):\n    prototype_desc=get_item_desc_text(item)\n    return {"prototype_desc":prototype_desc}\n',
+        'def get_item_desc_text(item):\n    return item.get("short_desc")\n\ndef get_weapon_item_data(item):\n    return item\n',
         "ui/data_tools/ItemDataTools.py",
     )
     write_pyc(
         root / "game_common/guncore/BluePrintHelper.pyc",
-        'weapon_prototype_data={}\ndef get_weapon_prototype_data(x):\n    return weapon_prototype_data.get(x)\ndef get_weapon_prototype_data_val_by_key(x,k):\n    d=get_weapon_prototype_data(x)\n    return d.get(k) if d else None\n',
+        'WEAPON_PROTOTYPE_TABLE="weapon_prototype_data"\ndef get_weapon_prototype_data(x):\n    return None\ndef get_weapon_prototype_data_val_by_key(x,k,d=None):\n    return d\n',
         "game_common/guncore/BluePrintHelper.py",
     )
     write_snapshot(base, root)
