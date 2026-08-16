@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
@@ -67,6 +68,21 @@ def _validated_https_url(value: object, *, optional: bool = False) -> str | None
     return value
 
 
+def _cache_busted_manifest_url(url: str) -> str:
+    """Return the manifest URL with a unique harmless query parameter.
+
+    GitHub/raw edge caches can briefly serve an older latest.json immediately
+    after a release. A per-check query parameter plus no-cache headers keeps the
+    packaged updater from getting stranded on the previous manifest.
+    """
+    parsed = urllib.parse.urlsplit(url)
+    query = urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
+    query.append(("dead_signal_check", str(time.time_ns())))
+    return urllib.parse.urlunsplit(
+        (parsed.scheme, parsed.netloc, parsed.path, urllib.parse.urlencode(query), parsed.fragment)
+    )
+
+
 def parse_manifest(payload: object, current_version: str) -> UpdateInfo:
     if not isinstance(payload, dict) or payload.get("schema_version") != 1:
         raise UpdateError("Unsupported update manifest schema")
@@ -106,10 +122,17 @@ def check_for_updates(
     manifest_url: str = DEFAULT_MANIFEST_URL,
     timeout: float = 12.0,
 ) -> UpdateInfo:
-    url = _validated_https_url(manifest_url)
+    validated_url = _validated_https_url(manifest_url)
+    assert validated_url is not None
+    url = _cache_busted_manifest_url(validated_url)
     request = urllib.request.Request(
         url,
-        headers={"Accept": "application/json", "User-Agent": f"Dead-Signal-Miner/{current_version}"},
+        headers={
+            "Accept": "application/json",
+            "Cache-Control": "no-cache, no-store, max-age=0",
+            "Pragma": "no-cache",
+            "User-Agent": f"Dead-Signal-Miner/{current_version}",
+        },
     )
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
