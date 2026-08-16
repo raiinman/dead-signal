@@ -6,9 +6,8 @@ This automates the manual research loop used in NeoX Explorer:
 
 The tracer deliberately does *not* recursively follow every equal scalar in the
 reference index. Each identity kind has a bounded set of canonical/diagnostic
-owner tables. Exact occurrences outside those tables are counted as references
-for provenance, but they are not traversed. This keeps short numeric values such
-as prototype ``204`` from leaking into unrelated systems.
+owner tables *and* accepted owning fields. Exact occurrences outside those
+owner rules are counted as references for provenance, but they are not traversed.
 
 The output is research evidence only. It never modifies published web data and
 never promotes a field to VERIFIED/PUBLISHABLE by itself.
@@ -23,74 +22,87 @@ from neox_data_explorer import NeoXDataExplorer
 from research_console import ResearchConsole
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 MAX_DEPTH = 6
 MAX_IDENTITIES = 250
 MAX_OWNER_RECORDS_PER_IDENTITY = 12
 MAX_EXACT_REFS = 5000
 
-# Ordered destination tables. Earlier entries are the canonical owner when one is
-# present; later entries are useful direct typed records that expose neighboring
-# fields without opening the entire equal-scalar neighborhood.
+# A table match alone is not enough. The full 120-weapon trace proved that equal
+# scalars inside an otherwise relevant table can still jump into a neighboring
+# weapon family (for example blueprint_template_no=10 being mistaken for a
+# blueprint identity). Each rule therefore names both the table and the fields
+# that are allowed to establish ownership for that identity kind.
+OWNER_RULES: dict[str, dict[str, frozenset[str]]] = {
+    "blueprint_id": {
+        "game_common/data/gun_blueprint_data.json": frozenset({"record_id", "blueprint_id", "blueprint_no"}),
+        "game_common/data/gun_blueprint_chip_map_data.json": frozenset({"blueprint_id", "blueprint_no"}),
+        "game_common/data/gun_blueprint_attr_data.json": frozenset({"blueprint_id", "blueprint_no"}),
+        "game_common/data/blueprint_recipe_season_data.json": frozenset({"record_id", "blueprint_id", "blueprint_no"}),
+    },
+    "item_id": {
+        "game_common/data/equip_data.json": frozenset({"record_id"}),
+        "game_common/data/item_data.json": frozenset({"record_id"}),
+        "game_common/data/item_to_gun_mapping_data.json": frozenset({"record_id", "item_id", "item_no"}),
+        "game_common/data/equip_origin_data.json": frozenset({"record_id"}),
+    },
+    "tier_item_id": {
+        "game_common/data/equip_data.json": frozenset({"record_id"}),
+        "game_common/data/item_data.json": frozenset({"record_id"}),
+        "game_common/data/item_to_gun_mapping_data.json": frozenset({"record_id", "item_id", "item_no"}),
+    },
+    "gun_no": {
+        "game_common/data/gun_base_params_data.json": frozenset({"record_id"}),
+        "game_common/data/item_to_gun_mapping_data.json": frozenset({"gun_no"}),
+        "game_common/data/gun_stability_data.json": frozenset({"record_id", "gun_no"}),
+    },
+    "prototype_id": {
+        "game_common/data/weapon_prototype_data.json": frozenset({"record_id", "prototype_id", "prototype_no"}),
+    },
+    "fragment_id": {
+        "game_common/data/gun_blueprint_chip_map_data.json": frozenset({"record_id", "fragment_id", "fragment_no"}),
+        "game_common/data/item_data.json": frozenset({"record_id"}),
+    },
+    "ammo_item_id": {
+        "game_common/data/item_data.json": frozenset({"record_id"}),
+        "game_common/data/forge_data.json": frozenset({"item_id", "item_no"}),
+    },
+    "bullet_base_id": {
+        "game_common/data/bullet_base_params_data.json": frozenset({"record_id", "bullet_base_id", "bullet_base_no"}),
+    },
+    "bullet_pattern_id": {
+        "client_data/bullet_pattern_data.json": frozenset({"record_id", "pattern_no", "bullet_pattern_no"}),
+    },
+    "bullet_scatter_id": {
+        "game_common/data/bullet_scatter_data.json": frozenset({"record_id", "scatter_no", "bullet_scatter_no"}),
+        "client_data/bullet_scatter_data.json": frozenset({"record_id", "scatter_no", "bullet_scatter_no"}),
+    },
+    "crosshair_id": {
+        "client_data/gun_crosshair_data.json": frozenset({"record_id", "crosshair_no", "bullet_aim_no"}),
+        "client_data/crosshair_data.json": frozenset({"record_id", "crosshair_no", "bullet_aim_no"}),
+    },
+    "accessory_sequence_id": {
+        "game_common/data/gun_accessory_slot_params_data.json": frozenset({"accessory_seq_no"}),
+        "game_common/data/weapon_accessory_data.json": frozenset({"record_id", "accessory_seq_no"}),
+    },
+    "skill_id": {
+        "game_common/data/passive_skill_data.json": frozenset({"record_id", "skill_id", "skill_no", "skill_code"}),
+        "game_common/data/skill_data.json": frozenset({"record_id", "skill_id", "skill_no", "skill_code"}),
+    },
+    "buff_id": {
+        "game_common/data/buff/buff_data.json": frozenset({"record_id", "buff_id", "buff_no"}),
+        "game_common/data/buff/buff_data_0.json": frozenset({"record_id", "buff_id", "buff_no"}),
+        "game_common/data/buff/buff_data_1.json": frozenset({"record_id", "buff_id", "buff_no"}),
+        "game_common/data/buff/buff_data_2.json": frozenset({"record_id", "buff_id", "buff_no"}),
+    },
+    "forge_id": {
+        "game_common/data/forge_data.json": frozenset({"record_id", "forge_id", "forge_no"}),
+    },
+}
+
+# Compatibility for UI/tests that only need the ordered table list.
 OWNER_TABLES: dict[str, tuple[str, ...]] = {
-    "blueprint_id": (
-        "game_common/data/gun_blueprint_data.json",
-        "game_common/data/gun_blueprint_chip_map_data.json",
-        "game_common/data/gun_blueprint_attr_data.json",
-        "game_common/data/blueprint_recipe_season_data.json",
-    ),
-    "item_id": (
-        "game_common/data/equip_data.json",
-        "game_common/data/item_data.json",
-        "game_common/data/item_to_gun_mapping_data.json",
-        "game_common/data/equip_origin_data.json",
-        "game_common/data/equip_posture_data.json",
-    ),
-    "tier_item_id": (
-        "game_common/data/equip_data.json",
-        "game_common/data/item_data.json",
-        "game_common/data/item_to_gun_mapping_data.json",
-    ),
-    "gun_no": (
-        "game_common/data/gun_base_params_data.json",
-        "game_common/data/item_to_gun_mapping_data.json",
-        "game_common/data/bullet_base_params_data.json",
-        "game_common/data/gun_stability_data.json",
-    ),
-    "prototype_id": ("game_common/data/weapon_prototype_data.json",),
-    "fragment_id": (
-        "game_common/data/gun_blueprint_chip_map_data.json",
-        "game_common/data/item_data.json",
-    ),
-    "ammo_item_id": (
-        "game_common/data/item_data.json",
-        "game_common/data/forge_data.json",
-    ),
-    "bullet_base_id": ("game_common/data/bullet_base_params_data.json",),
-    "bullet_pattern_id": ("client_data/bullet_pattern_data.json",),
-    "bullet_scatter_id": (
-        "game_common/data/bullet_scatter_data.json",
-        "client_data/bullet_scatter_data.json",
-    ),
-    "crosshair_id": (
-        "client_data/gun_crosshair_data.json",
-        "client_data/crosshair_data.json",
-    ),
-    "accessory_sequence_id": (
-        "game_common/data/gun_accessory_slot_params_data.json",
-        "game_common/data/weapon_accessory_data.json",
-    ),
-    "skill_id": (
-        "game_common/data/passive_skill_data.json",
-        "game_common/data/skill_data.json",
-    ),
-    "buff_id": (
-        "game_common/data/buff/buff_data.json",
-        "game_common/data/buff/buff_data_0.json",
-        "game_common/data/buff/buff_data_1.json",
-        "game_common/data/buff/buff_data_2.json",
-    ),
-    "forge_id": ("game_common/data/forge_data.json",),
+    kind: tuple(rules) for kind, rules in OWNER_RULES.items()
 }
 
 
@@ -99,7 +111,12 @@ def _scalar(value: object) -> str:
 
 
 def _field_kind(field: object) -> str | None:
-    """Map an explicit schema field to the identity type it carries."""
+    """Map an explicit schema field to the identity type it carries.
+
+    This is intentionally explicit. The first fleet trace showed that a generic
+    suffix heuristic turns metadata fields such as blueprint_template_no into
+    false identities and then walks unrelated Weapon families.
+    """
     name = str(field or "").strip().casefold()
     exact = {
         "blueprint_id": "blueprint_id",
@@ -128,24 +145,34 @@ def _field_kind(field: object) -> str | None:
         "gun_skill_no": "skill_id",
         "buff_id": "buff_id",
         "buff_no": "buff_id",
+        "keyword_buff_id": "buff_id",
         "forge_id": "forge_id",
         "forge_no": "forge_id",
+        "corr_forge_no": "forge_id",
     }
-    if name in exact:
-        return exact[name]
-    if "blueprint" in name and name.endswith(("_id", "_no")):
-        return "blueprint_id"
-    if "prototype" in name and name.endswith(("_id", "_no")):
-        return "prototype_id"
-    if "fragment" in name and name.endswith(("_id", "_no")):
-        return "fragment_id"
-    if "buff" in name and name.endswith(("_id", "_no")):
-        return "buff_id"
-    if "skill" in name and name.endswith(("_id", "_no", "_code")):
-        return "skill_id"
-    if "forge" in name and name.endswith(("_id", "_no")):
-        return "forge_id"
-    return None
+    return exact.get(name)
+
+
+def _owner_ref_matches(kind: str, row: dict[str, Any]) -> bool:
+    table = str(row.get("table") or "")
+    field = str(row.get("field") or "").strip().casefold()
+    allowed_fields = OWNER_RULES.get(kind, {}).get(table)
+    return bool(allowed_fields and field in allowed_fields)
+
+
+def _reference_candidates(rows: list[dict[str, Any]], limit: int = 12) -> list[dict[str, Any]]:
+    """Summarize where an unresolved exact value actually occurs.
+
+    This lets a real snapshot teach us a missing owner rule without promoting any
+    of those candidates automatically.
+    """
+    counts: Counter[tuple[str, str]] = Counter()
+    for row in rows:
+        counts[(str(row.get("table") or ""), str(row.get("field") or ""))] += 1
+    return [
+        {"table": table, "field": field, "count": count}
+        for (table, field), count in counts.most_common(limit)
+    ]
 
 
 def _seed_rows(weapon: dict[str, Any], console: ResearchConsole) -> list[dict[str, str]]:
@@ -178,12 +205,7 @@ def _seed_rows(weapon: dict[str, Any], console: ResearchConsole) -> list[dict[st
 
 
 def _preferred_layer(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Return one representative occurrence per exact record, preferring current.
-
-    One NeoX record can contain the same identity in several fields. The guided
-    tracer budgets owner *records*, not scalar occurrences, so duplicate fields in
-    the same record must never consume multiple owner-record slots.
-    """
+    """Return one representative occurrence per exact record, preferring current."""
     grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
     order: list[tuple[str, str]] = []
     for row in rows:
@@ -230,10 +252,8 @@ class DeadSignalWeaponSchemaTrace:
             processed.add(key)
             allowed = OWNER_TABLES.get(kind, ())
             all_refs = self.console._trace(value, MAX_EXACT_REFS)
-            owner_refs = [row for row in all_refs if row.get("table") in allowed]
+            owner_refs = [row for row in all_refs if _owner_ref_matches(kind, row)]
             owner_refs = _preferred_layer(owner_refs)
-            # Canonical owner record IDs are far more discriminative than an equal
-            # value appearing in another field. Keep exact typed field refs too.
             owner_refs.sort(key=lambda row: (
                 0 if str(row.get("record_id")) == value else 1,
                 allowed.index(str(row.get("table"))) if str(row.get("table")) in allowed else 999,
@@ -241,6 +261,7 @@ class DeadSignalWeaponSchemaTrace:
             ))
             owner_refs = owner_refs[:MAX_OWNER_RECORDS_PER_IDENTITY]
             skipped_reference_counts[kind] += max(0, len(all_refs) - len(owner_refs))
+            state = "VERIFIED" if owner_refs else ("EXACT-REFS-NO-TYPED-OWNER" if all_refs else "UNRESOLVED")
             identity_row = {
                 "kind": kind,
                 "value": value,
@@ -249,8 +270,10 @@ class DeadSignalWeaponSchemaTrace:
                 "exact_reference_count": len(all_refs),
                 "followed_owner_record_count": len(owner_refs),
                 "owner_tables": list(allowed),
-                "state": "VERIFIED" if owner_refs else ("EXACT-REFS-NO-TYPED-OWNER" if all_refs else "UNRESOLVED"),
+                "state": state,
             }
+            if not owner_refs and all_refs:
+                identity_row["reference_candidates"] = _reference_candidates(all_refs)
             identities.append(identity_row)
 
             for ref in owner_refs:
@@ -263,7 +286,7 @@ class DeadSignalWeaponSchemaTrace:
                     "to_type": "record", "layer": layer, "table": table,
                     "record_id": record_id, "field": ref.get("field"),
                     "json_pointer": ref.get("json_pointer"), "match": "exact",
-                    "relationship": "typed-owner-exact-reference", "authoritative": True,
+                    "relationship": "typed-owner-field-exact-reference", "authoritative": True,
                 })
                 if record_key in records:
                     continue
@@ -294,7 +317,7 @@ class DeadSignalWeaponSchemaTrace:
                         "note": "Typed outbound field; next identity->owner edge must independently resolve by exact tracer evidence.",
                     })
                     next_key = (next_kind, next_value)
-                    if depth < max_depth and next_kind in OWNER_TABLES and next_key not in queued and next_key not in processed:
+                    if depth < max_depth and next_kind in OWNER_RULES and next_key not in queued and next_key not in processed:
                         queue.append((next_kind, next_value, depth + 1, f"{layer}|{table}|{record_id}{field.get('json_pointer') or ''}"))
                         queued.add(next_key)
                 records[record_key] = {
@@ -332,9 +355,9 @@ class DeadSignalWeaponSchemaTrace:
             "records": list(records.values()),
             "edges": edges,
             "policy": {
-                "workflow": "Locate exact identity -> follow only typed owner tables -> open exact NeoX record -> harvest explicit typed outbound fields -> independently exact-resolve the next owner.",
-                "matching": "No fuzzy, substring, similar-ID, or bare-number traversal. Equal scalars outside the identity kind's owner tables are provenance only and are not followed.",
-                "authority": "Identity-to-record edges are authoritative only when returned by reference-tracer.sqlite. Record-to-identity fields are typed schema leads until the next exact owner edge resolves.",
+                "workflow": "Locate exact identity -> require typed owner table + owner field -> open exact NeoX record -> harvest explicit typed outbound fields -> independently exact-resolve the next owner.",
+                "matching": "No fuzzy, substring, similar-ID, bare-number, table-only, or metadata-field traversal. Equal scalars outside the identity kind's explicit owner table/field rules are provenance only and are not followed.",
+                "authority": "Identity-to-record edges are authoritative only when the exact tracer occurrence satisfies a typed owner table/field rule. Record-to-identity fields are typed schema leads until the next exact owner edge resolves.",
                 "scope": "Bounded guided research trace; the exhaustive Identity Map ZIP remains available separately.",
                 "publication": "Research evidence only. This trace never promotes or publishes player-facing data automatically.",
             },
