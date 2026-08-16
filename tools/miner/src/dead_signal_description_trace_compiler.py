@@ -13,6 +13,7 @@ from dead_signal_bindict_schema_audit import run_weapon_prototype_bindict_audit
 from dead_signal_description_dataflow import run_description_dataflow_trace
 from dead_signal_description_dataflow_fallback import recover_persisted_description_capsules
 from dead_signal_intelligence_compiler import resolve_snapshot
+from dead_signal_weapon_prototype_projection import run_weapon_prototype_projection
 
 LogCallback = Callable[[str], None]
 ProgressCallback = Callable[[int, str], None]
@@ -80,6 +81,7 @@ def _build_bundle(
     paths: dict[str, Path],
     report: dict[str, Any],
     bindict_audit: dict[str, Any],
+    prototype_projection: dict[str, Any],
     duration: float,
 ) -> Path:
     intelligence = paths["output"] / "intelligence"
@@ -88,9 +90,10 @@ def _build_bundle(
     archive = intelligence / f"Dead-Signal-Description-DataFlow-{stamp}.zip"
     report_path = paths["reports"] / "weapon-description-static-dataflow.json"
     bindict_path = paths["reports"] / "weapon-prototype-bindict-schema-audit.json"
+    projection_path = paths["reports"] / "weapon-description-prototype-projection.json"
     summary = {
         "schema": "dead-signal-description-dataflow-bundle",
-        "schema_version": 2,
+        "schema_version": 3,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "duration_seconds": duration,
         "record_counts": report.get("record_counts") or {},
@@ -99,6 +102,10 @@ def _build_bundle(
             "status": (bindict_audit.get("interpretation") or {}).get("status"),
             "record_counts": bindict_audit.get("record_counts") or {},
             "field_presence": bindict_audit.get("field_presence") or {},
+        },
+        "prototype_projection": {
+            "record_counts": prototype_projection.get("record_counts") or {},
+            "source_layers": prototype_projection.get("source_layers") or [],
         },
         "mode": "offline-static-pyc-only",
         "safety": report.get("safety") or {},
@@ -111,6 +118,8 @@ def _build_bundle(
         destination.write(report_path, "published/reports/weapon-description-static-dataflow.json")
         if bindict_path.is_file():
             destination.write(bindict_path, "published/reports/weapon-prototype-bindict-schema-audit.json")
+        if projection_path.is_file():
+            destination.write(projection_path, "published/reports/weapon-description-prototype-projection.json")
         last_run = paths["output"] / "last-run.json"
         if last_run.is_file():
             destination.write(last_run, "last-run.json")
@@ -156,27 +165,32 @@ def compile_description_dataflow_trace(
         "get_weapon_prototype_data_val_by_key",
     }
     if not needed.issubset(target_functions):
-        progress(50, "Persisted PYC Capsule Fallback")
+        progress(48, "Persisted PYC Capsule Fallback")
         fallback = recover_persisted_description_capsules(paths["reports"], activity=activity)
         report = _merge_persisted_fallback(report, fallback)
         _write_json(paths["reports"] / "weapon-description-static-dataflow.json", report)
 
-    progress(68, "Weapon Prototype Bindict Schema Audit")
+    progress(64, "Weapon Prototype Bindict Schema Audit")
     bindict_audit = run_weapon_prototype_bindict_audit(
         paths["base"], paths["current"], paths["reports"], activity=activity
     )
 
+    progress(78, "Exact Prototype Description Projection")
+    prototype_projection = run_weapon_prototype_projection(
+        paths["base"], paths["current"], paths["weapons"], paths["reports"], activity=activity
+    )
+
     duration = round(time.perf_counter() - started, 6)
 
-    progress(90, "Package Data Flow Trace")
+    progress(92, "Package Data Flow Trace")
     activity(f"Static Description Data Flow finished in {duration:.1f}s")
-    archive = _build_bundle(paths, report, bindict_audit, duration)
+    archive = _build_bundle(paths, report, bindict_audit, prototype_projection, duration)
     activity(f"Description data-flow bundle ready: {archive.name}")
     progress(100, "Description Data Flow ready")
     log(f"Dead Signal Description Data Flow bundle ready: {archive}")
     return {
         "schema": "dead-signal-description-dataflow-compiled",
-        "schema_version": 2,
+        "schema_version": 3,
         "duration_seconds": duration,
         "record_counts": report.get("record_counts") or {},
         "target_presence": report.get("target_presence") or {},
@@ -184,7 +198,9 @@ def compile_description_dataflow_trace(
             "status": (bindict_audit.get("interpretation") or {}).get("status"),
             "field_presence": bindict_audit.get("field_presence") or {},
         },
+        "prototype_projection": prototype_projection.get("record_counts") or {},
         "report": str(paths["reports"] / "weapon-description-static-dataflow.json"),
         "bindict_report": str(paths["reports"] / "weapon-prototype-bindict-schema-audit.json"),
+        "projection_report": str(paths["reports"] / "weapon-description-prototype-projection.json"),
         "bundle": str(archive),
     }
