@@ -1,11 +1,11 @@
 """Exact Weapon Description projection from the raw NeoX weapon prototype bindict.
 
-The player client reads ``prototype_desc`` from ``weapon_prototype_data``.  The
+The player client reads ``prototype_desc`` from ``weapon_prototype_data``. The
 normal JSON table projection historically omitted that nested field even though
-the canonical bindict parser exposes it.  This research-only stage therefore
+the canonical bindict parser exposes it. This research-only stage therefore
 reads the already-extracted ``weapon_prototype_data.pyc`` bytes through the same
 BindictParser, joins by exact published ``prototype_id``, and resolves English
-translation handles.  It never executes game bytecode and never publishes or
+translation handles. It never executes game bytecode and never publishes or
 marks descriptions VERIFIED.
 """
 from __future__ import annotations
@@ -86,6 +86,44 @@ def _parse_layer(snapshot: Path, layer: str) -> tuple[dict[str, dict[str, Any]],
     return table, metadata
 
 
+def _unavailable_report(
+    weapons: list[Any],
+    source_layers: list[dict[str, Any]],
+    reports_dir: Path,
+) -> dict[str, Any]:
+    report = {
+        "schema": "dead-signal-weapon-prototype-description-projection",
+        "schema_version": SCHEMA_VERSION,
+        "brand": "Dead Signal",
+        "subject": "Weapon Description",
+        "mode": "offline-read-only-raw-bindict-projection",
+        "status": "raw-bindict-unavailable",
+        "record_counts": {
+            "weapons": len(weapons),
+            "prototype_records_found": 0,
+            "prototype_desc_fields_found": 0,
+            "consistent_resolutions": 0,
+            "direct_text_resolutions": 0,
+            "translation_conflicts": 0,
+            "translation_unresolved": 0,
+            "shared_resolved_texts": 0,
+            "record_source_layers": {},
+            "statuses": {"raw-bindict-unavailable": len(weapons)},
+        },
+        "source_layers": source_layers,
+        "weapons": [],
+        "policy": {
+            "publication": "No public data is modified; rerun after a Complete Database snapshot retains the raw prototype PYC.",
+        },
+        "safety": {
+            "game_process": "No process handle, memory read, debugger, hook, injection, or anti-cheat interaction.",
+            "bytecode_execution": "None.",
+        },
+    }
+    _write_json(reports_dir / "weapon-description-prototype-projection.json", report)
+    return report
+
+
 def run_weapon_prototype_projection(
     base: Path,
     current: Path,
@@ -103,7 +141,8 @@ def run_weapon_prototype_projection(
     base_table, base_meta = _parse_layer(base, "base")
     current_table, current_meta = _parse_layer(current, "current")
     if not base_table and not current_table:
-        raise ValueError(f"Raw weapon prototype bindict is unavailable in both snapshot layers: {PROTOTYPE_PYC}")
+        activity("Prototype Projection: raw weapon prototype bindict unavailable; reporting unresolved without failing the trace")
+        return _unavailable_report(weapons, [base_meta, current_meta], reports_dir)
 
     activity(
         "Prototype Projection: canonical bindict parser exposed "
@@ -206,6 +245,7 @@ def run_weapon_prototype_projection(
         "brand": "Dead Signal",
         "subject": "Weapon Description",
         "mode": "offline-read-only-raw-bindict-projection",
+        "status": "complete",
         "record_counts": counts,
         "source_layers": [base_meta, current_meta],
         "weapons": rows,
