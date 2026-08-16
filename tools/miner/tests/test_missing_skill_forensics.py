@@ -91,7 +91,9 @@ class MissingSkillForensicsTests(unittest.TestCase):
     def test_preload_table_reference_is_context_not_direct_consumer(self):
         self._write_pyc(
             "client_data_preload_pc.pyc",
-            "PRELOAD = ['active_skill_config_data', 'gun_blueprint_attr_data', 'skill_tags_data']\n",
+            "ACTIVE = 'active_skill_config_data'\n"
+            "BLUEPRINT = 'gun_blueprint_attr_data'\n"
+            "TAGS = 'skill_tags_data'\n",
         )
         report = run_missing_skill_forensics(
             self.base,
@@ -108,7 +110,7 @@ class MissingSkillForensicsTests(unittest.TestCase):
         self._write_pyc("a.pyc", "VALUE = 'skill_data'\n")
         self._write_pyc("b.pyc", "VALUE = 'fixed_skill_code'\n")
         result = _scan_consumers(
-            [("base", self.base_source)],
+            [("base", self.base_source.resolve())],
             activity=lambda _message: None,
             max_files_per_root=1,
         )
