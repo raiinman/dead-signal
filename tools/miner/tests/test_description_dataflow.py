@@ -13,6 +13,7 @@ for candidate in (SRC, EXTRACTOR):
         sys.path.insert(0, str(candidate))
 
 from dead_signal_description_dataflow import run_description_dataflow_trace  # noqa: E402
+from dead_signal_description_dataflow_fallback import recover_persisted_description_capsules  # noqa: E402
 from dead_signal_description_trace_compiler import compile_description_dataflow_trace  # noqa: E402
 
 
@@ -80,6 +81,38 @@ def get_weapon_prototype_data_val_by_key(prototype_id, key):
     assert "Diagnostic only" in weapon_row["diagnostic_disassembly"]["warning"]
     assert "Never opened" in report["safety"]["game_process"]
     assert (reports / "weapon-description-static-dataflow.json").is_file()
+
+
+def test_persisted_fallback_recovers_exact_code_capsule_without_loading_report_wholesale(tmp_path: Path) -> None:
+    reports = tmp_path / "published" / "reports"
+    reports.mkdir(parents=True)
+    capsule = {
+        "co_name": "get_weapon_item_data",
+        "co_qualname": "get_weapon_item_data",
+        "co_filename": "ui/data_tools/ItemDataTools.py",
+        "co_names": ["get_item_desc_text"],
+        "co_varnames": ["item", "prototype_desc"],
+        "co_freevars": [],
+        "co_cellvars": [],
+        "co_consts": [None, "prototype_desc"],
+        "co_code_hex": "64005300",
+        "co_code_len": 4,
+    }
+    payload = {
+        "padding": "x" * 10000,
+        "rows": [{"code_capsule": capsule}],
+    }
+    (reports / "weapon-progression-pyc-consumers.json").write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+    result = recover_persisted_description_capsules(reports)
+    recovered = {row["function"]: row for row in result["functions"]}
+    assert "get_weapon_item_data" in recovered
+    assert recovered["get_weapon_item_data"]["relationship_signals"]["contains_prototype_desc"] is True
+    assert recovered["get_weapon_item_data"]["relationship_signals"]["calls_get_item_desc_text"] is True
+    assert recovered["get_weapon_item_data"]["raw_wordcode"]
+    assert "get_item_desc_text" in result["missing_functions"]
 
 
 def test_compact_compiler_builds_only_description_trace_bundle(tmp_path: Path) -> None:
