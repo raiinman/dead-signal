@@ -14,7 +14,9 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Callable
 
-SCHEMA_VERSION = 1
+from dead_signal_buff_skill_text_audit import run_buff_skill_text_audit
+
+SCHEMA_VERSION = 2
 ActivityCallback = Callable[[str], None]
 TARGET_SUFFIXES = (
     "game_common/guncore/PassiveSkillHelper.pyc",
@@ -231,29 +233,52 @@ def run_fixed_skill_text_audit(
             "code_objects": rows,
         })
 
+    _write_json(progress_path, {"stage": "buff-skill-resolution", "schema_version": SCHEMA_VERSION})
+    activity("Fixed Skill Text Audit: tracing buff-backed description helpers")
+    buff_skill_resolution = run_buff_skill_text_audit(base, current, reports_dir, activity=activity)
+
     report = {
         "schema": "dead-signal-fixed-skill-text-static-audit",
         "schema_version": SCHEMA_VERSION,
         "brand": "Dead Signal",
         "subject": "Once Human fixed-skill player-facing text path",
-        "mode": "offline-static-targeted-guncore-pyc-audit",
+        "mode": "offline-static-targeted-guncore-plus-buff-resolution-audit",
         "record_counts": {
             "target_modules": len(modules),
             "marshal_compatible_modules": sum(bool(row["marshal_compatible"]) for row in modules),
             "selected_code_objects": sum(row["selected_code_objects"] for row in modules),
             "functions": dict(sorted(function_counts.items())),
             "table_references": dict(sorted(table_counts.items())),
+            "buff_skill_resolution": buff_skill_resolution.get("record_counts") or {},
         },
         "target_tables": sorted(TABLE_SYMBOLS),
         "target_functions": sorted(TARGET_FUNCTIONS),
         "modules": modules,
+        "buff_skill_resolution": buff_skill_resolution,
+        "resolved_static_routes": [
+            {
+                "kind": "active",
+                "route": ["ACTIVE_CONFIG_TABLE", "discription", "SkillMarkRuleHelper.get_desc_match_string"],
+                "evidence_level": "static-helper-path",
+            },
+            {
+                "kind": "passive-level",
+                "route": ["PASSIVE_TABLE", "buff_id", "BuffDataHelper.get_buff_level_desc", "BUFF_LEVEL_DATA", "get_format_desc", "SkillMarkRuleHelper.get_desc_match_string"],
+                "evidence_level": "static-helper-path",
+            },
+            {
+                "kind": "passive-star",
+                "route": ["PASSIVE_TABLE", "buff_id", "BuffDataHelper.get_buff_star_desc", "BUFF_STAR_DATA", "get_format_desc", "SkillMarkRuleHelper.get_desc_match_string"],
+                "evidence_level": "static-helper-path",
+            },
+        ],
         "policy": {
-            "scope": "Only PassiveSkillHelper.pyc, ActiveSkillHelper.pyc, and SkillDataHelper.pyc are deeply inspected.",
-            "evidence": "co_names, string constants, table references, and bounded raw code prefixes are static evidence; no stock opcode mnemonics are treated as authoritative.",
+            "scope": "Only PassiveSkillHelper.pyc, ActiveSkillHelper.pyc, SkillDataHelper.pyc, BuffDataHelper.pyc, and SkillMarkRuleHelper.pyc are deeply inspected.",
+            "evidence": "co_names, string constants, table/data references, and bounded raw code prefixes are static evidence; no stock opcode mnemonics are treated as authoritative.",
             "execution": "No game module is imported or executed; marshal is used only to deserialize CodeType metadata.",
             "live_game": "No process handle, debugger, hook, injection, memory access, network interception, client modification, or anti-cheat interaction.",
         },
-        "next_step": "Trace fixed_skill identifiers through PASSIVE_TABLE / ACTIVE_TABLE / ACTIVE_CONFIG_TABLE helper accessors to the exact description/name field and translation handle, then project only exact weapon-linked records.",
+        "next_step": "Project exact weapon fixed_skill identifiers through PASSIVE_TABLE / ACTIVE_CONFIG_TABLE, resolve passive buff_id through BUFF_LEVEL_DATA or BUFF_STAR_DATA, then translate only exact resolved text handles.",
     }
     _write_json(reports_dir / "fixed-skill-text-static-audit.json", report)
     _write_json(progress_path, {"stage": "complete", "target_modules": len(modules)})
