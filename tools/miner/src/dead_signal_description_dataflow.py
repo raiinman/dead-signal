@@ -6,8 +6,8 @@ Signal Miner snapshot, unmarshals code objects, and preserves static metadata an
 raw wordcode around the Weapon item-detail description path.
 
 The goal is intentionally narrow: recover the client-side producer chain around
-``ItemDataTools.get_weapon_item_data`` / ``get_item_desc_text`` and the output
-key ``prototype_desc`` after the exact prototype-table hypothesis was ruled out.
+``ItemDataTools.get_weapon_item_data`` / ``get_item_desc_text`` and the runtime
+``weapon_prototype_data`` lookup that supplies ``prototype_desc``.
 """
 from __future__ import annotations
 
@@ -15,7 +15,6 @@ import dis
 import json
 import marshal
 import re
-import sys
 import types
 from collections import Counter, deque
 from pathlib import Path
@@ -29,29 +28,42 @@ from weapon_progression import (
     _walk_code_objects,
 )
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 ActivityCallback = Callable[[str], None]
 
 TARGET_PYC_BASENAMES = {
     "itemdatatools.pyc",
     "blueprinthelper.pyc",
 }
+# High-specificity literals used to discover the *producer* side of the runtime
+# common-data table. Raw literal matching is only a discovery filter; any result
+# remains research evidence until its code-object metadata is inspected.
+PRODUCER_LITERAL_TOKENS = (
+    b"weapon_prototype_data",
+    b"WEAPON_PROTOTYPE_TABLE",
+    b"prototype_desc",
+)
 TARGET_FUNCTIONS = {
     "get_weapon_item_data",
+    "get_gun_item_data",
+    "get_gun_info",
     "get_item_desc_text",
     "get_weapon_prototype_data",
     "get_weapon_prototype_data_val_by_key",
 }
 TARGET_SYMBOLS = {
     "prototype_desc",
+    "prototype_name",
     "get_item_desc_text",
     "get_weapon_item_data",
     "weapon_prototype_data",
+    "WEAPON_PROTOTYPE_TABLE",
+    "common_data",
     "get_weapon_prototype_data",
     "get_weapon_prototype_data_val_by_key",
 }
 RELEVANT_NAME = re.compile(
-    r"(?:desc|text|item|weapon|prototype|blueprint|translate|local|lang|display|detail|tooltip|copy|data)",
+    r"(?:desc|text|item|weapon|prototype|blueprint|translate|local|lang|display|detail|tooltip|copy|data|common|table)",
     re.IGNORECASE,
 )
 
@@ -95,14 +107,29 @@ def _candidate_roots(base: Path, current: Path) -> list[tuple[str, Path]]:
 
 
 def _find_target_pycs(base: Path, current: Path, *, activity: ActivityCallback) -> list[dict[str, Any]]:
+    """Find the known consumers plus exact-literal producer candidates.
+
+    This streams raw PYC bytes from the already-extracted snapshot. It does not
+    import or execute any module. The producer scan is intentionally constrained
+    to three exact high-specificity literals so it does not become another broad
+    PYC crawler.
+    """
     roots = _candidate_roots(base, current)
     found: list[dict[str, Any]] = []
     seen: set[str] = set()
     for layer, root in roots:
-        activity(f"Description Data Flow: scanning extracted PYC root ({layer}) for two target modules")
+        activity(f"Description Data Flow: scanning extracted PYC root ({layer}) for consumer and producer modules")
         for path in root.rglob("*.pyc"):
-            if path.name.casefold() not in TARGET_PYC_BASENAMES:
-                continue
+            basename_hit = path.name.casefold() in TARGET_PYC_BASENAMES
+            producer_hits: list[str] = []
+            if not basename_hit:
+                try:
+                    raw = path.read_bytes()
+                except OSError:
+                    continue
+                producer_hits = [token.decode("ascii") for token in PRODUCER_LITERAL_TOKENS if token in raw]
+                if not producer_hits:
+                    continue
             key = str(path.resolve()).casefold()
             if key in seen:
                 continue
@@ -112,6 +139,8 @@ def _find_target_pycs(base: Path, current: Path, *, activity: ActivityCallback) 
                 "source_root": str(root),
                 "path": path,
                 "relative_path": path.relative_to(root).as_posix(),
+                "discovery": "consumer-basename" if basename_hit else "producer-literal",
+                "producer_literal_hits": producer_hits,
             })
     found.sort(key=lambda row: (row["relative_path"].casefold(), row["layer"]))
     return found
@@ -122,12 +151,7 @@ def _safe_strings(values) -> list[str]:
 
 
 def _diagnostic_disassembly(code_obj: types.CodeType) -> dict[str, Any]:
-    """Return static instruction diagnostics without treating stock opnames as proof.
-
-    Once Human remaps opcode numbers. Metadata operands remain useful, but the
-    operation labels produced by the local Python runtime may be wrong. Raw
-    wordcode and code-object metadata therefore remain authoritative evidence.
-    """
+    """Return static instruction diagnostics without treating stock opnames as proof."""
     warning = (
         "Diagnostic only: Once Human remaps opcode numbers. Operand metadata and raw opcode/argument bytes are retained, "
         "but stock Python operation names are not treated as authoritative semantics."
@@ -170,16 +194,22 @@ def _code_row(qualname: str, code_obj: types.CodeType, *, pyc: dict[str, Any]) -
     diagnostics = _diagnostic_disassembly(code_obj)
     relationship = {
         "contains_prototype_desc": "prototype_desc" in constants or "prototype_desc" in names,
+        "contains_prototype_name": "prototype_name" in constants or "prototype_name" in names,
+        "contains_weapon_prototype_table_literal": "weapon_prototype_data" in constants or "weapon_prototype_data" in names,
+        "contains_weapon_prototype_table_symbol": "WEAPON_PROTOTYPE_TABLE" in constants or "WEAPON_PROTOTYPE_TABLE" in names,
+        "reads_common_data": "common_data" in names or "common_data" in constants,
         "calls_get_item_desc_text": "get_item_desc_text" in names,
         "calls_get_weapon_prototype_data": "get_weapon_prototype_data" in names,
         "calls_get_weapon_prototype_data_val_by_key": "get_weapon_prototype_data_val_by_key" in names,
     }
-    relationship["prototype_desc_and_desc_helper_cooccur"] = bool(
-        relationship["contains_prototype_desc"] and relationship["calls_get_item_desc_text"]
+    relationship["prototype_desc_and_prototype_lookup_cooccur"] = bool(
+        relationship["contains_prototype_desc"] and relationship["calls_get_weapon_prototype_data_val_by_key"]
     )
     return {
         "pyc": pyc["relative_path"],
         "layer": pyc["layer"],
+        "discovery": pyc.get("discovery"),
+        "producer_literal_hits": pyc.get("producer_literal_hits") or [],
         "qualname": qualname,
         "function": code_obj.co_name,
         "firstlineno": code_obj.co_firstlineno,
@@ -216,7 +246,7 @@ def _load_pyc_code(path: Path) -> tuple[types.CodeType | None, str | None]:
 
 
 def _select_rows(all_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Keep target functions, target-symbol consumers, and their bounded local dependencies."""
+    """Keep target functions, target-symbol consumers/producers, and bounded dependencies."""
     by_function: dict[str, list[int]] = {}
     for index, row in enumerate(all_rows):
         by_function.setdefault(str(row.get("function") or ""), []).append(index)
@@ -224,7 +254,7 @@ def _select_rows(all_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     selected: set[int] = set()
     queue: deque[tuple[int, int]] = deque()
     for index, row in enumerate(all_rows):
-        if row.get("function") in TARGET_FUNCTIONS or row.get("target_hits"):
+        if row.get("function") in TARGET_FUNCTIONS or row.get("target_hits") or row.get("producer_literal_hits"):
             selected.add(index)
             queue.append((index, 0))
 
@@ -253,7 +283,7 @@ def run_description_dataflow_trace(
 ) -> dict[str, Any]:
     activity = activity or (lambda _message: None)
     pycs = _find_target_pycs(base, current, activity=activity)
-    activity(f"Description Data Flow: found {len(pycs)} exact target PYC files")
+    activity(f"Description Data Flow: found {len(pycs)} exact consumer/producer PYC files")
 
     all_rows: list[dict[str, Any]] = []
     pyc_status = []
@@ -264,6 +294,8 @@ def run_description_dataflow_trace(
         status = {
             "layer": pyc["layer"],
             "relative_path": pyc["relative_path"],
+            "discovery": pyc.get("discovery"),
+            "producer_literal_hits": pyc.get("producer_literal_hits") or [],
             "marshal_compatible": code is not None,
             "error": error,
         }
@@ -282,15 +314,28 @@ def run_description_dataflow_trace(
         )
         for target in sorted(TARGET_SYMBOLS | TARGET_FUNCTIONS)
     }
-    cooccurrence = [
+    prototype_lookup_rows = [
         {
             "pyc": row["pyc"],
             "qualname": row["qualname"],
             "function": row["function"],
+            "firstlineno": row["firstlineno"],
             "signals": row["relationship_signals"],
+            "relevant_string_constants": row["relevant_string_constants"],
         }
         for row in selected
-        if (row.get("relationship_signals") or {}).get("prototype_desc_and_desc_helper_cooccur")
+        if (row.get("relationship_signals") or {}).get("prototype_desc_and_prototype_lookup_cooccur")
+    ]
+    producer_candidates = [
+        {
+            "layer": row["layer"],
+            "relative_path": row["relative_path"],
+            "literal_hits": row.get("producer_literal_hits") or [],
+            "marshal_compatible": row["marshal_compatible"],
+            "error": row["error"],
+        }
+        for row in pyc_status
+        if row.get("discovery") == "producer-literal"
     ]
 
     source_roots = [
@@ -306,25 +351,32 @@ def run_description_dataflow_trace(
         "record_counts": {
             "source_roots": len(source_roots),
             "target_pyc_files": len(pycs),
+            "consumer_modules": sum(row.get("discovery") == "consumer-basename" for row in pyc_status),
+            "producer_candidate_modules": len(producer_candidates),
             "marshal_compatible_pycs": sum(bool(row["marshal_compatible"]) for row in pyc_status),
             "all_code_objects": len(all_rows),
             "selected_code_objects": len(selected),
-            "prototype_desc_get_item_desc_text_cooccurrences": len(cooccurrence),
+            "prototype_desc_prototype_lookup_functions": len(prototype_lookup_rows),
             "functions": dict(sorted(function_counts.items())),
         },
         "source_roots": source_roots,
         "pyc_status": pyc_status,
+        "producer_candidates": producer_candidates,
         "target_presence": target_presence,
-        "cooccurrence_signals": cooccurrence,
+        "prototype_lookup_signals": prototype_lookup_rows,
         "code_objects": selected,
         "interpretation": {
+            "proven_consumer_shape": (
+                "ItemDataTools exposes prototype_desc through a formula that calls "
+                "BluePrintHelper.get_weapon_prototype_data_val_by_key(prototype_no, 'prototype_desc', '')."
+            ),
             "goal": (
-                "Recover the static producer neighborhood around prototype_desc and get_item_desc_text after proving that "
-                "prototype_desc is not an exact field in weapon_prototype_data."
+                "Identify the exact extracted PYC/runtime common-data producer behind weapon_prototype_data, because the normalized "
+                "JSON table inspected previously does not expose the prototype_desc key requested by the UI."
             ),
             "next_step": (
-                "Use the captured code capsules/raw wordcode to reconstruct the exact producer assignment and helper arguments. "
-                "No live process tracing is required."
+                "Review producer_candidates and their code capsules before changing extraction. If the producer is a bindict/data module, "
+                "compare its raw/static payload with the normalized JSON projection to find where prototype_desc is being lost."
             ),
         },
         "safety": {
@@ -344,6 +396,6 @@ def run_description_dataflow_trace(
     _write_json(report_path, report)
     activity(
         "Description Data Flow complete: "
-        f"{len(selected)} selected code objects; {len(cooccurrence)} prototype_desc/get_item_desc_text co-occurrences"
+        f"{len(selected)} selected code objects; {len(producer_candidates)} producer candidate modules"
     )
     return report
