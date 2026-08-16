@@ -13,6 +13,7 @@ from dead_signal_bindict_schema_audit import run_weapon_prototype_bindict_audit
 from dead_signal_blueprint_module_audit import run_blueprint_module_audit
 from dead_signal_common_data_registry_audit import run_common_data_registry_audit
 from dead_signal_data_proxy_architecture import run_data_proxy_architecture_audit
+from dead_signal_datamgr_map_audit import run_datamgr_map_audit
 from dead_signal_description_dataflow import run_description_dataflow_trace
 from dead_signal_description_dataflow_fallback import recover_persisted_description_capsules
 from dead_signal_intelligence_compiler import resolve_snapshot
@@ -88,6 +89,7 @@ def _build_bundle(
     blueprint_audit: dict[str, Any],
     common_data_audit: dict[str, Any],
     data_proxy_audit: dict[str, Any],
+    datamgr_map_audit: dict[str, Any],
     duration: float,
 ) -> Path:
     intelligence = paths["output"] / "intelligence"
@@ -100,9 +102,10 @@ def _build_bundle(
     blueprint_path = paths["reports"] / "blueprint-scroll-view-full-static-audit.json"
     common_data_path = paths["reports"] / "common-data-registry-static-audit.json"
     data_proxy_path = paths["reports"] / "data-proxy-architecture-static-audit.json"
+    datamgr_map_path = paths["reports"] / "datamgr-map-static-audit.json"
     summary = {
         "schema": "dead-signal-description-dataflow-bundle",
-        "schema_version": 6,
+        "schema_version": 7,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "duration_seconds": duration,
         "record_counts": report.get("record_counts") or {},
@@ -129,6 +132,10 @@ def _build_bundle(
             "record_counts": data_proxy_audit.get("record_counts") or {},
             "mode": data_proxy_audit.get("mode"),
         },
+        "datamgr_map_audit": {
+            "record_counts": datamgr_map_audit.get("record_counts") or {},
+            "mode": datamgr_map_audit.get("mode"),
+        },
         "mode": "offline-static-pyc-only",
         "safety": report.get("safety") or {},
     }
@@ -138,16 +145,16 @@ def _build_bundle(
             json.dumps(summary, ensure_ascii=False, indent=2) + "\n",
         )
         destination.write(report_path, "published/reports/weapon-description-static-dataflow.json")
-        if bindict_path.is_file():
-            destination.write(bindict_path, "published/reports/weapon-prototype-bindict-schema-audit.json")
-        if projection_path.is_file():
-            destination.write(projection_path, "published/reports/weapon-description-prototype-projection.json")
-        if blueprint_path.is_file():
-            destination.write(blueprint_path, "published/reports/blueprint-scroll-view-full-static-audit.json")
-        if common_data_path.is_file():
-            destination.write(common_data_path, "published/reports/common-data-registry-static-audit.json")
-        if data_proxy_path.is_file():
-            destination.write(data_proxy_path, "published/reports/data-proxy-architecture-static-audit.json")
+        for path, arcname in (
+            (bindict_path, "published/reports/weapon-prototype-bindict-schema-audit.json"),
+            (projection_path, "published/reports/weapon-description-prototype-projection.json"),
+            (blueprint_path, "published/reports/blueprint-scroll-view-full-static-audit.json"),
+            (common_data_path, "published/reports/common-data-registry-static-audit.json"),
+            (data_proxy_path, "published/reports/data-proxy-architecture-static-audit.json"),
+            (datamgr_map_path, "published/reports/datamgr-map-static-audit.json"),
+        ):
+            if path.is_file():
+                destination.write(path, arcname)
         last_run = paths["output"] / "last-run.json"
         if last_run.is_file():
             destination.write(last_run, "last-run.json")
@@ -165,7 +172,7 @@ def compile_description_dataflow_trace(
     progress: ProgressCallback | None = None,
     activity: ActivityCallback | None = None,
 ) -> dict[str, Any]:
-    """Run the offline static description, Blueprint UI, registry, and data-proxy audits."""
+    """Run the offline static description, Blueprint, registry, proxy, and DataMgr map audits."""
     log = log or (lambda _value: None)
     progress = progress or (lambda _value, _label: None)
     activity = activity or log
@@ -177,88 +184,66 @@ def compile_description_dataflow_trace(
 
     progress(14, "Static Description Data Flow")
     started = time.perf_counter()
-    report = run_description_dataflow_trace(
-        paths["base"], paths["current"], paths["reports"], activity=activity
-    )
+    report = run_description_dataflow_trace(paths["base"], paths["current"], paths["reports"], activity=activity)
 
     target_functions = {
         str(row.get("function") or "")
         for row in report.get("code_objects") or []
         if isinstance(row, dict)
     }
-    needed = {
-        "get_weapon_item_data",
-        "get_item_desc_text",
-        "get_weapon_prototype_data",
-        "get_weapon_prototype_data_val_by_key",
-    }
+    needed = {"get_weapon_item_data", "get_item_desc_text", "get_weapon_prototype_data", "get_weapon_prototype_data_val_by_key"}
     if not needed.issubset(target_functions):
-        progress(32, "Persisted PYC Capsule Fallback")
+        progress(30, "Persisted PYC Capsule Fallback")
         fallback = recover_persisted_description_capsules(paths["reports"], activity=activity)
         report = _merge_persisted_fallback(report, fallback)
         _write_json(paths["reports"] / "weapon-description-static-dataflow.json", report)
 
-    progress(43, "Weapon Prototype Bindict Schema Audit")
-    bindict_audit = run_weapon_prototype_bindict_audit(
-        paths["base"], paths["current"], paths["reports"], activity=activity
-    )
+    progress(40, "Weapon Prototype Bindict Schema Audit")
+    bindict_audit = run_weapon_prototype_bindict_audit(paths["base"], paths["current"], paths["reports"], activity=activity)
 
-    progress(53, "Exact Prototype Description Projection")
-    prototype_projection = run_weapon_prototype_projection(
-        paths["base"], paths["current"], paths["weapons"], paths["reports"], activity=activity
-    )
+    progress(50, "Exact Prototype Description Projection")
+    prototype_projection = run_weapon_prototype_projection(paths["base"], paths["current"], paths["weapons"], paths["reports"], activity=activity)
 
-    progress(63, "Full BlueprintScrollViewPart Audit")
-    blueprint_audit = run_blueprint_module_audit(
-        paths["base"], paths["current"], paths["reports"], activity=activity
-    )
+    progress(60, "Full BlueprintScrollViewPart Audit")
+    blueprint_audit = run_blueprint_module_audit(paths["base"], paths["current"], paths["reports"], activity=activity)
 
-    progress(73, "Common Data Registry Audit")
-    common_data_audit = run_common_data_registry_audit(
-        paths["base"], paths["current"], paths["reports"], activity=activity
-    )
+    progress(70, "Common Data Registry Audit")
+    common_data_audit = run_common_data_registry_audit(paths["base"], paths["current"], paths["reports"], activity=activity)
 
-    progress(86, "Common / Client / Server Data Proxy Architecture")
-    data_proxy_audit = run_data_proxy_architecture_audit(
-        paths["base"], paths["current"], paths["reports"], activity=activity
-    )
+    progress(82, "Common / Client / Server Data Proxy Architecture")
+    data_proxy_audit = run_data_proxy_architecture_audit(paths["base"], paths["current"], paths["reports"], activity=activity)
+
+    progress(92, "DataMgr Type / Package / Proxy Map Audit")
+    datamgr_map_audit = run_datamgr_map_audit(paths["base"], paths["current"], paths["reports"], activity=activity)
 
     duration = round(time.perf_counter() - started, 6)
-
-    progress(96, "Package Data Flow Trace")
+    progress(97, "Package Data Flow Trace")
     activity(f"Static Description Data Flow finished in {duration:.1f}s")
     archive = _build_bundle(
-        paths,
-        report,
-        bindict_audit,
-        prototype_projection,
-        blueprint_audit,
-        common_data_audit,
-        data_proxy_audit,
-        duration,
+        paths, report, bindict_audit, prototype_projection, blueprint_audit,
+        common_data_audit, data_proxy_audit, datamgr_map_audit, duration
     )
     activity(f"Description data-flow bundle ready: {archive.name}")
     progress(100, "Description Data Flow ready")
     log(f"Dead Signal Description Data Flow bundle ready: {archive}")
     return {
         "schema": "dead-signal-description-dataflow-compiled",
-        "schema_version": 6,
+        "schema_version": 7,
         "duration_seconds": duration,
         "record_counts": report.get("record_counts") or {},
         "target_presence": report.get("target_presence") or {},
-        "bindict_schema_audit": {
-            "status": (bindict_audit.get("interpretation") or {}).get("status"),
-            "field_presence": bindict_audit.get("field_presence") or {},
-        },
+        "bindict_schema_audit": {"status": (bindict_audit.get("interpretation") or {}).get("status"), "field_presence": bindict_audit.get("field_presence") or {}},
         "prototype_projection": prototype_projection.get("record_counts") or {},
         "blueprint_scroll_view_full_audit": blueprint_audit.get("record_counts") or {},
         "common_data_registry_audit": common_data_audit.get("record_counts") or {},
         "data_proxy_architecture_audit": data_proxy_audit.get("record_counts") or {},
+        "datamgr_map_audit": datamgr_map_audit.get("record_counts") or {},
         "report": str(paths["reports"] / "weapon-description-static-dataflow.json"),
         "bindict_report": str(paths["reports"] / "weapon-prototype-bindict-schema-audit.json"),
         "projection_report": str(paths["reports"] / "weapon-description-prototype-projection.json"),
         "blueprint_audit_report": str(paths["reports"] / "blueprint-scroll-view-full-static-audit.json"),
         "common_data_registry_report": str(paths["reports"] / "common-data-registry-static-audit.json"),
         "data_proxy_architecture_report": str(paths["reports"] / "data-proxy-architecture-static-audit.json"),
+        "datamgr_map_report": str(paths["reports"] / "datamgr-map-static-audit.json"),
         "bundle": str(archive),
     }
