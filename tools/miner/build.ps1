@@ -40,7 +40,7 @@ $HiddenImports = @(
     'dead_signal_multihop_resolver', 'dead_signal_weapon_description_consumer', 'dead_signal_weapon_prototype_projection',
     'dead_signal_description_dataflow', 'dead_signal_description_dataflow_fallback', 'dead_signal_bindict_schema_audit',
     'dead_signal_blueprint_module_audit', 'dead_signal_common_data_registry_audit', 'dead_signal_data_proxy_architecture',
-    'dead_signal_datamgr_map_audit',
+    'dead_signal_datamgr_map_audit', 'dead_signal_fixed_skill_text_audit',
     'dead_signal_description_trace_compiler', 'dead_signal_description_flow_tab',
     'dead_signal_intelligence_window', 'dead_signal_intelligence_advanced', 'dead_signal_intelligence_hub',
     'dead_signal_discovery', 'dead_signal_discovery_tab',
