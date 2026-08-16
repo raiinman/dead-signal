@@ -70,22 +70,13 @@ def write_research_indexes(output: Path, base: Path, current: Path, relative: st
     connection.close()
 
 
-def test_research_suite_writes_non_publishing_reports(tmp_path: Path) -> None:
+def test_research_suite_writes_non_publishing_reports_and_reuses_cache(tmp_path: Path) -> None:
     base = tmp_path / "base"
     current = tmp_path / "current"
     reports = tmp_path / "published" / "reports"
     relative = "game_common/data/item_display_data.json"
 
-    write_table(
-        current,
-        relative,
-        {
-            "7001": {
-                "item_id": 7001,
-                "tooltip": "weapon_desc_7001",
-            }
-        },
-    )
+    write_table(current, relative, {"7001": {"item_id": 7001, "tooltip": "weapon_desc_7001"}})
     translate = current / "translate" / "translate_data_en.json"
     translate.parent.mkdir(parents=True, exist_ok=True)
     translate.write_text(json.dumps({"weapon_desc_7001": "A precise test weapon."}), encoding="utf-8")
@@ -93,28 +84,18 @@ def test_research_suite_writes_non_publishing_reports(tmp_path: Path) -> None:
 
     weapons_path = tmp_path / "weapons.json"
     weapons_path.write_text(
-        json.dumps(
-            {
-                "weapons": [
-                    {
-                        "blueprint_id": 1001,
-                        "item_id": 7001,
-                        "name": "Test Weapon",
-                        "category": "Rifle",
-                        "short_description_evidence": {},
-                        "effect_resolution": {},
-                        "tiers": [],
-                    }
-                ]
-            }
-        ),
-        encoding="utf-8",
+        json.dumps({"weapons": [{
+            "blueprint_id": 1001, "item_id": 7001, "name": "Test Weapon", "category": "Rifle",
+            "short_description_evidence": {}, "effect_resolution": {}, "tiers": [],
+        }]}), encoding="utf-8"
     )
 
-    manifest = module.run_research_suite(base, current, weapons_path, reports)
+    first = module.run_research_suite(base, current, weapons_path, reports)
+    assert first["schema"] == "dead-signal-research-suite"
+    assert "No value is promoted" in first["publication_policy"]
+    assert first["cache"]["cache_misses"] == 3
+    assert first["cache"]["cache_hits"] == 0
 
-    assert manifest["schema"] == "dead-signal-research-suite"
-    assert "No value is promoted" in manifest["publication_policy"]
     for filename in (
         "weapon-description-identity-investigation.json",
         "weapon-description-source-investigation.json",
@@ -138,6 +119,15 @@ def test_research_suite_writes_non_publishing_reports(tmp_path: Path) -> None:
     assert profiles["record_counts"]["profiled_tables"] == 1
     active = profiles["tables"][0]["active_profile"]
     assert any(row["field"] == "tooltip" for row in active["description_like_fields"])
+
+    second_activity: list[str] = []
+    second = module.run_research_suite(base, current, weapons_path, reports, activity=second_activity.append)
+    assert second["cache"]["cache_hits"] == 3
+    assert second["cache"]["cache_misses"] == 0
+    assert second["cache"]["non_cacheable_stages"] == 2
+    assert sum(row["duration_seconds"] for row in second["stage_timings"] if row["cache_hit"] is True) < 2.0
+    assert any("Multi-hop Resolver: cache hit" in line for line in second_activity)
+    assert any("Table Profiler: cache hit" in line for line in second_activity)
 
 
 def test_profile_path_priority_favors_description_and_weapon_tables(tmp_path: Path) -> None:
