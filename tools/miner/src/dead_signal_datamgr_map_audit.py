@@ -15,7 +15,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Callable
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 ActivityCallback = Callable[[str], None]
 TARGET_RELATIVE_SUFFIX = "game_common/helper/DataMgr.pyc"
 MAP_NAMES = {
@@ -38,7 +38,7 @@ TARGET_FUNCTION_TOKENS = (
 MAX_DEEP_FILE_BYTES = 64 * 1024 * 1024
 MAX_SCALAR_STRING = 1024
 MAX_SEQUENCE_ITEMS = 512
-MAP_WINDOW_BYTES = 192
+MAP_WINDOW_BYTES = 384
 
 
 def _read_json(path: Path, default: Any = None) -> Any:
@@ -203,16 +203,26 @@ def _line_ranges(code: types.CodeType) -> list[dict[str, Any]]:
     return result
 
 
-def _numeric_wordcode(code: types.CodeType) -> list[dict[str, Any]]:
+def _line_for_offset(ranges: list[dict[str, Any]], offset: int) -> int | None:
+    for row in ranges:
+        if row["start_offset"] <= offset < row["end_offset"]:
+            line = row.get("line")
+            return int(line) if isinstance(line, int) else None
+    return None
+
+
+def _numeric_wordcode(code: types.CodeType, ranges: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
     raw = code.co_code
     names = list(map(str, code.co_names))
     consts = list(code.co_consts)
+    ranges = ranges if ranges is not None else _line_ranges(code)
     rows = []
     for offset in range(0, len(raw) - 1, 2):
         opcode_byte = raw[offset]
         arg_byte = raw[offset + 1]
         row: dict[str, Any] = {
             "offset": offset,
+            "source_line": _line_for_offset(ranges, offset),
             "opcode_byte": opcode_byte,
             "opcode_hex": f"0x{opcode_byte:02x}",
             "arg_byte": arg_byte,
@@ -225,17 +235,51 @@ def _numeric_wordcode(code: types.CodeType) -> list[dict[str, Any]]:
     return rows
 
 
+def _group_wordcode_by_line(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    grouped: dict[int | None, list[dict[str, Any]]] = {}
+    for row in rows:
+        grouped.setdefault(row.get("source_line"), []).append(row)
+    result = []
+    for line, items in grouped.items():
+        meaningful_names = []
+        meaningful_consts = []
+        seen_names: set[str] = set()
+        seen_consts: set[str] = set()
+        for item in items:
+            name = item.get("co_names_candidate")
+            if isinstance(name, str) and name not in seen_names:
+                seen_names.add(name)
+                meaningful_names.append(name)
+            const = item.get("co_consts_candidate")
+            if isinstance(const, (str, int, float, bool)) or const is None:
+                key = json.dumps(const, ensure_ascii=False, sort_keys=True)
+                if key not in seen_consts:
+                    seen_consts.add(key)
+                    meaningful_consts.append(const)
+        result.append({
+            "source_line": line,
+            "start_offset": min(item["offset"] for item in items),
+            "end_offset": max(item["offset"] for item in items) + 2,
+            "word_count": len(items),
+            "name_candidates": meaningful_names,
+            "scalar_const_candidates": meaningful_consts,
+            "numeric_wordcode": items,
+        })
+    result.sort(key=lambda row: (row["source_line"] is None, row["source_line"] if row["source_line"] is not None else 10**9, row["start_offset"]))
+    return result
+
+
 def _map_assignment_windows(code: types.CodeType) -> list[dict[str, Any]]:
     """Locate numeric instruction words whose argument indexes a known map name.
 
     We deliberately do not assign semantic opcode names. The output is structural
     evidence only: raw opcode/argument bytes, nearby words, co_names/co_consts
-    candidates, and the code object's line-table ranges.
+    candidates, and original source-line grouping from the preserved line table.
     """
     names = list(map(str, code.co_names))
     raw = code.co_code
-    wordcode = _numeric_wordcode(code)
     ranges = _line_ranges(code)
+    wordcode = _numeric_wordcode(code, ranges)
     results: list[dict[str, Any]] = []
     for offset in range(0, len(raw) - 1, 2):
         arg = raw[offset + 1]
@@ -256,6 +300,7 @@ def _map_assignment_windows(code: types.CodeType) -> list[dict[str, Any]]:
             "raw_window_hex": raw[start:end].hex(),
             "line_ranges_at_offset": line_hits,
             "numeric_wordcode_window": nearby,
+            "source_line_groups": _group_wordcode_by_line(nearby),
         })
     return results
 
@@ -324,11 +369,11 @@ def run_datamgr_map_audit(
             "scope": "Only game_common/helper/DataMgr.pyc is deeply inspected from completed offline snapshots.",
             "opcode_semantics": "Numeric opcode/argument bytes are retained without assigning stock Python opcode names. co_names/co_consts values are emitted only as index candidates for structural analysis.",
             "datatype_ordinals": "ordinal_candidate is an observed class-member ordering candidate, not yet a verified enum numeric value unless independently corroborated.",
-            "map_windows": "Map assignment windows are structural evidence around numeric instruction words whose argument indexes a known map name; they do not by themselves assert dictionary semantics.",
+            "map_windows": "Map assignment windows are structural evidence around numeric instruction words whose argument indexes a known map name; source_line_groups come only from CodeType.co_lines() and do not assert opcode semantics.",
             "execution": "No game module is imported or executed; marshal is used only to deserialize CodeType metadata.",
             "live_game": "No process handle, debugger, hook, injection, memory access, network interception, client modification, or anti-cheat interaction.",
         },
-        "next_step": "Use numeric map-assignment windows plus DataType ordering and package/proxy constants to reconstruct DATA_TYPE_MAP and DATA_TYPE_PROXY_MAP, then corroborate against accessor/converter functions.",
+        "next_step": "Use source-line-grouped numeric map evidence to reconstruct individual DATA_TYPE_MAP and DATA_TYPE_PROXY_MAP entries, then corroborate against accessor/converter functions before publication.",
     }
     _write_json(reports_dir / "datamgr-map-static-audit.json", report)
     return report
