@@ -15,6 +15,7 @@ Signal intends to display.
 from __future__ import annotations
 
 import json
+import re
 from collections import Counter
 from pathlib import Path
 from typing import Any, Callable, Iterable
@@ -146,7 +147,7 @@ def _resolve_text(raw_value: Any, sources: list[tuple[str, dict[str, Any]]]) -> 
 
 
 def _scan_consumer_evidence(report_path: Path) -> dict[str, Any]:
-    """Stream the static PYC report and stop once all target consumer tokens appear."""
+    """Stream static PYC metadata and require exact identifier-token matches."""
     found: dict[str, list[dict[str, Any]]] = {token: [] for token in CONSUMER_TOKENS}
     if not report_path.is_file():
         return {
@@ -159,11 +160,15 @@ def _scan_consumer_evidence(report_path: Path) -> dict[str, Any]:
             "execution_policy": "Static report inspection only; game bytecode was not executed.",
         }
 
+    patterns = {
+        token: re.compile(rf"(?<![A-Za-z0-9_]){re.escape(token)}(?![A-Za-z0-9_])")
+        for token in CONSUMER_TOKENS
+    }
     unresolved = set(CONSUMER_TOKENS)
     with report_path.open("r", encoding="utf-8", errors="replace") as source:
         for line_number, line in enumerate(source, 1):
             for token in tuple(unresolved):
-                if token in line:
+                if patterns[token].search(line):
                     found[token].append({"line": line_number, "excerpt": line.strip()[:1000]})
                     unresolved.discard(token)
             if not unresolved:
@@ -177,6 +182,7 @@ def _scan_consumer_evidence(report_path: Path) -> dict[str, Any]:
         "missing_tokens": sorted(unresolved),
         "matches": found,
         "execution_policy": "Static report inspection only; game bytecode was not executed.",
+        "match_policy": "Exact identifier boundaries; longer near-matches do not satisfy a required consumer token.",
         "interpretation": (
             "These exact static tokens establish a client-consumer lead for prototype-backed Weapon detail data; "
             "they do not by themselves prove which visible UI text block uses prototype_desc."
@@ -271,8 +277,6 @@ def run_weapon_description_consumer_trace(
         if index % 25 == 0 or index == len(weapons):
             activity(f"UI Consumer Trace: resolved {index}/{len(weapons)} weapons")
 
-    # A prototype description shared by multiple distinct prototype IDs is not safe
-    # to treat as unique Weapon copy. Preserve it as evidence but block candidacy.
     shared_texts = {text: owners for text, owners in candidate_text_owners.items() if len(set(owners)) > 1}
     for row in rows:
         text = str(row.get("text") or "")
@@ -322,7 +326,7 @@ def run_weapon_description_consumer_trace(
         "policy": {
             "identity": "Exact published Weapon prototype_id to exact weapon_prototype_data record only; no names, fuzzy joins, or family substitution.",
             "consumer": "Static PYC metadata is inspected only as a bounded client-consumer lead; bytecode is never executed.",
-            "candidate": "A unique, consistently translated prototype_desc with complete consumer tokens is consumer-backed research evidence only.",
+            "candidate": "A unique, consistently translated prototype_desc with complete exact consumer tokens is consumer-backed research evidence only.",
             "verification": "UI confirmation remains required before any candidate may be manually VERIFIED.",
             "publication": "This analyzer never rewrites normalized or player-facing data.",
         },
