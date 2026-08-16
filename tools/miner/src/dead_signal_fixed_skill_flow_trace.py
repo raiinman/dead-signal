@@ -1,9 +1,9 @@
 """Static instruction-window tracing for exact fixed_skill_code consumers.
 
-This module never imports or executes Once Human bytecode. It only unmarshals code
-objects from retained PYC files and disassembles the already-identified direct
-consumers so research can see what names/constants/operations immediately surround
-the fixed_skill_code read.
+This module never imports or executes Once Human bytecode. It unmarshals retained
+PYC code objects and inspects only direct consumers already proven by the exact
+consumer scan. Standard-library disassembly is preferred, with a tolerant raw
+wordcode fallback for foreign/adapted bytecode that stdlib dis cannot decode.
 """
 from __future__ import annotations
 
@@ -19,17 +19,8 @@ TARGET_SYMBOL = "fixed_skill_code"
 WINDOW_RADIUS = 18
 MAX_WINDOW_INSTRUCTIONS = 160
 INTEREST_TOKENS = (
-    "skill",
-    "buff",
-    "data",
-    "config",
-    "star",
-    "fixed",
-    "package",
-    "affix",
-    "blueprint",
-    "passive",
-    "stardust",
+    "skill", "buff", "data", "config", "star", "fixed", "package",
+    "affix", "blueprint", "passive", "stardust",
 )
 
 
@@ -75,26 +66,20 @@ def _interesting(values: set[str]) -> list[str]:
     )[:128]
 
 
-def _instruction_windows(code: types.CodeType) -> tuple[list[dict[str, Any]], int, str | None]:
+def _stdlib_instruction_windows(code: types.CodeType) -> tuple[list[dict[str, Any]], int, str | None]:
     try:
         instructions = list(dis.get_instructions(code, show_caches=False))
     except Exception as exc:
         return [], 0, f"{type(exc).__name__}: {exc}"
-
     anchors = [index for index, ins in enumerate(instructions) if ins.argval == TARGET_SYMBOL]
     if not anchors:
         return [], 0, None
-
     selected: set[int] = set()
     for anchor in anchors:
-        start = max(0, anchor - WINDOW_RADIUS)
-        end = min(len(instructions), anchor + WINDOW_RADIUS + 1)
-        selected.update(range(start, end))
-    ordered = sorted(selected)[:MAX_WINDOW_INSTRUCTIONS]
-
+        selected.update(range(max(0, anchor - WINDOW_RADIUS), min(len(instructions), anchor + WINDOW_RADIUS + 1)))
     rows: list[dict[str, Any]] = []
     previous = None
-    for index in ordered:
+    for index in sorted(selected)[:MAX_WINDOW_INSTRUCTIONS]:
         if previous is not None and index != previous + 1:
             rows.append({"gap": True})
         ins = instructions[index]
@@ -114,23 +99,100 @@ def _instruction_windows(code: types.CodeType) -> tuple[list[dict[str, Any]], in
     return rows, len(anchors), None
 
 
+def _raw_wordcode(code: types.CodeType) -> list[dict[str, Any]]:
+    """Decode 2-byte wordcode without dereferencing operands unsafely.
+
+    The retained game PYC corpus can contain code objects that marshal successfully
+    but make stdlib ``dis`` index outside co_names/co_consts. This decoder keeps raw
+    operands, resolves only in-range values, and therefore remains useful evidence
+    without executing or repairing game bytecode.
+    """
+    raw = code.co_code
+    rows: list[dict[str, Any]] = []
+    extended = 0
+    ext_opcode = dis.opmap.get("EXTENDED_ARG", 144)
+    for offset in range(0, len(raw) - 1, 2):
+        opcode = raw[offset]
+        byte_arg = raw[offset + 1]
+        arg = (extended << 8) | byte_arg
+        opname = dis.opname[opcode] if opcode < len(dis.opname) else f"OP_{opcode}"
+        row: dict[str, Any] = {
+            "index": len(rows), "offset": offset, "opcode": opcode,
+            "opname": opname, "raw_arg": arg,
+        }
+        if opcode in dis.hasconst and 0 <= arg < len(code.co_consts):
+            value = _safe_value(code.co_consts[arg])
+            if value is not None:
+                row["argval"] = value
+            row["operand_kind"] = "const"
+        elif opcode in dis.haslocal and 0 <= arg < len(code.co_varnames):
+            row["argval"] = str(code.co_varnames[arg])
+            row["operand_kind"] = "local"
+        elif opcode in dis.hasname:
+            # Python 3.11 LOAD_GLOBAL encodes a low-bit flag. Record both safe
+            # direct and shifted candidates instead of assuming one runtime layout.
+            candidates = []
+            for candidate in (arg, arg >> 1):
+                if 0 <= candidate < len(code.co_names):
+                    value = str(code.co_names[candidate])
+                    if value not in candidates:
+                        candidates.append(value)
+            if candidates:
+                row["name_candidates"] = candidates
+                row["operand_kind"] = "name"
+        row["is_fixed_skill_anchor"] = row.get("argval") == TARGET_SYMBOL
+        rows.append(row)
+        extended = arg if opcode == ext_opcode else 0
+    return rows
+
+
+def _fallback_instruction_windows(code: types.CodeType) -> tuple[list[dict[str, Any]], int, str | None]:
+    try:
+        instructions = _raw_wordcode(code)
+    except Exception as exc:
+        return [], 0, f"{type(exc).__name__}: {exc}"
+    anchors = [index for index, row in enumerate(instructions) if row.get("is_fixed_skill_anchor")]
+    if not anchors:
+        return [], 0, None
+    selected: set[int] = set()
+    for anchor in anchors:
+        selected.update(range(max(0, anchor - WINDOW_RADIUS), min(len(instructions), anchor + WINDOW_RADIUS + 1)))
+    rows: list[dict[str, Any]] = []
+    previous = None
+    for index in sorted(selected)[:MAX_WINDOW_INSTRUCTIONS]:
+        if previous is not None and index != previous + 1:
+            rows.append({"gap": True})
+        rows.append(instructions[index])
+        previous = index
+    return rows, len(anchors), None
+
+
+def _instruction_windows(code: types.CodeType) -> tuple[list[dict[str, Any]], int, str, str | None]:
+    windows, anchors, stdlib_error = _stdlib_instruction_windows(code)
+    if anchors:
+        return windows, anchors, "stdlib-dis", stdlib_error
+    fallback, fallback_anchors, fallback_error = _fallback_instruction_windows(code)
+    if fallback_anchors:
+        return fallback, fallback_anchors, "tolerant-wordcode", stdlib_error
+    if stdlib_error and fallback_error:
+        return [], 0, "unavailable", f"stdlib={stdlib_error}; fallback={fallback_error}"
+    return [], 0, "metadata-only", stdlib_error or fallback_error
+
+
 def trace_fixed_skill_flows(
     roots: list[tuple[str, Path]],
     consumer_trace: dict[str, Any],
     *,
     activity: ActivityCallback | None = None,
 ) -> dict[str, Any]:
-    """Disassemble only direct fixed_skill_code consumer functions.
-
-    Candidate files come from the exact-symbol consumer scan; this function does
-    not perform a second broad corpus crawl.
-    """
+    """Inspect only exact direct fixed_skill_code consumer functions."""
     activity = activity or (lambda _message: None)
     root_by_layer = {layer: root for layer, root in roots}
     candidates = consumer_trace.get("direct_consumer_candidates") or []
     rows: list[dict[str, Any]] = []
     errors: list[dict[str, str]] = []
     anchor_count = 0
+    fallback_functions = 0
 
     activity(f"Missing Skill Forensics: tracing {len(candidates)} direct fixed-skill consumer files")
     for candidate in candidates:
@@ -157,28 +219,30 @@ def trace_fixed_skill_flows(
             varnames = set(map(str, code.co_varnames))
             if TARGET_SYMBOL not in (strings | names | varnames):
                 continue
-            windows, anchors, dis_error = _instruction_windows(code)
-            if dis_error:
-                errors.append({
-                    "layer": layer,
-                    "relative_path": relative,
-                    "error": f"{qualname}: {dis_error}",
-                })
-                continue
+            windows, anchors, decoder, decode_note = _instruction_windows(code)
             anchor_count += anchors
-            rows.append({
+            if decoder == "tolerant-wordcode":
+                fallback_functions += 1
+            if decoder == "unavailable":
+                errors.append({"layer": layer, "relative_path": relative, "error": f"{qualname}: {decode_note}"})
+                continue
+            row = {
                 "layer": layer,
                 "relative_path": relative,
                 "qualname": qualname,
                 "co_name": code.co_name,
                 "co_filename": code.co_filename,
                 "co_firstlineno": code.co_firstlineno,
+                "decoder": decoder,
                 "fixed_skill_anchor_count": anchors,
                 "referenced_names": _interesting(names),
                 "local_names": _interesting(varnames),
                 "string_constants": _interesting(strings),
                 "instruction_window": windows,
-            })
+            }
+            if decode_note:
+                row["stdlib_dis_note"] = decode_note
+            rows.append(row)
 
     parent_status = str(consumer_trace.get("status") or "unknown")
     if not roots:
@@ -196,13 +260,18 @@ def trace_fixed_skill_flows(
             "candidate_files": len(candidates),
             "consumer_functions": len(rows),
             "fixed_skill_instruction_anchors": anchor_count,
+            "tolerant_wordcode_functions": fallback_functions,
             "errors": len(errors),
         },
         "functions": rows,
         "errors": errors,
         "policy": {
-            "scope": "Only exact direct consumer files already identified by consumer_trace are disassembled.",
-            "execution": "PYC code objects are unmarshaled and disassembled only; game bytecode is never executed.",
+            "scope": "Only exact direct consumer files already identified by consumer_trace are inspected.",
+            "execution": "PYC code objects are unmarshaled and decoded only; game bytecode is never executed.",
+            "decoder": (
+                "stdlib disassembly is preferred; if it errors or cannot anchor fixed_skill_code, a tolerant 2-byte "
+                "wordcode decoder records raw operands and resolves only in-range constants/locals/names."
+            ),
             "interpretation": (
                 "Instruction windows are static evidence of nearby operations and symbols, not proof of runtime values "
                 "or player-facing mechanic semantics."
