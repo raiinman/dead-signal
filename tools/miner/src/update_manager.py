@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import os
@@ -21,12 +22,18 @@ DEFAULT_MANIFEST_URL = (
     "https://raw.githubusercontent.com/raiinman/dead-signal/main/"
     "tools/miner/release/latest.json"
 )
+GITHUB_CONTENTS_MANIFEST_URL = (
+    "https://api.github.com/repos/raiinman/dead-signal/contents/"
+    "tools/miner/release/latest.json?ref=main"
+)
 ALLOWED_UPDATE_HOSTS = {
+    "api.github.com",
     "github.com",
     "objects.githubusercontent.com",
     "raw.githubusercontent.com",
 }
 MAX_UPDATE_BYTES = 250 * 1024 * 1024
+MAX_MANIFEST_BYTES = 128 * 1024
 
 
 class UpdateError(RuntimeError):
@@ -69,12 +76,7 @@ def _validated_https_url(value: object, *, optional: bool = False) -> str | None
 
 
 def _cache_busted_manifest_url(url: str) -> str:
-    """Return the manifest URL with a unique harmless query parameter.
-
-    GitHub/raw edge caches can briefly serve an older latest.json immediately
-    after a release. A per-check query parameter plus no-cache headers keeps the
-    packaged updater from getting stranded on the previous manifest.
-    """
+    """Return a GitHub manifest URL with a unique harmless query parameter."""
     parsed = urllib.parse.urlsplit(url)
     query = urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
     query.append(("dead_signal_check", str(time.time_ns())))
@@ -117,21 +119,17 @@ def parse_manifest(payload: object, current_version: str) -> UpdateInfo:
     )
 
 
-def check_for_updates(
-    current_version: str,
-    manifest_url: str = DEFAULT_MANIFEST_URL,
-    timeout: float = 12.0,
-) -> UpdateInfo:
-    validated_url = _validated_https_url(manifest_url)
+def _fetch_json(url: str, current_version: str, timeout: float) -> object:
+    validated_url = _validated_https_url(url)
     assert validated_url is not None
-    url = _cache_busted_manifest_url(validated_url)
     request = urllib.request.Request(
-        url,
+        _cache_busted_manifest_url(validated_url),
         headers={
-            "Accept": "application/json",
+            "Accept": "application/vnd.github+json, application/json",
             "Cache-Control": "no-cache, no-store, max-age=0",
             "Pragma": "no-cache",
             "User-Agent": f"Dead-Signal-Miner/{current_version}",
+            "X-GitHub-Api-Version": "2022-11-28",
         },
     )
     try:
@@ -139,18 +137,68 @@ def check_for_updates(
             if response.status != 200:
                 raise UpdateError(f"Update server returned HTTP {response.status}")
             content_length = response.headers.get("Content-Length")
-            if content_length and int(content_length) > 128 * 1024:
-                raise UpdateError("Update manifest is unexpectedly large")
-            raw = response.read(128 * 1024 + 1)
+            if content_length and int(content_length) > MAX_MANIFEST_BYTES:
+                raise UpdateError("Update manifest response is unexpectedly large")
+            raw = response.read(MAX_MANIFEST_BYTES + 1)
     except (OSError, ValueError) as error:
         raise UpdateError(f"Could not check for updates: {error}") from error
-    if len(raw) > 128 * 1024:
-        raise UpdateError("Update manifest is unexpectedly large")
+    if len(raw) > MAX_MANIFEST_BYTES:
+        raise UpdateError("Update manifest response is unexpectedly large")
     try:
-        payload = json.loads(raw.decode("utf-8"))
+        return json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise UpdateError("Update manifest is not valid UTF-8 JSON") from error
-    return parse_manifest(payload, current_version)
+        raise UpdateError("Update manifest response is not valid UTF-8 JSON") from error
+
+
+def _manifest_from_contents_api(current_version: str, timeout: float) -> object:
+    envelope = _fetch_json(GITHUB_CONTENTS_MANIFEST_URL, current_version, timeout)
+    if not isinstance(envelope, dict):
+        raise UpdateError("GitHub Contents API returned an invalid manifest envelope")
+    if str(envelope.get("encoding") or "").casefold() != "base64":
+        raise UpdateError("GitHub Contents API returned an unsupported manifest encoding")
+    encoded = envelope.get("content")
+    if not isinstance(encoded, str):
+        raise UpdateError("GitHub Contents API did not return manifest content")
+    try:
+        raw = base64.b64decode(encoded, validate=False)
+    except (ValueError, TypeError) as error:
+        raise UpdateError("GitHub Contents API manifest content is invalid base64") from error
+    if len(raw) > MAX_MANIFEST_BYTES:
+        raise UpdateError("Decoded update manifest is unexpectedly large")
+    try:
+        return json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise UpdateError("Decoded update manifest is not valid UTF-8 JSON") from error
+
+
+def check_for_updates(
+    current_version: str,
+    manifest_url: str = DEFAULT_MANIFEST_URL,
+    timeout: float = 12.0,
+) -> UpdateInfo:
+    """Read the freshest available manifest, preferring GitHub's Contents API.
+
+    The raw.githubusercontent.com edge can briefly return stale latest.json even
+    with cache-control headers and a unique query string.  The Contents API is
+    therefore authoritative for the default stable channel.  Raw remains a
+    compatibility fallback, and custom manifest URLs continue to work directly.
+    """
+    errors: list[str] = []
+
+    if manifest_url == DEFAULT_MANIFEST_URL:
+        try:
+            payload = _manifest_from_contents_api(current_version, timeout)
+            return parse_manifest(payload, current_version)
+        except UpdateError as error:
+            errors.append(f"GitHub API: {error}")
+
+    try:
+        payload = _fetch_json(manifest_url, current_version, timeout)
+        return parse_manifest(payload, current_version)
+    except UpdateError as error:
+        errors.append(f"raw manifest: {error}")
+
+    raise UpdateError("Could not check for updates through any manifest source: " + "; ".join(errors))
 
 
 def download_update(
