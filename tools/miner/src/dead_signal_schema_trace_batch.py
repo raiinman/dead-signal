@@ -16,7 +16,7 @@ from dead_signal_weapon_schema_trace import DeadSignalWeaponSchemaTrace
 from research_console import ResearchConsole
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 def _utc_now() -> str:
@@ -30,23 +30,35 @@ def _atomic_json(path: Path, payload: Any) -> None:
     temporary.replace(path)
 
 
+def _identity_summary(row: dict[str, Any]) -> dict[str, Any]:
+    result = {
+        "kind": row.get("kind"),
+        "value": row.get("value"),
+        "depth": row.get("depth"),
+        "state": row.get("state"),
+        "exact_reference_count": row.get("exact_reference_count"),
+        "owner_tables": row.get("owner_tables") or [],
+        "reference_candidates": row.get("reference_candidates") or [],
+        "discovered_from": row.get("discovered_from"),
+    }
+    if row.get("terminal_note"):
+        result["terminal_note"] = row.get("terminal_note")
+    return result
+
+
 def summarize_trace(result: dict[str, Any]) -> dict[str, Any]:
     subject = result.get("subject") or {}
     identities = result.get("identities") or []
     records = result.get("records") or []
-    stops = [
-        {
-            "kind": row.get("kind"),
-            "value": row.get("value"),
-            "depth": row.get("depth"),
-            "state": row.get("state"),
-            "exact_reference_count": row.get("exact_reference_count"),
-            "owner_tables": row.get("owner_tables") or [],
-            "reference_candidates": row.get("reference_candidates") or [],
-            "discovered_from": row.get("discovered_from"),
-        }
+    terminals = [
+        _identity_summary(row)
         for row in identities
-        if row.get("state") != "VERIFIED"
+        if row.get("state") == "TERMINAL-EXACT-REFERENCE"
+    ]
+    stops = [
+        _identity_summary(row)
+        for row in identities
+        if row.get("state") not in {"VERIFIED", "TERMINAL-EXACT-REFERENCE"}
     ]
     branches = []
     seen: set[tuple[str, str]] = set()
@@ -76,9 +88,11 @@ def summarize_trace(result: dict[str, Any]) -> dict[str, Any]:
         "identity_count": len(identities),
         "record_count": len(records),
         "typed_branch_count": len(branches),
+        "terminal_reference_count": len(terminals),
         "unresolved_stop_count": len(stops),
         "skipped_broad_exact_references": int(counts.get("skipped_broad_exact_references") or 0),
         "typed_branches": branches,
+        "terminal_references": terminals,
         "unresolved_stops": stops,
         "owner_records": [
             {
@@ -131,6 +145,7 @@ class DeadSignalSchemaTraceBatch:
                 "with_unresolved_stops": unresolved,
                 "failures": len(failures),
                 "typed_branches": sum(int(row.get("typed_branch_count") or 0) for row in rows),
+                "terminal_references": sum(int(row.get("terminal_reference_count") or 0) for row in rows),
                 "owner_records": sum(int(row.get("record_count") or 0) for row in rows),
                 "skipped_broad_exact_references": sum(int(row.get("skipped_broad_exact_references") or 0) for row in rows),
             },
@@ -139,6 +154,7 @@ class DeadSignalSchemaTraceBatch:
             "policy": {
                 "source": "published weapon identities plus installed-game exact reference tracer and NeoX tables",
                 "matching": "Typed owner table + owner-field rules; no fuzzy, substring, similar-ID, bare-number, or table-only traversal.",
+                "terminal_references": "Exact configuration handles that legitimately terminate at their source field are reported separately and do not make a weapon unresolved.",
                 "unresolved": "Unresolved exact identities include compact table/field candidate counts so the next owner rule can be learned from evidence instead of guessed.",
                 "output": "Compact research-only summary. Full NeoX fields remain in the one-item Schema Trace view.",
                 "publication": "No automatic promotion or player-facing publication.",
