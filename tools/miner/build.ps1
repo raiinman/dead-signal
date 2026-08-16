@@ -38,6 +38,7 @@ $HiddenImports = @(
     'research_console', 'research_window',
     'dead_signal_research_suite', 'dead_signal_research_cache', 'dead_signal_source_finder', 'dead_signal_table_profiler',
     'dead_signal_multihop_resolver', 'dead_signal_weapon_description_consumer',
+    'dead_signal_description_dataflow', 'dead_signal_description_trace_compiler', 'dead_signal_description_flow_tab',
     'dead_signal_intelligence_window', 'dead_signal_intelligence_advanced', 'dead_signal_intelligence_hub',
     'dead_signal_discovery', 'dead_signal_discovery_tab',
     'dead_signal_verification', 'dead_signal_verification_tab',
