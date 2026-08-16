@@ -12,7 +12,10 @@ SRC = Path(__file__).resolve().parents[1] / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from dead_signal_weapon_schema_trace import DeadSignalWeaponSchemaTrace  # noqa: E402
+from dead_signal_weapon_schema_trace import (  # noqa: E402
+    DeadSignalWeaponSchemaTrace,
+    _preferred_layer,
+)
 
 
 class WeaponSchemaTraceTests(unittest.TestCase):
@@ -153,6 +156,18 @@ class WeaponSchemaTraceTests(unittest.TestCase):
         self.assertTrue(field_edges)
         self.assertTrue(all(not row["authoritative"] for row in field_edges))
         self.assertIn("never promotes", result["policy"]["publication"])
+
+    def test_owner_budget_counts_records_not_duplicate_occurrences(self):
+        rows = [
+            {"source": "base", "table": "game_common/data/equip_data.json", "record_id": "100", "field": "record_id"},
+            {"source": "base", "table": "game_common/data/equip_data.json", "record_id": "100", "field": "item_id"},
+            {"source": "current", "table": "game_common/data/equip_data.json", "record_id": "100", "field": "item_id"},
+            {"source": "current", "table": "game_common/data/equip_data.json", "record_id": "101", "field": "item_id"},
+        ]
+        selected = _preferred_layer(rows)
+        self.assertEqual(2, len(selected))
+        self.assertEqual({"100", "101"}, {row["record_id"] for row in selected})
+        self.assertTrue(all(row["source"] == "current" for row in selected))
 
 
 if __name__ == "__main__":
