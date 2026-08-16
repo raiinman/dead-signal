@@ -64,7 +64,30 @@ class MissingSkillForensicsTests(unittest.TestCase):
         self.assertTrue(rows["WS2001"]["marshal_hits"])
         self.assertEqual("no-exact-raw-hit-in-targeted-modules", rows["WS9999"]["status"])
         self.assertTrue((self.reports / "missing-fixed-skill-forensics.json").is_file())
-        self.assertEqual("None. Game modules are never imported or executed." if False else "No game module is imported or executed; no game bytecode is executed.", report["policy"]["execution"])
+        self.assertEqual(
+            "No game module is imported or executed; no game bytecode is executed.",
+            report["policy"]["execution"],
+        )
+
+    def test_fixed_skill_consumer_symbol_is_reported_without_execution(self):
+        self._write_pyc(
+            "client/item/weapon_card_helper.pyc",
+            "def resolve_weapon_skill(record):\n"
+            "    fixed_skill_code = record.get('fixed_skill_code')\n"
+            "    return fixed_skill_code\n",
+        )
+        report = run_missing_skill_forensics(
+            self.base,
+            self.current,
+            ["WS2001"],
+            self.reports,
+        )
+        consumer = report["consumer_trace"]
+        self.assertEqual("complete", consumer["status"])
+        self.assertEqual(1, consumer["record_counts"]["consumer_candidate_files"])
+        self.assertEqual("client/item/weapon_card_helper.pyc", consumer["candidates"][0]["relative_path"])
+        hits = consumer["candidates"][0]["code_hits"]
+        self.assertTrue(any("fixed_skill_code" in hit["matched_symbols"] for hit in hits))
 
     def test_batch_extracts_unique_unresolved_skill_codes_only(self):
         rows = [
