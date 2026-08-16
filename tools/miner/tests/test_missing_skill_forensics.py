@@ -13,6 +13,7 @@ SRC = Path(__file__).resolve().parents[1] / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+from dead_signal_fixed_skill_flow_trace import _fallback_instruction_windows  # noqa: E402
 from dead_signal_missing_skill_forensics import _scan_consumers, run_missing_skill_forensics  # noqa: E402
 from dead_signal_schema_trace_batch import _unresolved_skill_codes  # noqa: E402
 
@@ -51,22 +52,14 @@ class MissingSkillForensicsTests(unittest.TestCase):
             "game_common/data/hidden_weapon_skill_helper.pyc",
             "MISSING_FIXED_SKILL = 'WS2001'\n\ndef lookup():\n    return MISSING_FIXED_SKILL\n",
         )
-        report = run_missing_skill_forensics(
-            self.base,
-            self.current,
-            ["WS2001", "WS9999"],
-            self.reports,
-        )
+        report = run_missing_skill_forensics(self.base, self.current, ["WS2001", "WS9999"], self.reports)
         rows = {row["skill_code"]: row for row in report["skills"]}
         self.assertEqual("exact-code-metadata-hit", rows["WS2001"]["status"])
         self.assertTrue(rows["WS2001"]["raw_exact_files"])
         self.assertTrue(rows["WS2001"]["marshal_hits"])
         self.assertEqual("no-exact-raw-hit-in-targeted-modules", rows["WS9999"]["status"])
         self.assertTrue((self.reports / "missing-fixed-skill-forensics.json").is_file())
-        self.assertEqual(
-            "No game module is imported or executed; no game bytecode is executed.",
-            report["policy"]["execution"],
-        )
+        self.assertEqual("No game module is imported or executed; no game bytecode is executed.", report["policy"]["execution"])
 
     def test_fixed_skill_consumer_symbol_is_reported_without_execution(self):
         self._write_pyc(
@@ -75,12 +68,7 @@ class MissingSkillForensicsTests(unittest.TestCase):
             "    fixed_skill_code = record.get('fixed_skill_code')\n"
             "    return fixed_skill_code\n",
         )
-        report = run_missing_skill_forensics(
-            self.base,
-            self.current,
-            ["WS2001"],
-            self.reports,
-        )
+        report = run_missing_skill_forensics(self.base, self.current, ["WS2001"], self.reports)
         consumer = report["consumer_trace"]
         self.assertEqual("complete", consumer["status"])
         self.assertEqual(1, consumer["record_counts"]["direct_consumer_candidate_files"])
@@ -95,12 +83,7 @@ class MissingSkillForensicsTests(unittest.TestCase):
             "    fixed_skill_code = row.get('fixed_skill_code')\n"
             "    return passive_skill_data.get(fixed_skill_code)\n",
         )
-        report = run_missing_skill_forensics(
-            self.base,
-            self.current,
-            ["WS2001"],
-            self.reports,
-        )
+        report = run_missing_skill_forensics(self.base, self.current, ["WS2001"], self.reports)
         flow = report["fixed_skill_flow_trace"]
         self.assertEqual("complete", flow["status"])
         self.assertEqual(1, flow["record_counts"]["candidate_files"])
@@ -110,10 +93,21 @@ class MissingSkillForensicsTests(unittest.TestCase):
         self.assertEqual("get_blueprint_fixed_skill", function["qualname"])
         self.assertIn("passive_skill_data", function["local_names"])
         self.assertTrue(any(row.get("is_fixed_skill_anchor") for row in function["instruction_window"] if not row.get("gap")))
-        self.assertEqual(
-            "PYC code objects are unmarshaled and disassembled only; game bytecode is never executed.",
-            flow["policy"]["execution"],
+        self.assertEqual("PYC code objects are unmarshaled and decoded only; game bytecode is never executed.", flow["policy"]["execution"])
+
+    def test_tolerant_wordcode_fallback_finds_exact_fixed_skill_constant(self):
+        module = compile(
+            "def get_blueprint_fixed_skill(row):\n"
+            "    return row.get('fixed_skill_code')\n",
+            "fixture.py",
+            "exec",
         )
+        function = next(value for value in module.co_consts if hasattr(value, "co_code") and value.co_name == "get_blueprint_fixed_skill")
+        rows, anchors, error = _fallback_instruction_windows(function)
+        self.assertIsNone(error)
+        self.assertGreaterEqual(anchors, 1)
+        self.assertTrue(any(row.get("is_fixed_skill_anchor") for row in rows if not row.get("gap")))
+        self.assertTrue(any(row.get("argval") == "fixed_skill_code" for row in rows if not row.get("gap")))
 
     def test_preload_table_reference_is_context_not_direct_consumer(self):
         self._write_pyc(
@@ -122,12 +116,7 @@ class MissingSkillForensicsTests(unittest.TestCase):
             "BLUEPRINT = 'gun_blueprint_attr_data'\n"
             "TAGS = 'skill_tags_data'\n",
         )
-        report = run_missing_skill_forensics(
-            self.base,
-            self.current,
-            ["WS2001"],
-            self.reports,
-        )
+        report = run_missing_skill_forensics(self.base, self.current, ["WS2001"], self.reports)
         consumer = report["consumer_trace"]
         self.assertEqual(0, consumer["record_counts"]["direct_consumer_candidate_files"])
         self.assertEqual(1, consumer["record_counts"]["context_reference_candidate_files"])
@@ -136,11 +125,7 @@ class MissingSkillForensicsTests(unittest.TestCase):
     def test_consumer_scan_reports_partial_when_guardrail_is_hit(self):
         self._write_pyc("a.pyc", "VALUE = 'skill_data'\n")
         self._write_pyc("b.pyc", "VALUE = 'fixed_skill_code'\n")
-        result = _scan_consumers(
-            [("base", self.base_source.resolve())],
-            activity=lambda _message: None,
-            max_files_per_root=1,
-        )
+        result = _scan_consumers([( "base", self.base_source.resolve())], activity=lambda _message: None, max_files_per_root=1)
         self.assertEqual("partial-limit", result["status"])
         self.assertEqual(["base"], result["roots_truncated_at_limit"])
 
