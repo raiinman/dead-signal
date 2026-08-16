@@ -4,6 +4,10 @@ Runs the bounded single-item schema tracer across every published weapon and
 writes a compact research-only report beneath ``output/research``. The batch
 report intentionally omits full flattened NeoX fields; those remain available in
 the one-item raw trace view. This keeps the export useful and reasonably small.
+
+Any exact unresolved fixed-skill codes left by the fleet trace are handed to the
+targeted raw-PYC forensic stage automatically. That second stage is read-only and
+research-only; it never changes published weapon data.
 """
 from __future__ import annotations
 
@@ -12,11 +16,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+from dead_signal_missing_skill_forensics import run_missing_skill_forensics
 from dead_signal_weapon_schema_trace import DeadSignalWeaponSchemaTrace
 from research_console import ResearchConsole
 
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 def _utc_now() -> str:
@@ -106,6 +111,16 @@ def summarize_trace(result: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _unresolved_skill_codes(rows: list[dict[str, Any]]) -> list[str]:
+    values = {
+        str(stop.get("value") or "").strip()
+        for row in rows
+        for stop in (row.get("unresolved_stops") or [])
+        if stop.get("kind") == "skill_id" and str(stop.get("value") or "").strip()
+    }
+    return sorted(values)
+
+
 class DeadSignalSchemaTraceBatch:
     def __init__(self, output: Path | str):
         self.output = Path(output).expanduser().resolve()
@@ -134,6 +149,34 @@ class DeadSignalSchemaTraceBatch:
 
         clean = sum(1 for row in rows if row.get("status") == "clean")
         unresolved = sum(1 for row in rows if row.get("unresolved_stop_count"))
+        unresolved_skills = _unresolved_skill_codes(rows)
+        research_dir = self.output / "research"
+        forensic_summary: dict[str, Any] = {
+            "requested_skill_codes": unresolved_skills,
+            "report_path": str(research_dir / "missing-fixed-skill-forensics.json"),
+            "status": "not-needed" if not unresolved_skills else "pending",
+        }
+        if unresolved_skills:
+            try:
+                if activity:
+                    activity(f"Fleet trace isolated {len(unresolved_skills)} unresolved fixed-skill codes; starting targeted raw forensics")
+                forensic = run_missing_skill_forensics(
+                    self.console.base,
+                    self.console.current,
+                    unresolved_skills,
+                    research_dir,
+                    activity=activity,
+                )
+                forensic_summary.update({
+                    "status": forensic.get("status"),
+                    "record_counts": forensic.get("record_counts") or {},
+                })
+            except Exception as error:
+                forensic_summary.update({
+                    "status": "forensic-stage-error",
+                    "error": f"{type(error).__name__}: {error}",
+                })
+
         payload = {
             "schema": "dead-signal-guided-schema-trace-batch",
             "schema_version": SCHEMA_VERSION,
@@ -148,7 +191,9 @@ class DeadSignalSchemaTraceBatch:
                 "terminal_references": sum(int(row.get("terminal_reference_count") or 0) for row in rows),
                 "owner_records": sum(int(row.get("record_count") or 0) for row in rows),
                 "skipped_broad_exact_references": sum(int(row.get("skipped_broad_exact_references") or 0) for row in rows),
+                "unique_unresolved_skill_codes": len(unresolved_skills),
             },
+            "missing_skill_forensics": forensic_summary,
             "weapons": rows,
             "failures": failures,
             "policy": {
@@ -156,13 +201,14 @@ class DeadSignalSchemaTraceBatch:
                 "matching": "Typed owner table + owner-field rules; no fuzzy, substring, similar-ID, bare-number, or table-only traversal.",
                 "terminal_references": "Exact configuration handles that legitimately terminate at their source field are reported separately and do not make a weapon unresolved.",
                 "unresolved": "Unresolved exact identities include compact table/field candidate counts so the next owner rule can be learned from evidence instead of guessed.",
+                "forensics": "Remaining unresolved skill codes are automatically passed to a bounded exact raw-PYC audit; forensic hits remain research evidence only.",
                 "output": "Compact research-only summary. Full NeoX fields remain in the one-item Schema Trace view.",
                 "publication": "No automatic promotion or player-facing publication.",
             },
         }
-        destination = self.output / "research" / "schema-trace-all-weapons.json"
+        destination = research_dir / "schema-trace-all-weapons.json"
         _atomic_json(destination, payload)
         payload["report_path"] = str(destination)
         if activity:
-            activity(f"Complete: {len(rows)}/{total} traced; {len(failures)} failures")
+            activity(f"Complete: {len(rows)}/{total} traced; {len(failures)} failures; {len(unresolved_skills)} unresolved skill codes")
         return payload
