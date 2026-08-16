@@ -14,6 +14,7 @@ from dead_signal_blueprint_module_audit import run_blueprint_module_audit
 from dead_signal_common_data_registry_audit import run_common_data_registry_audit
 from dead_signal_data_proxy_architecture import run_data_proxy_architecture_audit
 from dead_signal_datamgr_map_audit import run_datamgr_map_audit
+from dead_signal_fixed_skill_text_audit import run_fixed_skill_text_audit
 from dead_signal_description_dataflow import run_description_dataflow_trace
 from dead_signal_description_dataflow_fallback import recover_persisted_description_capsules
 from dead_signal_intelligence_compiler import resolve_snapshot
@@ -90,6 +91,7 @@ def _build_bundle(
     common_data_audit: dict[str, Any],
     data_proxy_audit: dict[str, Any],
     datamgr_map_audit: dict[str, Any],
+    fixed_skill_audit: dict[str, Any],
     duration: float,
 ) -> Path:
     intelligence = paths["output"] / "intelligence"
@@ -103,9 +105,10 @@ def _build_bundle(
     common_data_path = paths["reports"] / "common-data-registry-static-audit.json"
     data_proxy_path = paths["reports"] / "data-proxy-architecture-static-audit.json"
     datamgr_map_path = paths["reports"] / "datamgr-map-static-audit.json"
+    fixed_skill_path = paths["reports"] / "fixed-skill-text-static-audit.json"
     summary = {
         "schema": "dead-signal-description-dataflow-bundle",
-        "schema_version": 7,
+        "schema_version": 8,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "duration_seconds": duration,
         "record_counts": report.get("record_counts") or {},
@@ -136,6 +139,10 @@ def _build_bundle(
             "record_counts": datamgr_map_audit.get("record_counts") or {},
             "mode": datamgr_map_audit.get("mode"),
         },
+        "fixed_skill_text_audit": {
+            "record_counts": fixed_skill_audit.get("record_counts") or {},
+            "mode": fixed_skill_audit.get("mode"),
+        },
         "mode": "offline-static-pyc-only",
         "safety": report.get("safety") or {},
     }
@@ -152,6 +159,7 @@ def _build_bundle(
             (common_data_path, "published/reports/common-data-registry-static-audit.json"),
             (data_proxy_path, "published/reports/data-proxy-architecture-static-audit.json"),
             (datamgr_map_path, "published/reports/datamgr-map-static-audit.json"),
+            (fixed_skill_path, "published/reports/fixed-skill-text-static-audit.json"),
         ):
             if path.is_file():
                 destination.write(path, arcname)
@@ -172,7 +180,7 @@ def compile_description_dataflow_trace(
     progress: ProgressCallback | None = None,
     activity: ActivityCallback | None = None,
 ) -> dict[str, Any]:
-    """Run the offline static description, Blueprint, registry, proxy, and DataMgr map audits."""
+    """Run the offline static description, Blueprint, registry, proxy, DataMgr, and fixed-skill audits."""
     log = log or (lambda _value: None)
     progress = progress or (lambda _value, _label: None)
     activity = activity or log
@@ -213,22 +221,25 @@ def compile_description_dataflow_trace(
     progress(82, "Common / Client / Server Data Proxy Architecture")
     data_proxy_audit = run_data_proxy_architecture_audit(paths["base"], paths["current"], paths["reports"], activity=activity)
 
-    progress(92, "DataMgr Type / Package / Proxy Map Audit")
+    progress(90, "DataMgr Type / Package / Proxy Map Audit")
     datamgr_map_audit = run_datamgr_map_audit(paths["base"], paths["current"], paths["reports"], activity=activity)
+
+    progress(94, "Fixed Skill Player-Facing Text Audit")
+    fixed_skill_audit = run_fixed_skill_text_audit(paths["base"], paths["current"], paths["reports"], activity=activity)
 
     duration = round(time.perf_counter() - started, 6)
     progress(97, "Package Data Flow Trace")
     activity(f"Static Description Data Flow finished in {duration:.1f}s")
     archive = _build_bundle(
         paths, report, bindict_audit, prototype_projection, blueprint_audit,
-        common_data_audit, data_proxy_audit, datamgr_map_audit, duration
+        common_data_audit, data_proxy_audit, datamgr_map_audit, fixed_skill_audit, duration
     )
     activity(f"Description data-flow bundle ready: {archive.name}")
     progress(100, "Description Data Flow ready")
     log(f"Dead Signal Description Data Flow bundle ready: {archive}")
     return {
         "schema": "dead-signal-description-dataflow-compiled",
-        "schema_version": 7,
+        "schema_version": 8,
         "duration_seconds": duration,
         "record_counts": report.get("record_counts") or {},
         "target_presence": report.get("target_presence") or {},
@@ -238,6 +249,7 @@ def compile_description_dataflow_trace(
         "common_data_registry_audit": common_data_audit.get("record_counts") or {},
         "data_proxy_architecture_audit": data_proxy_audit.get("record_counts") or {},
         "datamgr_map_audit": datamgr_map_audit.get("record_counts") or {},
+        "fixed_skill_text_audit": fixed_skill_audit.get("record_counts") or {},
         "report": str(paths["reports"] / "weapon-description-static-dataflow.json"),
         "bindict_report": str(paths["reports"] / "weapon-prototype-bindict-schema-audit.json"),
         "projection_report": str(paths["reports"] / "weapon-description-prototype-projection.json"),
@@ -245,5 +257,6 @@ def compile_description_dataflow_trace(
         "common_data_registry_report": str(paths["reports"] / "common-data-registry-static-audit.json"),
         "data_proxy_architecture_report": str(paths["reports"] / "data-proxy-architecture-static-audit.json"),
         "datamgr_map_report": str(paths["reports"] / "datamgr-map-static-audit.json"),
+        "fixed_skill_text_report": str(paths["reports"] / "fixed-skill-text-static-audit.json"),
         "bundle": str(archive),
     }
