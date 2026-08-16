@@ -21,9 +21,10 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Callable, Iterable
 
+from dead_signal_fixed_skill_flow_trace import trace_fixed_skill_flows
 from neoxtractor.core.bindict.parser import BindictParser
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 MAX_FILE_BYTES = 32 * 1024 * 1024
 MAX_CANDIDATE_FILES = 5000
 MAX_CONSUMER_FILES_PER_ROOT = 100000
@@ -345,6 +346,7 @@ def run_missing_skill_forensics(
         skill_rows.append(row)
 
     consumer_trace = _scan_consumers(roots, activity=activity)
+    fixed_skill_flow_trace = trace_fixed_skill_flows(roots, consumer_trace, activity=activity)
 
     report = {
         "schema": "dead-signal-missing-fixed-skill-forensics",
@@ -360,14 +362,18 @@ def run_missing_skill_forensics(
             "files_with_exact_code_bytes": exact_files,
             "statuses": dict(sorted(status_counts.items())),
             "consumer_candidate_files": consumer_trace["record_counts"]["consumer_candidate_files"],
+            "fixed_skill_flow_functions": fixed_skill_flow_trace["record_counts"]["consumer_functions"],
+            "fixed_skill_instruction_anchors": fixed_skill_flow_trace["record_counts"]["fixed_skill_instruction_anchors"],
         },
         "source_roots": [{"layer": layer, "root_present": True} for layer, _root in roots],
         "skills": skill_rows,
         "consumer_trace": consumer_trace,
+        "fixed_skill_flow_trace": fixed_skill_flow_trace,
         "policy": {
             "scope": (
                 "Exact unresolved skill-code bytes are searched in likely skill/weapon/gun/buff modules; "
-                "a separate bounded corpus pass searches exact fixed-skill consumer symbols."
+                "a separate bounded corpus pass searches exact fixed-skill consumer symbols, then only those exact "
+                "direct consumers receive static instruction-window tracing."
             ),
             "matching": "Exact skill-code or exact consumer-symbol bytes only; no fuzzy or substring identity promotion.",
             "parsing": "Exact-hit files are inspected through BindictParser and/or marshal CodeType metadata where compatible.",
@@ -376,19 +382,24 @@ def run_missing_skill_forensics(
                 "direct consumer. References to gun_blueprint_attr_data/passive_skill_data/skill_data are retained as "
                 "context references and are not promoted to consumers."
             ),
+            "flow_evidence": (
+                "Direct consumer functions are disassembled into bounded windows around exact fixed_skill_code "
+                "instruction operands. Nearby operations and symbols are static evidence, not claimed runtime semantics."
+            ),
             "execution": "No game module is imported or executed; no game bytecode is executed.",
             "publication": "Research report only. No website/public weapon data is modified or promoted.",
         },
         "next_step": (
-            "Inspect consumer_trace.direct_consumer_candidates. If none exist after a complete corpus pass, treat "
-            "Python-level fixed_skill_code resolution as unproven and pivot to data-loader/native-engine or adjacent "
-            "table relationships rather than inventing a consumer."
+            "Inspect fixed_skill_flow_trace for the immediate operations after fixed_skill_code in BluePrintHelper, "
+            "GunCoreHelper, damage simulation, camera, and skill-manager consumers. Use those exact static flows to "
+            "identify the next typed data/helper relationship without inventing a WS alias."
         ),
     }
     _write_json(destination, report)
     activity(
         f"Missing Skill Forensics complete: {len(codes)} codes; {exact_files} exact-hit files; "
         f"{consumer_trace['record_counts']['direct_consumer_candidate_files']} direct consumers; "
+        f"{fixed_skill_flow_trace['record_counts']['consumer_functions']} traced consumer functions; "
         f"{consumer_trace['record_counts']['context_reference_candidate_files']} context references"
     )
     return report
