@@ -117,7 +117,6 @@ def _published_answers(weapon: dict[str, Any]) -> dict[str, dict[str, Any]]:
         }
         for question, (field, source) in mapping.items():
             resolved(question, ranged.get(field), source)
-        # Effective range is the full-damage distance in the current authoritative projection.
         resolved("effective_range", ranged.get("full_damage_distance"), "published exact full-damage-distance projection")
     else:
         for question in (
@@ -129,7 +128,6 @@ def _published_answers(weapon: dict[str, Any]) -> dict[str, dict[str, Any]]:
         if melee:
             resolved("effective_range", melee.get("range") or melee.get("attack_range"), "published melee range projection")
 
-    # Dead Signal enhancement lane.
     resolved("blueprint_identity", weapon.get("blueprint_id"), "published exact blueprint identity")
     resolved("item_identity", weapon.get("item_id"), "published exact item identity")
     resolved("prototype_identity", weapon.get("prototype_id"), "published exact prototype identity")
@@ -228,6 +226,7 @@ def run_weapon_site_readiness(
     audit_group_map = {
         "rarity": None,
         "firing_mode": "firing_mode",
+        "reload_score": None,
         "ads_time": "ads_time",
         "bullet_speed": "bullet_speed",
         "cradle_compatibility": None,
@@ -241,7 +240,6 @@ def run_weapon_site_readiness(
         corpus_weapon = corpus_rows.get(str(weapon.get("blueprint_id")), {})
         corpus_groups = _candidate_by_group(corpus_weapon)
 
-        # Promote only the evidence *state*, never an unverified semantic value.
         for question, group in audit_group_map.items():
             if question in answers and answers[question].get("state", "").startswith("resolved"):
                 continue
