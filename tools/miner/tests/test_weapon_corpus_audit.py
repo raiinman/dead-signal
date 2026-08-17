@@ -93,6 +93,7 @@ class WeaponCorpusAuditTests(unittest.TestCase):
         self.assertEqual(weapon["coverage"]["bullet_speed"], "candidate-evidence-found")
         records = weapon["exact_corpus_evidence"]
         self.assertTrue(any(row["record_id"] == "good" for row in records))
+        self.assertTrue(all(row.get("evidence_scope") == "variant-local" for row in records))
         self.assertFalse(any(row["record_id"] == "similar-only" for row in records))
         self.assertGreater(report["pyc_consumer_scan"]["group_candidate_counts"]["ads_time"], 0)
         self.assertTrue((self.reports / "weapon-corpus-audit.json").is_file())
@@ -118,6 +119,66 @@ class WeaponCorpusAuditTests(unittest.TestCase):
         self.assertEqual(weapon["coverage"]["ads_time"], "missing")
         self.assertEqual(weapon["coverage"]["bullet_speed"], "missing")
         self.assertEqual(weapon["coverage"]["firing_mode"], "candidate-evidence-found")
+
+    def test_shared_bullet_pattern_is_family_evidence_not_variant_ownership(self):
+        weapons_path = self.root / "weapons.json"
+        weapons_path.write_text(json.dumps({
+            "weapons": [
+                {
+                    "blueprint_id": 100001,
+                    "item_id": 200001,
+                    "prototype_id": 204,
+                    "name": "AA12",
+                    "category": "Shotgun",
+                    "ranged_stats": {"bullet_pattern_id": "PatShared"},
+                    "tiers": [{"tier": 1, "item_id": 200011, "gun_no": 300011, "damage": 30}],
+                },
+                {
+                    "blueprint_id": 100002,
+                    "item_id": 200002,
+                    "prototype_id": 204,
+                    "name": "ACS12 Variant",
+                    "category": "Shotgun",
+                    "ranged_stats": {"bullet_pattern_id": "PatShared"},
+                    "tiers": [{"tier": 1, "item_id": 200012, "gun_no": 300012, "damage": 31}],
+                },
+            ]
+        }), encoding="utf-8")
+        pattern = self.current / "game_common" / "data" / "bullet_pattern_data.json"
+        pattern.parent.mkdir(parents=True, exist_ok=True)
+        pattern.write_text(json.dumps({
+            "PatShared": {
+                "bullet_pattern_no": "PatShared",
+                "bullet_num": 5,
+                "scatter_num": 7,
+                "bullet_speed": 200,
+                "ads_time": 9.99,
+                "default_shoot_mode": 99,
+            }
+        }), encoding="utf-8")
+        gun = self.current / "game_common" / "data" / "gun_base_params_data.json"
+        gun.write_text(json.dumps({
+            "300011": {"gun_no": 300011, "ads_time": 0.23, "default_shoot_mode": 3}
+        }), encoding="utf-8")
+
+        report = run_weapon_corpus_audit(self.base, self.current, weapons_path, self.reports)
+        first, second = report["weapons"]
+        for weapon in (first, second):
+            inherited = [row for row in weapon["exact_corpus_evidence"] if row.get("evidence_scope") == "family-shared"]
+            self.assertTrue(inherited)
+            inherited_groups = {field["group"] for row in inherited for field in row["fields"]}
+            self.assertIn("projectiles", inherited_groups)
+            self.assertIn("bullet_speed", inherited_groups)
+            self.assertNotIn("ads_time", inherited_groups)
+            self.assertNotIn("firing_mode", inherited_groups)
+            self.assertEqual(weapon["family_inheritance"]["precedence"], ["variant-local", "family-shared"])
+
+        first_local = [row for row in first["exact_corpus_evidence"] if row.get("evidence_scope") == "variant-local"]
+        second_local = [row for row in second["exact_corpus_evidence"] if row.get("evidence_scope") == "variant-local"]
+        self.assertTrue(any(any(field["group"] == "ads_time" for field in row["fields"]) for row in first_local))
+        self.assertFalse(any(any(field["group"] == "ads_time" for field in row["fields"]) for row in second_local))
+        self.assertEqual(first["coverage"]["ads_time"], "candidate-evidence-found")
+        self.assertEqual(second["coverage"]["ads_time"], "missing")
 
     def test_melee_marks_firearm_only_fields_not_applicable(self):
         weapons_path = self.root / "weapons.json"
