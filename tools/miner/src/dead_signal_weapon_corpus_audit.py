@@ -3,7 +3,7 @@
 This analyzer is intentionally conservative. It starts from the canonical
 published weapon identities and scans retained NeoX JSON layers for player-facing
 field families, but a record is associated with a weapon only when an exact
-identity appears in the record key or in an explicitly typed identity field.
+identity appears in a strong record key or in an explicitly typed identity field.
 Small numeric values and arbitrary dictionary keys are never identity proof.
 
 Retained PYC files are inspected only as static CodeType metadata. Nothing from
@@ -146,7 +146,6 @@ def _iter_records(payload: Any):
             continue
         child_dicts = [(child_key, child) for child_key, child in value.items() if isinstance(child, dict)]
         scalar_children = sum(not isinstance(child, (dict, list)) for child in value.values())
-        # Common shape: {"data": {"123": {...}, "456": {...}}}. Treat each child as a record.
         if child_dicts and scalar_children == 0:
             for child_key, child in child_dicts:
                 yield str(child_key), child
@@ -219,9 +218,18 @@ def _published_coverage(weapon: dict[str, Any]) -> dict[str, str]:
     return coverage
 
 
+def _strong_record_key(record_id: str) -> bool:
+    text = str(record_id).strip()
+    if not text:
+        return False
+    if text.isdigit():
+        return len(text) >= 6
+    return len(text) >= 6
+
+
 def _typed_identity_matches(record_id: str, leaves: list[tuple[str, str, Any]], seeds: set[str]) -> set[str]:
     matched: set[str] = set()
-    if str(record_id) in seeds:
+    if _strong_record_key(record_id) and str(record_id) in seeds:
         matched.add(str(record_id))
     for _pointer, field, value in leaves:
         if _normalized_name(field) not in IDENTITY_FIELDS:
@@ -253,7 +261,9 @@ def _scan_json_layers(base: Path, current: Path, weapon_rows: list[dict[str, Any
             for record_id, record in _iter_records(payload):
                 records_scanned += 1
                 leaves = list(_walk_leaves(record))
-                candidate_seed_values = {str(record_id)}
+                candidate_seed_values: set[str] = set()
+                if _strong_record_key(record_id):
+                    candidate_seed_values.add(str(record_id))
                 candidate_seed_values.update(str(value) for _p, field, value in leaves if _normalized_name(field) in IDENTITY_FIELDS)
                 candidate_indices: set[int] = set()
                 for value in candidate_seed_values: candidate_indices.update(seed_to_weapons.get(value, set()))
@@ -347,7 +357,7 @@ def run_weapon_corpus_audit(base: Path,current: Path,weapons_path: Path,reports_
     for group in COMPETITOR_BASELINE+DEAD_SIGNAL_ADVANTAGE:
         states=Counter(r["coverage"].get(group,"missing") for r in weapon_reports)
         group_summary[group]={"states":dict(states),"exact_json_field_hits":int((json_scan.get("group_counts") or {}).get(group,0)),"pyc_consumer_candidates":int((pyc_scan.get("group_candidate_counts") or {}).get(group,0)),"priority":PRIORITY.get(group,50),"baseline":"competitor" if group in COMPETITOR_BASELINE else "dead-signal-advantage"}
-    report={"schema":"dead-signal-weapon-corpus-audit","schema_version":SCHEMA_VERSION,"brand":"Dead Signal","subject":"Complete player-facing Weapons corpus coverage","mode":"overnight-read-only-full-corpus-audit","record_counts":{"weapons":len(weapon_reports),"json_files_scanned":json_scan["files_scanned"],"json_records_scanned":json_scan["records_scanned"],"exact_identity_records_with_target_fields":json_scan["exact_identity_records_with_target_fields"],"pyc_files_scanned":pyc_scan["files_scanned"],"pyc_files_with_target_tokens":pyc_scan["files_with_target_token_bytes"],"gaps":len(gap_queue),"coverage_states":dict(status_counts)},"coverage_contract":{"competitor_baseline":list(COMPETITOR_BASELINE),"dead_signal_advantage":list(DEAD_SIGNAL_ADVANTAGE),"rule":"Competitor-visible fields are research targets, never source-of-truth. Installed-game exact evidence remains authoritative."},"group_summary":group_summary,"gap_queue":gap_queue,"weapons":weapon_reports,"json_scan":{"files_scanned":json_scan["files_scanned"],"records_scanned":json_scan["records_scanned"],"exact_identity_records_with_target_fields":json_scan["exact_identity_records_with_target_fields"],"errors":json_scan["errors"],"top_tables":json_scan["top_tables"]},"pyc_consumer_scan":pyc_scan,"policy":{"identity":"Record association requires an exact canonical seed in the isolated record key or a typed identity field. Bare scalar/key collisions are forbidden.","scope":"Both retained NeoX JSON layers are scanned, plus retained PYC source roots available from snapshot metadata.","execution":"PYC files are unmarshaled for static CodeType metadata only; game modules and game bytecode are never executed.","publication":"Candidate evidence is research-only and never auto-promotes values.","absence":"No exact candidate means this audit did not locate one in the current corpus; it does not prove the concept is absent."}}
+    report={"schema":"dead-signal-weapon-corpus-audit","schema_version":SCHEMA_VERSION,"brand":"Dead Signal","subject":"Complete player-facing Weapons corpus coverage","mode":"overnight-read-only-full-corpus-audit","record_counts":{"weapons":len(weapon_reports),"json_files_scanned":json_scan["files_scanned"],"json_records_scanned":json_scan["records_scanned"],"exact_identity_records_with_target_fields":json_scan["exact_identity_records_with_target_fields"],"pyc_files_scanned":pyc_scan["files_scanned"],"pyc_files_with_target_tokens":pyc_scan["files_with_target_token_bytes"],"gaps":len(gap_queue),"coverage_states":dict(status_counts)},"coverage_contract":{"competitor_baseline":list(COMPETITOR_BASELINE),"dead_signal_advantage":list(DEAD_SIGNAL_ADVANTAGE),"rule":"Competitor-visible fields are research targets, never source-of-truth. Installed-game exact evidence remains authoritative."},"group_summary":group_summary,"gap_queue":gap_queue,"weapons":weapon_reports,"json_scan":{"files_scanned":json_scan["files_scanned"],"records_scanned":json_scan["records_scanned"],"exact_identity_records_with_target_fields":json_scan["exact_identity_records_with_target_fields"],"errors":json_scan["errors"],"top_tables":json_scan["top_tables"]},"pyc_consumer_scan":pyc_scan,"policy":{"identity":"Record association requires an exact canonical seed in a strong isolated record key or a typed identity field. Bare scalar/key collisions are forbidden; short prototype numbers require typed fields.","scope":"Both retained NeoX JSON layers are scanned, plus retained PYC source roots available from snapshot metadata.","execution":"PYC files are unmarshaled for static CodeType metadata only; game modules and game bytecode are never executed.","publication":"Candidate evidence is research-only and never auto-promotes values.","absence":"No exact candidate means this audit did not locate one in the current corpus; it does not prove the concept is absent."}}
     destination=reports_dir/"weapon-corpus-audit.json"; _write_json(destination,report)
     activity(f"Weapon Corpus Audit complete: {len(weapon_reports)} weapons; {len(gap_queue)} ranked gaps")
     return report
