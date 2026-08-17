@@ -1,11 +1,10 @@
 """Standalone Dead Signal Data Intelligence compiler.
 
-Runs the research extensions against an already-completed Miner snapshot without
-re-reading or modifying the installed game. It regenerates research reports,
-analytics, discovery products, the advisory publication gate, and compact ZIP
-bundles suitable for review or upload. No public website dataset is modified.
+Runs research extensions against an already-completed Miner snapshot without
+modifying the installed game. The full compiler now also runs the canonical
+all-weapons Schema Trace, including ownerless fixed-skill forensics, and packages
+those research reports into the Intelligence bundle.
 """
-
 from __future__ import annotations
 
 import json
@@ -19,10 +18,10 @@ from dead_signal_analytics import DeadSignalAnalytics
 from dead_signal_discovery import DeadSignalDiscovery
 from dead_signal_publication_gate import build_gate_report
 from dead_signal_research_suite import run_research_suite
+from dead_signal_schema_trace_batch import DeadSignalSchemaTraceBatch
 from dead_signal_weapon_description_consumer import run_weapon_description_consumer_trace
 
-
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 LogCallback = Callable[[str], None]
 ProgressCallback = Callable[[int, str], None]
 ActivityCallback = Callable[[str], None]
@@ -43,11 +42,9 @@ def _write_json(path: Path, payload: Any) -> None:
 
 
 def resolve_snapshot(output: Path | str) -> dict[str, Path]:
-    """Resolve one completed Miner snapshot using its canonical run metadata."""
     output = Path(output).expanduser().resolve()
     if not output.is_dir():
         raise ValueError("Select a completed Dead Signal Miner data folder")
-
     last_run = _read_json(output / "last-run.json", {}) or {}
     active = last_run.get("active_snapshots") if isinstance(last_run, dict) else {}
     active = active if isinstance(active, dict) else {}
@@ -58,22 +55,14 @@ def resolve_snapshot(output: Path | str) -> dict[str, Path]:
             "The completed snapshot metadata does not identify both base and current NeoX layers. "
             "Run a Complete Database harvest once with the current Miner, then Data Intelligence can be recompiled independently."
         )
-
     base = Path(base_text).expanduser()
     current = Path(current_text).expanduser()
-    if not base.is_absolute():
-        base = (output / base).resolve()
-    else:
-        base = base.resolve()
-    if not current.is_absolute():
-        current = (output / current).resolve()
-    else:
-        current = current.resolve()
-
+    base = (output / base).resolve() if not base.is_absolute() else base.resolve()
+    current = (output / current).resolve() if not current.is_absolute() else current.resolve()
     published = output / "published"
     weapons = published / "data" / "weapons.json"
     reports = published / "reports"
-
+    research = output / "research"
     missing = []
     if not base.is_dir():
         missing.append(f"base snapshot: {base}")
@@ -82,11 +71,7 @@ def resolve_snapshot(output: Path | str) -> dict[str, Path]:
     if not weapons.is_file():
         missing.append(f"weapon dataset: {weapons}")
     if missing:
-        raise ValueError(
-            "The selected folder does not contain a complete reusable Miner snapshot. Missing: "
-            + "; ".join(missing)
-        )
-
+        raise ValueError("The selected folder does not contain a complete reusable Miner snapshot. Missing: " + "; ".join(missing))
     return {
         "output": output,
         "base": base,
@@ -94,19 +79,11 @@ def resolve_snapshot(output: Path | str) -> dict[str, Path]:
         "published": published,
         "weapons": weapons,
         "reports": reports,
+        "research": research,
     }
 
 
-def _stage(
-    stages: list[dict[str, Any]],
-    name: str,
-    operation,
-    *,
-    log: LogCallback,
-    progress: ProgressCallback,
-    activity: ActivityCallback,
-    percent: int,
-):
+def _stage(stages, name, operation, *, log, progress, activity, percent):
     progress(percent, name)
     activity(f"Starting {name}")
     log(f"Data Intelligence: {name}...")
@@ -115,27 +92,17 @@ def _stage(
         value = operation()
     except Exception as error:
         duration = round(time.perf_counter() - started, 6)
-        stages.append({
-            "name": name,
-            "status": "failed",
-            "duration_seconds": duration,
-            "error": f"{type(error).__name__}: {error}",
-        })
+        stages.append({"name": name, "status": "failed", "duration_seconds": duration, "error": f"{type(error).__name__}: {error}"})
         activity(f"{name} failed after {duration:.1f}s: {type(error).__name__}: {error}")
         raise
     duration = round(time.perf_counter() - started, 6)
-    stages.append({
-        "name": name,
-        "status": "complete",
-        "duration_seconds": duration,
-    })
+    stages.append({"name": name, "status": "complete", "duration_seconds": duration})
     activity(f"Completed {name} in {duration:.1f}s")
     return value
 
 
 def _bundle_members(paths: dict[str, Path]) -> list[Path]:
     output = paths["output"]
-    reports = paths["reports"]
     candidates = [
         output / "last-run.json",
         output / "catalogs" / "structured-tables.sqlite",
@@ -143,17 +110,22 @@ def _bundle_members(paths: dict[str, Path]) -> list[Path]:
         paths["published"] / "indexes" / "reference-tracer.sqlite",
         paths["weapons"],
     ]
-    candidates.extend(sorted(reports.glob("*.json")))
-    return [path for path in candidates if path.is_file()]
+    candidates.extend(sorted(paths["reports"].glob("*.json")))
+    candidates.extend(sorted(paths["research"].glob("*.json")))
+    seen: set[str] = set()
+    result = []
+    for path in candidates:
+        if not path.is_file():
+            continue
+        key = str(path.resolve()).casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(path)
+    return result
 
 
-def build_bundle(
-    paths: dict[str, Path],
-    compiled: dict[str, Any],
-    *,
-    activity: ActivityCallback | None = None,
-) -> Path:
-    """Create a compact research bundle without raw game-table exports."""
+def build_bundle(paths: dict[str, Path], compiled: dict[str, Any], *, activity: ActivityCallback | None = None) -> Path:
     activity = activity or (lambda _message: None)
     output = paths["output"]
     intelligence_dir = output / "intelligence"
@@ -162,12 +134,8 @@ def build_bundle(
     archive = intelligence_dir / f"Dead-Signal-Intelligence-{stamp}.zip"
     members = _bundle_members(paths)
     activity(f"Bundling {len(members)} intelligence files")
-
     with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as destination:
-        destination.writestr(
-            "dead-signal-intelligence-compiled.json",
-            json.dumps(compiled, ensure_ascii=False, indent=2) + "\n",
-        )
+        destination.writestr("dead-signal-intelligence-compiled.json", json.dumps(compiled, ensure_ascii=False, indent=2) + "\n")
         for index, path in enumerate(members, start=1):
             try:
                 relative = path.relative_to(output)
@@ -179,7 +147,6 @@ def build_bundle(
 
 
 def build_ui_consumer_bundle(paths: dict[str, Path], report: dict[str, Any]) -> Path:
-    """Package only the surgical Weapon UI-consumer investigation."""
     intelligence_dir = paths["output"] / "intelligence"
     intelligence_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%SZ")
@@ -202,14 +169,7 @@ def build_ui_consumer_bundle(paths: dict[str, Path], report: dict[str, Any]) -> 
     return archive
 
 
-def compile_weapon_description_ui_trace(
-    output: Path | str,
-    *,
-    log: LogCallback | None = None,
-    progress: ProgressCallback | None = None,
-    activity: ActivityCallback | None = None,
-) -> dict[str, Any]:
-    """Run only the targeted Weapon Description UI-consumer path."""
+def compile_weapon_description_ui_trace(output: Path | str, *, log=None, progress=None, activity=None) -> dict[str, Any]:
     log = log or (lambda _value: None)
     progress = progress or (lambda _value, _label: None)
     activity = activity or log
@@ -219,9 +179,7 @@ def compile_weapon_description_ui_trace(
     paths["reports"].mkdir(parents=True, exist_ok=True)
     progress(20, "Weapon UI Consumer Trace")
     started = time.perf_counter()
-    report = run_weapon_description_consumer_trace(
-        paths["base"], paths["current"], paths["weapons"], paths["reports"], activity=activity
-    )
+    report = run_weapon_description_consumer_trace(paths["base"], paths["current"], paths["weapons"], paths["reports"], activity=activity)
     duration = round(time.perf_counter() - started, 6)
     progress(90, "Package UI Trace")
     activity(f"Targeted UI Consumer Trace finished in {duration:.1f}s")
@@ -239,14 +197,7 @@ def compile_weapon_description_ui_trace(
     }
 
 
-def compile_intelligence(
-    output: Path | str,
-    *,
-    log: LogCallback | None = None,
-    progress: ProgressCallback | None = None,
-    activity: ActivityCallback | None = None,
-) -> dict[str, Any]:
-    """Regenerate all standalone Data Intelligence products for one snapshot."""
+def compile_intelligence(output: Path | str, *, log=None, progress=None, activity=None) -> dict[str, Any]:
     log = log or (lambda _value: None)
     progress = progress or (lambda _value, _label: None)
     activity = activity or log
@@ -255,100 +206,50 @@ def compile_intelligence(
     activity(f"Base layer: {paths['base'].name}")
     activity(f"Current layer: {paths['current'].name}")
     paths["reports"].mkdir(parents=True, exist_ok=True)
+    paths["research"].mkdir(parents=True, exist_ok=True)
     stages: list[dict[str, Any]] = []
 
     ui_consumer = _stage(
-        stages,
-        "Weapon UI Consumer Trace",
-        lambda: run_weapon_description_consumer_trace(
-            paths["base"], paths["current"], paths["weapons"], paths["reports"], activity=activity
-        ),
-        log=log,
-        progress=progress,
-        activity=activity,
-        percent=5,
+        stages, "Weapon UI Consumer Trace",
+        lambda: run_weapon_description_consumer_trace(paths["base"], paths["current"], paths["weapons"], paths["reports"], activity=activity),
+        log=log, progress=progress, activity=activity, percent=5,
     )
     research = _stage(
-        stages,
-        "Research Suite",
-        lambda: run_research_suite(
-            paths["base"],
-            paths["current"],
-            paths["weapons"],
-            paths["reports"],
-            activity=activity,
-        ),
-        log=log,
-        progress=progress,
-        activity=activity,
-        percent=12,
+        stages, "Research Suite",
+        lambda: run_research_suite(paths["base"], paths["current"], paths["weapons"], paths["reports"], activity=activity),
+        log=log, progress=progress, activity=activity, percent=12,
+    )
+    schema_trace = _stage(
+        stages, "Weapon Schema + Ownerless Skill Forensics",
+        lambda: DeadSignalSchemaTraceBatch(paths["output"]).run(activity=activity),
+        log=log, progress=progress, activity=activity, percent=42,
     )
     discovery = _stage(
-        stages,
-        "Discovery Engine",
-        lambda: DeadSignalDiscovery(paths["output"]).run_all(),
-        log=log,
-        progress=progress,
-        activity=activity,
-        percent=48,
+        stages, "Discovery Engine", lambda: DeadSignalDiscovery(paths["output"]).run_all(),
+        log=log, progress=progress, activity=activity, percent=55,
     )
     analytics_engine = DeadSignalAnalytics(paths["output"])
-    analytics = _stage(
-        stages,
-        "Analytics Warehouse",
-        analytics_engine.build,
-        log=log,
-        progress=progress,
-        activity=activity,
-        percent=68,
-    )
-    description_leads = _stage(
-        stages,
-        "Description Leads",
-        lambda: analytics_engine.description_leads(limit=1000),
-        log=log,
-        progress=progress,
-        activity=activity,
-        percent=78,
-    )
-    suspicious_fields = _stage(
-        stages,
-        "Description Field Audit",
-        lambda: analytics_engine.suspicious_description_fields(limit=1000),
-        log=log,
-        progress=progress,
-        activity=activity,
-        percent=84,
-    )
+    analytics = _stage(stages, "Analytics Warehouse", analytics_engine.build, log=log, progress=progress, activity=activity, percent=70)
+    description_leads = _stage(stages, "Description Leads", lambda: analytics_engine.description_leads(limit=1000), log=log, progress=progress, activity=activity, percent=80)
+    suspicious_fields = _stage(stages, "Description Field Audit", lambda: analytics_engine.suspicious_description_fields(limit=1000), log=log, progress=progress, activity=activity, percent=86)
     _write_json(paths["reports"] / "dead-signal-description-leads.json", description_leads)
     activity("Wrote dead-signal-description-leads.json")
     _write_json(paths["reports"] / "dead-signal-description-field-audit.json", suspicious_fields)
     activity("Wrote dead-signal-description-field-audit.json")
-
-    gate = _stage(
-        stages,
-        "Publication Gate",
-        lambda: build_gate_report(paths["reports"]),
-        log=log,
-        progress=progress,
-        activity=activity,
-        percent=91,
-    )
+    gate = _stage(stages, "Publication Gate", lambda: build_gate_report(paths["reports"]), log=log, progress=progress, activity=activity, percent=92)
 
     research_counts = research.get("record_counts") or {}
     ui_counts = ui_consumer.get("record_counts") or {}
+    schema_counts = schema_trace.get("record_counts") or {}
+    forensic = schema_trace.get("missing_skill_forensics") or {}
+    forensic_counts = forensic.get("record_counts") or {}
     compiled = {
         "schema": "dead-signal-intelligence-compiled",
         "schema_version": SCHEMA_VERSION,
         "brand": "Dead Signal",
         "product": "Dead Signal Data Intelligence Compiler",
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "snapshot": {
-            "output": str(paths["output"]),
-            "base": str(paths["base"]),
-            "current": str(paths["current"]),
-            "weapons": str(paths["weapons"]),
-        },
+        "snapshot": {"output": str(paths["output"]), "base": str(paths["base"]), "current": str(paths["current"]), "weapons": str(paths["weapons"])},
         "stages": stages,
         "record_counts": {
             "weapons": research_counts.get("weapons", 0),
@@ -359,6 +260,11 @@ def compile_intelligence(
             "source_finder_states": research_counts.get("source_finder_states", {}),
             "multihop_candidates": research_counts.get("multihop_candidates", 0),
             "multihop_expanded_records": research_counts.get("multihop_expanded_records", 0),
+            "schema_trace_weapons": schema_counts.get("weapons_traced", 0),
+            "unresolved_skill_codes": schema_counts.get("unique_unresolved_skill_codes", 0),
+            "missing_skill_forensics_status": forensic.get("status"),
+            "missing_skill_architecture_branches": forensic_counts.get("architecture_branches", 0),
+            "missing_skill_architecture_functions": forensic_counts.get("architecture_functions_found", 0),
             "discovery_tables": ((discovery.get("schema_clusters") or {}).get("record_counts") or {}).get("tables", 0),
             "description_hotspots": ((discovery.get("description_hotspots") or {}).get("record_counts") or {}).get("hotspots", 0),
             "analytics_rows": analytics.get("rows", {}),
@@ -373,6 +279,8 @@ def compile_intelligence(
             "weapon_description_combined": str(paths["reports"] / "weapon-description-combined-investigation.json"),
             "table_profiles": str(paths["reports"] / "dead-signal-table-profiles.json"),
             "source_finder": str(paths["reports"] / "dead-signal-source-finder.json"),
+            "schema_trace_all_weapons": str(paths["research"] / "schema-trace-all-weapons.json"),
+            "missing_fixed_skill_forensics": str(paths["research"] / "missing-fixed-skill-forensics.json"),
             "discovery": str(paths["reports"] / "dead-signal-discovery.json"),
             "description_leads": str(paths["reports"] / "dead-signal-description-leads.json"),
             "description_field_audit": str(paths["reports"] / "dead-signal-description-field-audit.json"),
@@ -381,15 +289,15 @@ def compile_intelligence(
         },
         "policy": {
             "input": "Runs only against an already-completed local Miner snapshot.",
-            "game_files": "Does not read from or write to the installed Once Human folder.",
+            "game_files": "Does not write to the installed Once Human folder; forensic PYC inspection uses retained snapshot source roots read-only.",
             "publication": "Compiled intelligence is research-only and does not rewrite player-facing datasets.",
             "authority": "Discovery and analytics create leads only; exact evidence and explicit verification remain authoritative.",
+            "forensics": "The full compiler now includes canonical all-weapons Schema Trace plus ownerless fixed-skill forensics and packages both reports.",
         },
     }
     compiled_path = paths["reports"] / "dead-signal-intelligence-compiled.json"
     _write_json(compiled_path, compiled)
     activity(f"Wrote {compiled_path.name}")
-
     progress(96, "Compile Intelligence Bundle")
     activity("Compiling uploadable Dead Signal Intelligence ZIP")
     archive = build_bundle(paths, compiled, activity=activity)
