@@ -12,6 +12,7 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import messagebox, ttk
 
+from dead_signal_neox_export import export_all_neox_tables
 from dead_signal_table_profiler import compare_profiles, profile_table
 from neox_data_explorer import NeoXDataExplorer
 
@@ -142,6 +143,7 @@ class DataIntelligenceWindow:
                               state="readonly", width=22)
         domain.pack(side="left", padx=(8, 0))
         self._button(bar, "FILTER TABLES", self._load_tables).pack(side="left", padx=(8, 0))
+        self._button(bar, "EXPORT ALL NEOX TABLES", self._export_all_tables, muted=True).pack(side="left", padx=(8, 0))
 
         body = tk.PanedWindow(frame, orient="horizontal", bg=BORDER, sashwidth=5)
         body.pack(fill="both", expand=True)
@@ -219,6 +221,23 @@ class DataIntelligenceWindow:
 
     def _open_evidence(self):
         self.open_evidence_console(self.parent, self.output)
+
+    def _export_all_tables(self):
+        try:
+            result = export_all_neox_tables(self.explorer)
+            size_mb = result["archive_bytes"] / (1024 * 1024)
+            messagebox.showinfo(
+                "Dead Signal NeoX Export",
+                "Complete NeoX research bundle created.\n\n"
+                f"Tables: {result['catalog_tables']}\n"
+                f"Table files: {result['exported_table_files']}\n"
+                f"Missing expected files: {result['missing_expected_files']}\n"
+                f"ZIP size: {size_mb:.1f} MB\n\n"
+                f"{result['path']}",
+                parent=self.window,
+            )
+        except Exception as error:
+            messagebox.showerror("Dead Signal NeoX Export", str(error), parent=self.window)
 
     def _load_tables(self):
         try:
