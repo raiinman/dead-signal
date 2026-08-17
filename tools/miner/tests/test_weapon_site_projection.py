@@ -37,9 +37,15 @@ class WeaponSiteProjectionTests(unittest.TestCase):
                     "quality": "Rare",
                     "short_description": "Installed description",
                     "ranged_stats": {"bullet_pattern_id": "PatShared", "projectile_count": 5, "rpm": 180, "magazine": 8},
-                    "blueprint_star_progression": {"stars": [1, 2, 3, 4, 5, 6], "perk_slot_calibration_max": 2},
+                    "blueprint_star_progression": {
+                        "stars": [
+                            {"blueprint_stars": 1, "preset_attack_ratio": 1.0, "base_attributes": [{"code": "E0100", "display_value": "0%"}]},
+                            {"blueprint_stars": 2, "preset_attack_ratio": 1.1, "base_attributes": [{"code": "E0100", "display_value": "5%"}]},
+                        ],
+                        "perk_slot_calibration_max": 2,
+                    },
                     "tiers": [
-                        {"tier": 1, "item_id": 10231101, "gun_no": 10230011, "damage": 38, "recipe": {"forge_no": 1}},
+                        {"tier": 1, "item_id": 10231101, "gun_no": 10230011, "damage": 38, "recipe": {"forge_no": 1, "materials": [{"item": 1, "count": 12}]}},
                         {"tier": 2, "item_id": 10231102, "gun_no": 10230012, "damage": 59},
                     ],
                 },
@@ -130,9 +136,18 @@ class WeaponSiteProjectionTests(unittest.TestCase):
         self.assertTrue(lean.is_file())
         self.assertTrue(evidence.is_file())
         lean_payload = json.loads(lean.read_text(encoding="utf-8"))
-        self.assertEqual(lean_payload["weapons"][0]["rarity"]["label"], "Rare")
-        self.assertEqual(lean_payload["weapons"][0]["stats"]["ads_time"], 0.2325)
-        self.assertNotIn("research", lean_payload["weapons"][0]["firing_mode"])
+        evidence_payload = json.loads(evidence.read_text(encoding="utf-8"))
+        lean_aa12 = lean_payload["weapons"][0]
+        evidence_aa12 = evidence_payload["weapons"][0]
+        self.assertEqual(lean_aa12["rarity"]["label"], "Rare")
+        self.assertEqual(lean_aa12["stats"]["ads_time"], 0.2325)
+        self.assertNotIn("research", lean_aa12["firing_mode"])
+        self.assertEqual(lean_aa12["progression"]["blueprint_stars"]["levels"], [1, 2])
+        self.assertNotIn("base_attributes", json.dumps(lean_aa12["progression"]))
+        self.assertEqual(lean_aa12["acquisition"]["recipe_tiers"], [1])
+        self.assertNotIn("recipes_by_tier", lean_aa12["acquisition"])
+        self.assertIn("base_attributes", json.dumps(evidence_aa12["progression"]))
+        self.assertIn("recipes_by_tier", evidence_aa12["acquisition"])
         self.assertEqual(report["browser_publish"]["record_counts"]["rarity"], 2)
 
 
