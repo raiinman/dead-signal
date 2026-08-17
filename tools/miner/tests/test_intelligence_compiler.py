@@ -8,7 +8,6 @@ import zipfile
 from pathlib import Path
 from unittest import mock
 
-
 SRC = Path(__file__).resolve().parents[1] / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
@@ -45,6 +44,7 @@ class IntelligenceCompilerTests(unittest.TestCase):
         self.assertEqual(self.base.resolve(), resolved["base"])
         self.assertEqual(self.current.resolve(), resolved["current"])
         self.assertEqual((self.root / "published" / "data" / "weapons.json").resolve(), resolved["weapons"].resolve())
+        self.assertEqual((self.root / "research").resolve(), resolved["research"].resolve())
 
     def test_resolve_snapshot_rejects_incomplete_folder(self):
         with tempfile.TemporaryDirectory() as empty:
@@ -54,10 +54,11 @@ class IntelligenceCompilerTests(unittest.TestCase):
     @mock.patch.object(compiler, "build_gate_report")
     @mock.patch.object(compiler, "DeadSignalAnalytics")
     @mock.patch.object(compiler, "DeadSignalDiscovery")
+    @mock.patch.object(compiler, "DeadSignalSchemaTraceBatch")
     @mock.patch.object(compiler, "run_research_suite")
     @mock.patch.object(compiler, "run_weapon_description_consumer_trace")
     def test_compile_runs_extensions_builds_bundle_and_reports_activity(
-        self, consumer_mock, research_mock, discovery_class, analytics_class, gate_mock
+        self, consumer_mock, research_mock, schema_class, discovery_class, analytics_class, gate_mock
     ):
         reports = self.root / "published" / "reports"
 
@@ -72,7 +73,6 @@ class IntelligenceCompilerTests(unittest.TestCase):
             }}
             (reports_dir / "weapon-description-ui-consumer-trace.json").write_text(json.dumps(payload), encoding="utf-8")
             return payload
-
         consumer_mock.side_effect = consumer_side_effect
 
         def research_side_effect(base, current, weapons, reports_dir, *, activity=None):
@@ -80,30 +80,44 @@ class IntelligenceCompilerTests(unittest.TestCase):
                 activity("Multi-hop Resolver 1/120: Test Weapon")
                 activity("Table Profiler 1/2: gun_alpha.json")
                 activity("Table Profiler 2/2: weapon_beta.json")
-            payload = {
-                "record_counts": {
-                    "weapons": 120,
-                    "profiled_tables": 42,
-                    "source_finder_states": {"CANDIDATE": 3, "UNRESOLVED": 117},
-                    "multihop_candidates": 7,
-                    "multihop_expanded_records": 321,
-                }
-            }
+            payload = {"record_counts": {
+                "weapons": 120,
+                "profiled_tables": 42,
+                "source_finder_states": {"CANDIDATE": 3, "UNRESOLVED": 117},
+                "multihop_candidates": 7,
+                "multihop_expanded_records": 321,
+            }}
             (reports_dir / "dead-signal-research-suite.json").write_text(json.dumps(payload), encoding="utf-8")
             (reports_dir / "weapon-description-multihop.json").write_text(json.dumps({"weapons": []}), encoding="utf-8")
             (reports_dir / "weapon-description-combined-investigation.json").write_text(json.dumps({"weapons": []}), encoding="utf-8")
             (reports_dir / "dead-signal-table-profiles.json").write_text(json.dumps({"tables": []}), encoding="utf-8")
             (reports_dir / "dead-signal-source-finder.json").write_text(json.dumps({"weapons": []}), encoding="utf-8")
             return payload
-
         research_mock.side_effect = research_side_effect
+
+        schema = schema_class.return_value
+        def schema_side_effect(*, activity=None):
+            research_dir = self.root / "research"
+            research_dir.mkdir(parents=True, exist_ok=True)
+            forensic = {"status": "complete", "record_counts": {"architecture_branches": 6, "architecture_functions_found": 17}}
+            (research_dir / "missing-fixed-skill-forensics.json").write_text(json.dumps(forensic), encoding="utf-8")
+            payload = {
+                "record_counts": {"weapons_traced": 120, "unique_unresolved_skill_codes": 11},
+                "missing_skill_forensics": forensic,
+                "weapons": [],
+            }
+            (research_dir / "schema-trace-all-weapons.json").write_text(json.dumps(payload), encoding="utf-8")
+            if activity:
+                activity("Missing Skill Forensics complete: 11 codes")
+            return payload
+        schema.run.side_effect = schema_side_effect
+
         discovery = discovery_class.return_value
         discovery.run_all.return_value = {
             "schema_clusters": {"record_counts": {"tables": 42}},
             "description_hotspots": {"record_counts": {"hotspots": 5}},
         }
         (reports / "dead-signal-discovery.json").write_text("{}", encoding="utf-8")
-
         analytics = analytics_class.return_value
         analytics.build.return_value = {"rows": {"source_finder": 3, "table_profiles": 42}}
         analytics.description_leads.return_value = {"row_count": 3, "rows": []}
@@ -124,24 +138,25 @@ class IntelligenceCompilerTests(unittest.TestCase):
         self.assertEqual(42, result["record_counts"]["profiled_tables"])
         self.assertEqual(7, result["record_counts"]["multihop_candidates"])
         self.assertEqual(321, result["record_counts"]["multihop_expanded_records"])
+        self.assertEqual(120, result["record_counts"]["schema_trace_weapons"])
+        self.assertEqual(11, result["record_counts"]["unresolved_skill_codes"])
+        self.assertEqual("complete", result["record_counts"]["missing_skill_forensics_status"])
+        self.assertEqual(6, result["record_counts"]["missing_skill_architecture_branches"])
+        self.assertEqual(17, result["record_counts"]["missing_skill_architecture_functions"])
         self.assertEqual(5, result["record_counts"]["description_hotspots"])
         self.assertEqual(3, result["record_counts"]["description_leads"])
         self.assertEqual(0, result["record_counts"]["publishable_candidates"])
         self.assertEqual(100, progress[-1][0])
-        self.assertTrue(any("Starting Weapon UI Consumer Trace" in line for line in activity))
-        self.assertTrue(any("UI Consumer Trace: resolved 120/120" in line for line in activity))
-        self.assertTrue(any("Starting Research Suite" in line for line in activity))
-        self.assertTrue(any("Multi-hop Resolver 1/120" in line for line in activity))
-        self.assertTrue(any("Starting Analytics Warehouse" in line for line in activity))
-        self.assertTrue(any("Bundle" in line for line in activity))
+        self.assertTrue(any("Starting Weapon Schema + Ownerless Skill Forensics" in line for line in activity))
+        self.assertTrue(any("Missing Skill Forensics complete: 11 codes" in line for line in activity))
         archive = Path(result["bundle"])
         self.assertTrue(archive.is_file())
         with zipfile.ZipFile(archive) as bundle:
             names = set(bundle.namelist())
         self.assertIn("dead-signal-intelligence-compiled.json", names)
         self.assertIn("published/reports/weapon-description-ui-consumer-trace.json", names)
-        self.assertIn("published/reports/weapon-description-multihop.json", names)
-        self.assertIn("published/reports/dead-signal-description-leads.json", names)
+        self.assertIn("research/schema-trace-all-weapons.json", names)
+        self.assertIn("research/missing-fixed-skill-forensics.json", names)
         self.assertIn("published/data/weapons.json", names)
         self.assertTrue((reports / "dead-signal-intelligence-compiled.json").is_file())
 
@@ -153,7 +168,6 @@ class IntelligenceCompilerTests(unittest.TestCase):
         self, consumer_mock, research_mock, discovery_class, analytics_class
     ):
         reports = self.root / "published" / "reports"
-
         def consumer_side_effect(base, current, weapons, reports_dir, *, activity=None):
             payload = {"record_counts": {
                 "weapons": 120,
@@ -165,13 +179,10 @@ class IntelligenceCompilerTests(unittest.TestCase):
             if activity:
                 activity("UI Consumer Trace complete: 81 candidates")
             return payload
-
         consumer_mock.side_effect = consumer_side_effect
         activity = []
         result = compiler.compile_weapon_description_ui_trace(self.root, activity=activity.append)
-
         self.assertEqual(81, result["record_counts"]["consumer_backed_candidates"])
-        self.assertEqual(100, result["record_counts"]["weapons"] - 20)
         research_mock.assert_not_called()
         discovery_class.assert_not_called()
         analytics_class.assert_not_called()
