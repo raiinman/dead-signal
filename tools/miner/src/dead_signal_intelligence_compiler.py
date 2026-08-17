@@ -1,9 +1,9 @@
 """Standalone Dead Signal Data Intelligence compiler.
 
 Runs research extensions against an already-completed Miner snapshot without
-modifying the installed game. The full compiler now also runs the canonical
-all-weapons Schema Trace, including ownerless fixed-skill forensics, and packages
-those research reports into the Intelligence bundle.
+modifying the installed game. The full compiler includes canonical all-weapons
+Schema Trace, ownerless fixed-skill forensics, and an overnight full-corpus
+Weapons completeness audit, then packages every report into one Intelligence ZIP.
 """
 from __future__ import annotations
 
@@ -19,9 +19,10 @@ from dead_signal_discovery import DeadSignalDiscovery
 from dead_signal_publication_gate import build_gate_report
 from dead_signal_research_suite import run_research_suite
 from dead_signal_schema_trace_batch import DeadSignalSchemaTraceBatch
+from dead_signal_weapon_corpus_audit import run_weapon_corpus_audit
 from dead_signal_weapon_description_consumer import run_weapon_description_consumer_trace
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 LogCallback = Callable[[str], None]
 ProgressCallback = Callable[[int, str], None]
 ActivityCallback = Callable[[str], None]
@@ -222,25 +223,31 @@ def compile_intelligence(output: Path | str, *, log=None, progress=None, activit
     schema_trace = _stage(
         stages, "Weapon Schema + Ownerless Skill Forensics",
         lambda: DeadSignalSchemaTraceBatch(paths["output"]).run(activity=activity),
-        log=log, progress=progress, activity=activity, percent=42,
+        log=log, progress=progress, activity=activity, percent=38,
+    )
+    corpus_audit = _stage(
+        stages, "Overnight Weapons Corpus Audit",
+        lambda: run_weapon_corpus_audit(paths["base"], paths["current"], paths["weapons"], paths["reports"], activity=activity),
+        log=log, progress=progress, activity=activity, percent=50,
     )
     discovery = _stage(
         stages, "Discovery Engine", lambda: DeadSignalDiscovery(paths["output"]).run_all(),
-        log=log, progress=progress, activity=activity, percent=55,
+        log=log, progress=progress, activity=activity, percent=64,
     )
     analytics_engine = DeadSignalAnalytics(paths["output"])
-    analytics = _stage(stages, "Analytics Warehouse", analytics_engine.build, log=log, progress=progress, activity=activity, percent=70)
-    description_leads = _stage(stages, "Description Leads", lambda: analytics_engine.description_leads(limit=1000), log=log, progress=progress, activity=activity, percent=80)
-    suspicious_fields = _stage(stages, "Description Field Audit", lambda: analytics_engine.suspicious_description_fields(limit=1000), log=log, progress=progress, activity=activity, percent=86)
+    analytics = _stage(stages, "Analytics Warehouse", analytics_engine.build, log=log, progress=progress, activity=activity, percent=76)
+    description_leads = _stage(stages, "Description Leads", lambda: analytics_engine.description_leads(limit=1000), log=log, progress=progress, activity=activity, percent=84)
+    suspicious_fields = _stage(stages, "Description Field Audit", lambda: analytics_engine.suspicious_description_fields(limit=1000), log=log, progress=progress, activity=activity, percent=89)
     _write_json(paths["reports"] / "dead-signal-description-leads.json", description_leads)
     activity("Wrote dead-signal-description-leads.json")
     _write_json(paths["reports"] / "dead-signal-description-field-audit.json", suspicious_fields)
     activity("Wrote dead-signal-description-field-audit.json")
-    gate = _stage(stages, "Publication Gate", lambda: build_gate_report(paths["reports"]), log=log, progress=progress, activity=activity, percent=92)
+    gate = _stage(stages, "Publication Gate", lambda: build_gate_report(paths["reports"]), log=log, progress=progress, activity=activity, percent=94)
 
     research_counts = research.get("record_counts") or {}
     ui_counts = ui_consumer.get("record_counts") or {}
     schema_counts = schema_trace.get("record_counts") or {}
+    corpus_counts = corpus_audit.get("record_counts") or {}
     forensic = schema_trace.get("missing_skill_forensics") or {}
     forensic_counts = forensic.get("record_counts") or {}
     compiled = {
@@ -265,6 +272,12 @@ def compile_intelligence(output: Path | str, *, log=None, progress=None, activit
             "missing_skill_forensics_status": forensic.get("status"),
             "missing_skill_architecture_branches": forensic_counts.get("architecture_branches", 0),
             "missing_skill_architecture_functions": forensic_counts.get("architecture_functions_found", 0),
+            "corpus_audit_weapons": corpus_counts.get("weapons", 0),
+            "corpus_json_files_scanned": corpus_counts.get("json_files_scanned", 0),
+            "corpus_json_records_scanned": corpus_counts.get("json_records_scanned", 0),
+            "corpus_exact_identity_records": corpus_counts.get("exact_identity_records_with_target_fields", 0),
+            "corpus_pyc_files_scanned": corpus_counts.get("pyc_files_scanned", 0),
+            "corpus_ranked_gaps": corpus_counts.get("gaps", 0),
             "discovery_tables": ((discovery.get("schema_clusters") or {}).get("record_counts") or {}).get("tables", 0),
             "description_hotspots": ((discovery.get("description_hotspots") or {}).get("record_counts") or {}).get("hotspots", 0),
             "analytics_rows": analytics.get("rows", {}),
@@ -281,6 +294,7 @@ def compile_intelligence(output: Path | str, *, log=None, progress=None, activit
             "source_finder": str(paths["reports"] / "dead-signal-source-finder.json"),
             "schema_trace_all_weapons": str(paths["research"] / "schema-trace-all-weapons.json"),
             "missing_fixed_skill_forensics": str(paths["research"] / "missing-fixed-skill-forensics.json"),
+            "weapon_corpus_audit": str(paths["reports"] / "weapon-corpus-audit.json"),
             "discovery": str(paths["reports"] / "dead-signal-discovery.json"),
             "description_leads": str(paths["reports"] / "dead-signal-description-leads.json"),
             "description_field_audit": str(paths["reports"] / "dead-signal-description-field-audit.json"),
@@ -291,14 +305,15 @@ def compile_intelligence(output: Path | str, *, log=None, progress=None, activit
             "input": "Runs only against an already-completed local Miner snapshot.",
             "game_files": "Does not write to the installed Once Human folder; forensic PYC inspection uses retained snapshot source roots read-only.",
             "publication": "Compiled intelligence is research-only and does not rewrite player-facing datasets.",
-            "authority": "Discovery and analytics create leads only; exact evidence and explicit verification remain authoritative.",
-            "forensics": "The full compiler now includes canonical all-weapons Schema Trace plus ownerless fixed-skill forensics and packages both reports.",
+            "authority": "Discovery, competitor coverage targets, and analytics create leads only; exact installed-game evidence and explicit verification remain authoritative.",
+            "forensics": "The full compiler includes canonical all-weapons Schema Trace, ownerless fixed-skill forensics, exact-identity Base/Current JSON corpus scanning, and static retained-PYC consumer scanning.",
+            "coverage": "Every player-facing field exposed by competitor databases is treated as a minimum research target, while Dead Signal additionally audits provenance, identity, compatibility, progression, and unresolved evidence states.",
         },
     }
     compiled_path = paths["reports"] / "dead-signal-intelligence-compiled.json"
     _write_json(compiled_path, compiled)
     activity(f"Wrote {compiled_path.name}")
-    progress(96, "Compile Intelligence Bundle")
+    progress(97, "Compile Intelligence Bundle")
     activity("Compiling uploadable Dead Signal Intelligence ZIP")
     archive = build_bundle(paths, compiled, activity=activity)
     compiled["bundle"] = str(archive)
