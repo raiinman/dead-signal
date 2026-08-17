@@ -150,8 +150,8 @@ class MissingSkillForensicsTests(unittest.TestCase):
         self.assertTrue(result["branches"]["guncore_normalization"]["functions_found"])
         self.assertTrue(result["branches"]["star_stardust_resolution"]["functions_found"])
         self.assertTrue(result["branches"]["player_facing_ui"]["functions_found"])
-        self.assertIn("passive_skill_helpers", result["branches"])
-        self.assertIn("skill_data_helpers", result["branches"])
+        self.assertIn("helper_fallback_resolution", result["branches"])
+        self.assertIn("server_buff_resolution", result["branches"])
         self.assertEqual(
             "PYC payloads are unmarshaled only; Once Human modules and game bytecode are never executed.",
             result["policy"]["execution"],
@@ -166,8 +166,8 @@ class MissingSkillForensicsTests(unittest.TestCase):
         self.assertIn("fixed_skill_architecture_trace", report)
         self.assertEqual(6, report["record_counts"]["architecture_branches"])
         self.assertIn("guncore_normalization", report["fixed_skill_architecture_trace"]["branches"])
-        self.assertIn("passive_skill_helpers", report["fixed_skill_architecture_trace"]["branches"])
-        self.assertIn("skill_data_helpers", report["fixed_skill_architecture_trace"]["branches"])
+        self.assertIn("helper_fallback_resolution", report["fixed_skill_architecture_trace"]["branches"])
+        self.assertIn("server_buff_resolution", report["fixed_skill_architecture_trace"]["branches"])
 
     def test_preload_table_reference_is_context_not_direct_consumer(self):
         self._write_pyc(
