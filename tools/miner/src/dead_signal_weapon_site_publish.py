@@ -1,8 +1,10 @@
 """Publish lean website Weapons payloads from the authoritative projection.
 
 The forensic v2 projection intentionally carries research detail. This module
-splits it into a browser-facing payload and an evidence sidecar, while promoting
-only values already authoritative in the installed-game weapon dataset.
+splits it into a browser-facing payload and an evidence/detail sidecar, while
+promoting only values already authoritative in the installed-game weapon
+dataset. Heavy Blueprint-Star records and full recipe bodies stay out of the
+listing payload so the website does not download research/detail data up front.
 """
 from __future__ import annotations
 
@@ -10,7 +12,7 @@ import json
 from pathlib import Path
 from typing import Any, Callable
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 ActivityCallback = Callable[[str], None]
 
 
@@ -44,14 +46,53 @@ def _source_map(weapons_path: Path) -> dict[str, dict[str, Any]]:
 def _lean_family(value: Any) -> Any:
     if not isinstance(value, dict):
         return None
-    result = {k: value.get(k) for k in ("family_id", "relation", "prototype_id", "bullet_pattern_id", "allowed_inherited_groups", "precedence") if k in value}
+    result = {
+        k: value.get(k)
+        for k in (
+            "family_id",
+            "relation",
+            "prototype_id",
+            "bullet_pattern_id",
+            "allowed_inherited_groups",
+            "precedence",
+        )
+        if k in value
+    }
     members = value.get("members") or []
     if members:
         result["members"] = [
-            {"blueprint_id": row.get("blueprint_id"), "name": row.get("name"), "category": row.get("category")}
-            for row in members if isinstance(row, dict)
+            {
+                "blueprint_id": row.get("blueprint_id"),
+                "name": row.get("name"),
+                "category": row.get("category"),
+            }
+            for row in members
+            if isinstance(row, dict)
         ]
     return result
+
+
+def _tier_summary(progression: dict[str, Any]) -> list[dict[str, Any]]:
+    result = []
+    for row in progression.get("tiers") or []:
+        if not isinstance(row, dict):
+            continue
+        result.append({
+            "tier": row.get("tier"),
+            "damage": row.get("damage"),
+            "item_id": row.get("item_id"),
+            "gun_no": row.get("gun_no"),
+        })
+    return result
+
+
+def _star_summary(progression: dict[str, Any]) -> dict[str, Any]:
+    stars = [row for row in (progression.get("blueprint_stars") or []) if isinstance(row, dict)]
+    return {
+        "levels": [row.get("blueprint_stars") for row in stars if row.get("blueprint_stars") is not None],
+        "count": len(stars),
+        "perk_slot_calibration_max": progression.get("perk_slot_calibration_max"),
+    }
 
 
 def publish_weapon_site_payloads(
@@ -115,6 +156,7 @@ def publish_weapon_site_payloads(
         compatibility = row.get("compatibility") if isinstance(row.get("compatibility"), dict) else {}
         ammo = row.get("ammo") if isinstance(row.get("ammo"), dict) else None
         special = row.get("special_skill") if isinstance(row.get("special_skill"), dict) else {}
+        tiers = _tier_summary(progression)
 
         lean = {
             "blueprint_id": row.get("blueprint_id"),
@@ -124,9 +166,12 @@ def publish_weapon_site_payloads(
             "identity": row.get("identity"),
             "family": _lean_family(row.get("family")),
             "ballistic_family": _lean_family(row.get("ballistic_family")),
-            "progression": progression,
+            "progression": {
+                "tiers": tiers,
+                "blueprint_stars": _star_summary(progression),
+            },
             "stats": {
-                "damage_tiers": progression.get("tiers"),
+                "damage_tiers": [{"tier": tier.get("tier"), "damage": tier.get("damage")} for tier in tiers],
                 "ads_time": semantic.get("ads_time"),
                 "bullet_speed": semantic.get("bullet_speed"),
                 "reload_score": semantic.get("reload_score"),
@@ -154,7 +199,7 @@ def publish_weapon_site_payloads(
             "acquisition": {
                 "states": acquisition.get("states"),
                 "hint": acquisition.get("hint"),
-                "recipes_by_tier": acquisition.get("recipes_by_tier"),
+                "recipe_tiers": [entry.get("tier") for entry in (acquisition.get("recipes_by_tier") or []) if isinstance(entry, dict)],
             },
             "ammo": ammo,
             "compatibility": {
@@ -181,6 +226,8 @@ def publish_weapon_site_payloads(
                 "quality_code": original.get("quality_code"),
                 "quality": original.get("quality"),
             },
+            "progression": progression,
+            "acquisition": acquisition,
             "special_skill_resolution": special.get("resolution"),
             "compatibility_research": compatibility,
             "firing_mode_research": row.get("firing_mode"),
@@ -216,7 +263,10 @@ def publish_weapon_site_payloads(
     }
     _write_json(site_dir / "weapons.json", lean_payload)
     _write_json(site_dir / "weapon-evidence.json", evidence_payload)
-    activity(f"Lean Weapon Publisher complete: {len(lean_rows)} weapons; rarity promoted for {resolved_counts['rarity']}")
+    activity(
+        f"Lean Weapon Publisher complete: {len(lean_rows)} weapons; "
+        f"rarity {resolved_counts['rarity']}; descriptions {resolved_counts['description']}"
+    )
     return {
         "record_counts": {"weapons": len(lean_rows), **resolved_counts},
         "scoreboard": scoreboard,
