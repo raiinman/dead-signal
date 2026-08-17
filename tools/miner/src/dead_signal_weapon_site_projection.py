@@ -1,10 +1,8 @@
-"""Build the sanitized Dead Signal website Weapons feed from installed-game evidence.
+"""Build the authoritative Dead Signal website Weapons projections.
 
-This projection is deliberately stricter than discovery/audit reports. It may
-publish a semantic value only when the source field's meaning is explicit and
-the record is owned by the exact weapon/tier identity. Shared family relations
-are preserved separately and can provide inherited ballistic evidence, but they
-never override a variant-local value.
+The forensic v2 projection preserves research state and provenance. A second
+publisher derives a lean browser payload plus an evidence sidecar from that
+projection. Only installed-game evidence is authoritative.
 """
 from __future__ import annotations
 
@@ -13,12 +11,11 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Callable
 
-SCHEMA_VERSION = 1
+from dead_signal_weapon_site_publish import publish_weapon_site_payloads
+
+SCHEMA_VERSION = 2
 ActivityCallback = Callable[[str], None]
 
-# Explicit semantic fields proven by their named gun_base_params_data columns.
-# default_shoot_mode is intentionally exposed as a raw code until the game's
-# code->label mapping is independently proven.
 GUN_BASE_SEMANTIC_FIELDS = {
     "ads_time": "ads_time",
     "bullet_speed": "bullet_speed",
@@ -46,9 +43,9 @@ def _read_json(path: Path, default: Any = None) -> Any:
 
 def _write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(path.suffix + ".tmp")
-    temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    temporary.replace(path)
+    temp = path.with_suffix(path.suffix + ".tmp")
+    temp.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    temp.replace(path)
 
 
 def _has(value: Any) -> bool:
@@ -63,11 +60,8 @@ def _first_tier(weapon: dict[str, Any]) -> dict[str, Any]:
 def _field_map(record: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
     result: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for field in record.get("fields") or []:
-        if not isinstance(field, dict):
-            continue
-        name = str(field.get("field") or "")
-        if name:
-            result[name].append(field)
+        if isinstance(field, dict) and field.get("field"):
+            result[str(field["field"])].append(field)
     return result
 
 
@@ -77,9 +71,7 @@ def _gun_base_record(corpus_weapon: dict[str, Any], tier_one_gun: Any) -> dict[s
     target = str(tier_one_gun)
     candidates = []
     for record in corpus_weapon.get("exact_corpus_evidence") or []:
-        if not isinstance(record, dict):
-            continue
-        if record.get("evidence_scope") != "variant-local":
+        if not isinstance(record, dict) or record.get("evidence_scope") != "variant-local":
             continue
         table = str(record.get("table") or "").replace("\\", "/").casefold()
         if not table.endswith("gun_base_params_data.json"):
@@ -89,7 +81,6 @@ def _gun_base_record(corpus_weapon: dict[str, Any], tier_one_gun: Any) -> dict[s
             candidates.append(record)
     if not candidates:
         return None
-    # Current snapshot wins over Base; deterministic record-id fallback.
     candidates.sort(key=lambda row: (0 if row.get("layer") == "current" else 1, str(row.get("record_id"))))
     return candidates[0]
 
@@ -98,8 +89,8 @@ def _promote_gun_base(record: dict[str, Any] | None) -> dict[str, Any]:
     if not record:
         return {"state": "unresolved", "semantic": {}, "raw": {}, "provenance": None}
     fields = _field_map(record)
-    semantic = {}
-    raw = {}
+    semantic: dict[str, Any] = {}
+    raw: dict[str, Any] = {}
     for public_name, source_name in GUN_BASE_SEMANTIC_FIELDS.items():
         rows = fields.get(source_name) or []
         if rows:
@@ -132,26 +123,20 @@ def _candidate_summary(answer: dict[str, Any] | None) -> dict[str, Any]:
     }
 
 
-def _family_maps(weapons: list[dict[str, Any]]) -> tuple[dict[str, list[dict[str, Any]]], dict[str, list[dict[str, Any]]]]:
-    prototype: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    pattern: dict[str, list[dict[str, Any]]] = defaultdict(list)
+def _family_maps(weapons: list[dict[str, Any]]):
+    prototypes: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    patterns: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for weapon in weapons:
-        prototype_id = weapon.get("prototype_id")
-        if _has(prototype_id):
-            prototype[str(prototype_id)].append(weapon)
+        if _has(weapon.get("prototype_id")):
+            prototypes[str(weapon["prototype_id"])].append(weapon)
         ranged = weapon.get("ranged_stats") if isinstance(weapon.get("ranged_stats"), dict) else {}
-        pattern_id = ranged.get("bullet_pattern_id")
-        if _has(pattern_id):
-            pattern[str(pattern_id)].append(weapon)
-    return prototype, pattern
+        if _has(ranged.get("bullet_pattern_id")):
+            patterns[str(ranged["bullet_pattern_id"])].append(weapon)
+    return prototypes, patterns
 
 
 def _member_stub(weapon: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "blueprint_id": weapon.get("blueprint_id"),
-        "name": weapon.get("name"),
-        "category": weapon.get("category"),
-    }
+    return {"blueprint_id": weapon.get("blueprint_id"), "name": weapon.get("name"), "category": weapon.get("category")}
 
 
 def build_weapon_site_projection(
@@ -169,10 +154,8 @@ def build_weapon_site_projection(
     readiness_rows = {str(row.get("blueprint_id")): row for row in (site_readiness.get("weapons") or []) if isinstance(row, dict)}
     prototype_families, pattern_families = _family_maps(weapons)
 
-    output_rows = []
-    promoted_gun_base = 0
-    unresolved_gun_base = 0
-    variant_family_members = 0
+    output_rows: list[dict[str, Any]] = []
+    promoted_gun_base = unresolved_gun_base = variant_family_members = 0
 
     for weapon in weapons:
         blueprint_id = str(weapon.get("blueprint_id"))
@@ -225,7 +208,7 @@ def build_weapon_site_projection(
         if not acquisition_states:
             acquisition_states.append("unresolved")
 
-        result = {
+        output_rows.append({
             "blueprint_id": weapon.get("blueprint_id"),
             "name": weapon.get("name"),
             "category": weapon.get("category"),
@@ -249,10 +232,7 @@ def build_weapon_site_projection(
                 "text": weapon.get("short_description"),
                 "state": "resolved-installed-game" if _has(weapon.get("short_description")) else "unresolved",
             },
-            "special_skill": {
-                "text": weapon.get("effect"),
-                "resolution": weapon.get("effect_resolution"),
-            },
+            "special_skill": {"text": weapon.get("effect"), "resolution": weapon.get("effect_resolution")},
             "acquisition": {
                 "states": acquisition_states,
                 "hint": weapon.get("acquisition_hint") or weapon.get("item_gain_path"),
@@ -268,7 +248,12 @@ def build_weapon_site_projection(
                 "calibration": _candidate_summary(enhancements.get("calibration_compatibility")),
                 "cradle": _candidate_summary(questions.get("cradle_compatibility")),
             },
-            "rarity": _candidate_summary(questions.get("rarity")),
+            "rarity": {
+                "state": "resolved-installed-game" if _has(weapon.get("quality")) and _has(weapon.get("quality_code")) else "unresolved",
+                "code": weapon.get("quality_code"),
+                "label": weapon.get("quality"),
+                "research": _candidate_summary(questions.get("rarity")),
+            },
             "firing_mode": {
                 "raw_code": (gun_base.get("raw") or {}).get("firing_mode_code"),
                 "burst_bullet_num": (gun_base.get("raw") or {}).get("burst_bullet_num"),
@@ -281,8 +266,7 @@ def build_weapon_site_projection(
                 "external_values_imported": False,
                 "variant_local_overrides_family_shared": True,
             },
-        }
-        output_rows.append(result)
+        })
 
     report = {
         "schema": "dead-signal-site-weapons-v2",
@@ -300,10 +284,17 @@ def build_weapon_site_projection(
             "gun_base_promoted": promoted_gun_base,
             "gun_base_unresolved": unresolved_gun_base,
             "variant_family_members": variant_family_members,
+            "rarity_promoted": sum(1 for row in output_rows if (row.get("rarity") or {}).get("state") == "resolved-installed-game"),
         },
         "weapons": output_rows,
     }
     destination = published_dir / "site" / "weapons-v2.json"
     _write_json(destination, report)
-    activity(f"Weapon Website Projection complete: {len(output_rows)} weapons; {promoted_gun_base} Tier-I gun-base promotions")
+    publisher = publish_weapon_site_payloads(weapons_path, published_dir, report, activity=activity)
+    report["browser_publish"] = publisher
+    _write_json(destination, report)
+    activity(
+        f"Weapon Website Projection complete: {len(output_rows)} weapons; "
+        f"{promoted_gun_base} Tier-I gun-base promotions; lean browser payload written"
+    )
     return report
