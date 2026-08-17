@@ -18,7 +18,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Callable
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 MAX_FILE_BYTES = 64 * 1024 * 1024
 MAX_EVIDENCE_PER_WEAPON = 500
 MAX_PYC_ROWS_PER_GROUP = 300
@@ -55,7 +55,6 @@ IDENTITY_FIELDS = {
     "blueprint_id", "blueprint_no", "gun_blueprint_no", "gun_blueprint_id",
     "item_id", "item_no", "equip_no", "weapon_no", "gun_no", "gun_id",
     "prototype_id", "prototype_no", "weapon_prototype_no", "fragment_id", "fragment_no",
-    "ammo_item_id", "bullet_pattern_id", "bullet_pattern_no",
 }
 
 COMPETITOR_BASELINE = (
@@ -154,18 +153,15 @@ def _iter_records(payload: Any):
 
 
 def _weapon_seeds(weapon: dict[str, Any]) -> set[str]:
+    """Return weapon-owner identities only.
+
+    Ammo IDs, selectable ammo IDs, and bullet-pattern IDs are relationships, not
+    weapon ownership. Shared relation IDs must never pull sibling guns into ADS,
+    firing-mode, reload, mobility, or other weapon-local evidence.
+    """
     seeds: set[str] = set()
     for field in ("blueprint_id", "item_id", "prototype_id", "fragment_id"):
         value = weapon.get(field)
-        if value not in (None, "", 0):
-            seeds.add(str(value))
-    ranged = weapon.get("ranged_stats") if isinstance(weapon.get("ranged_stats"), dict) else {}
-    for field in ("ammo_item_id", "bullet_pattern_id"):
-        value = ranged.get(field)
-        if value not in (None, "", 0):
-            seeds.add(str(value))
-    ammo = weapon.get("ammo_configuration") if isinstance(weapon.get("ammo_configuration"), dict) else {}
-    for value in ammo.get("selectable_ammo_item_ids") or []:
         if value not in (None, "", 0):
             seeds.add(str(value))
     for tier in weapon.get("tiers") or []:
@@ -357,7 +353,7 @@ def run_weapon_corpus_audit(base: Path,current: Path,weapons_path: Path,reports_
     for group in COMPETITOR_BASELINE+DEAD_SIGNAL_ADVANTAGE:
         states=Counter(r["coverage"].get(group,"missing") for r in weapon_reports)
         group_summary[group]={"states":dict(states),"exact_json_field_hits":int((json_scan.get("group_counts") or {}).get(group,0)),"pyc_consumer_candidates":int((pyc_scan.get("group_candidate_counts") or {}).get(group,0)),"priority":PRIORITY.get(group,50),"baseline":"competitor" if group in COMPETITOR_BASELINE else "dead-signal-advantage"}
-    report={"schema":"dead-signal-weapon-corpus-audit","schema_version":SCHEMA_VERSION,"brand":"Dead Signal","subject":"Complete player-facing Weapons corpus coverage","mode":"overnight-read-only-full-corpus-audit","record_counts":{"weapons":len(weapon_reports),"json_files_scanned":json_scan["files_scanned"],"json_records_scanned":json_scan["records_scanned"],"exact_identity_records_with_target_fields":json_scan["exact_identity_records_with_target_fields"],"pyc_files_scanned":pyc_scan["files_scanned"],"pyc_files_with_target_tokens":pyc_scan["files_with_target_token_bytes"],"gaps":len(gap_queue),"coverage_states":dict(status_counts)},"coverage_contract":{"competitor_baseline":list(COMPETITOR_BASELINE),"dead_signal_advantage":list(DEAD_SIGNAL_ADVANTAGE),"rule":"Competitor-visible fields are research targets, never source-of-truth. Installed-game exact evidence remains authoritative."},"group_summary":group_summary,"gap_queue":gap_queue,"weapons":weapon_reports,"json_scan":{"files_scanned":json_scan["files_scanned"],"records_scanned":json_scan["records_scanned"],"exact_identity_records_with_target_fields":json_scan["exact_identity_records_with_target_fields"],"errors":json_scan["errors"],"top_tables":json_scan["top_tables"]},"pyc_consumer_scan":pyc_scan,"policy":{"identity":"Record association requires an exact canonical seed in a strong isolated record key or a typed identity field. Bare scalar/key collisions are forbidden; short prototype numbers require typed fields.","scope":"Both retained NeoX JSON layers are scanned, plus retained PYC source roots available from snapshot metadata.","execution":"PYC files are unmarshaled for static CodeType metadata only; game modules and game bytecode are never executed.","publication":"Candidate evidence is research-only and never auto-promotes values.","absence":"No exact candidate means this audit did not locate one in the current corpus; it does not prove the concept is absent."}}
+    report={"schema":"dead-signal-weapon-corpus-audit","schema_version":SCHEMA_VERSION,"brand":"Dead Signal","subject":"Complete player-facing Weapons corpus coverage","mode":"overnight-read-only-full-corpus-audit","record_counts":{"weapons":len(weapon_reports),"json_files_scanned":json_scan["files_scanned"],"json_records_scanned":json_scan["records_scanned"],"exact_identity_records_with_target_fields":json_scan["exact_identity_records_with_target_fields"],"pyc_files_scanned":pyc_scan["files_scanned"],"pyc_files_with_target_tokens":pyc_scan["files_with_target_token_bytes"],"gaps":len(gap_queue),"coverage_states":dict(status_counts)},"coverage_contract":{"competitor_baseline":list(COMPETITOR_BASELINE),"dead_signal_advantage":list(DEAD_SIGNAL_ADVANTAGE),"rule":"Competitor-visible fields are research targets, never source-of-truth. Installed-game exact evidence remains authoritative."},"group_summary":group_summary,"gap_queue":gap_queue,"weapons":weapon_reports,"json_scan":{"files_scanned":json_scan["files_scanned"],"records_scanned":json_scan["records_scanned"],"exact_identity_records_with_target_fields":json_scan["exact_identity_records_with_target_fields"],"errors":json_scan["errors"],"top_tables":json_scan["top_tables"]},"pyc_consumer_scan":pyc_scan,"policy":{"identity":"Record association requires an exact canonical weapon-owner seed in a strong isolated record key or a typed identity field. Ammo and bullet-pattern relation IDs never establish weapon ownership; bare scalar/key collisions are forbidden; short prototype numbers require typed fields.","scope":"Both retained NeoX JSON layers are scanned, plus retained PYC source roots available from snapshot metadata.","execution":"PYC files are unmarshaled for static CodeType metadata only; game modules and game bytecode are never executed.","publication":"Candidate evidence is research-only and never auto-promotes values.","absence":"No exact candidate means this audit did not locate one in the current corpus; it does not prove the concept is absent."}}
     destination=reports_dir/"weapon-corpus-audit.json"; _write_json(destination,report)
     activity(f"Weapon Corpus Audit complete: {len(weapon_reports)} weapons; {len(gap_queue)} ranked gaps")
     return report
