@@ -3,6 +3,12 @@
 Compares the unresolved fixed-skill blueprint class with a same-endow control
 cohort that has exact passive_skill_data ownership. This is a read-only research
 pass. It parses installed Bindict tables only and never executes game bytecode.
+
+Important schema rule: gun_blueprint_attr_data is keyed by (blueprint_id, star)
+and does not carry blueprint identity fields such as blueprint_template_no,
+endow, or plaques inline. Those fields are joined exactly from
+gun_blueprint_data. correct_skill/correct_term_id are joined exactly from
+gun_blueprint_terms_map_data. No fuzzy or similar-ID matching is used.
 """
 from __future__ import annotations
 
@@ -16,7 +22,9 @@ ActivityCallback = Callable[[str], None]
 MAX_ROWS = 512
 MAX_DIFF_PATHS = 256
 
-GUN_BLUEPRINT_PATH = "game_common/data/gun_blueprint_attr_data.pyc"
+GUN_BLUEPRINT_ATTR_PATH = "game_common/data/gun_blueprint_attr_data.pyc"
+GUN_BLUEPRINT_DATA_PATH = "game_common/data/gun_blueprint_data.pyc"
+GUN_BLUEPRINT_TERMS_PATH = "game_common/data/gun_blueprint_terms_map_data.pyc"
 PASSIVE_SKILL_PATH = "game_common/data/passive_skill_data.pyc"
 
 
@@ -42,21 +50,67 @@ def _iter_dicts(value: Any) -> Iterable[dict[str, Any]]:
             yield from _iter_dicts(child)
 
 
-def _weapon_rows(parsed: Any) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    seen: set[int] = set()
-    for row in _iter_dicts(parsed):
-        if id(row) in seen:
+def _data_mapping(parsed: Any) -> dict[Any, Any]:
+    """Return the decoded table's canonical data mapping without losing tuple keys."""
+    if isinstance(parsed, dict):
+        data = parsed.get("data")
+        if isinstance(data, dict):
+            return data
+        # Tests and some parser versions may already return the table mapping.
+        return parsed
+    return {}
+
+
+def _int_id(value: Any) -> int | None:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _blueprint_id_from_star_key(key: Any) -> int | None:
+    if isinstance(key, (tuple, list)) and key:
+        return _int_id(key[0])
+    if isinstance(key, str):
+        text = key.strip().lstrip("(").rstrip(")")
+        first = text.split(",", 1)[0].strip()
+        return _int_id(first)
+    return None
+
+
+def _star_from_key(key: Any) -> int | None:
+    if isinstance(key, (tuple, list)) and len(key) >= 2:
+        return _int_id(key[1])
+    if isinstance(key, str) and "," in key:
+        text = key.strip().lstrip("(").rstrip(")")
+        return _int_id(text.split(",", 1)[1].strip())
+    return None
+
+
+def _index_star_rows(parsed: Any) -> dict[int, dict[int, dict[str, Any]]]:
+    out: dict[int, dict[int, dict[str, Any]]] = {}
+    for key, row in _data_mapping(parsed).items():
+        if not isinstance(row, dict):
             continue
-        if str(row.get("blueprint_template_no") or "") != "10":
+        blueprint_id = _blueprint_id_from_star_key(key)
+        star = _star_from_key(key)
+        if blueprint_id is None or star is None:
             continue
-        if not any(key in row for key in ("fixed_skill_code", "blueprint_id", "blueprint_no", "item_no")):
+        out.setdefault(blueprint_id, {})[star] = row
+    return out
+
+
+def _index_blueprints(parsed: Any) -> dict[int, dict[str, Any]]:
+    out: dict[int, dict[str, Any]] = {}
+    for key, row in _data_mapping(parsed).items():
+        if not isinstance(row, dict):
             continue
-        seen.add(id(row))
-        rows.append(row)
-        if len(rows) >= MAX_ROWS:
-            break
-    return rows
+        blueprint_id = _int_id(key)
+        if blueprint_id is None:
+            blueprint_id = _int_id(row.get("blueprint_id") or row.get("blueprint_no") or row.get("id"))
+        if blueprint_id is not None:
+            out[blueprint_id] = row
+    return out
 
 
 def _collect_exact_codes(parsed: Any) -> set[str]:
@@ -71,6 +125,10 @@ def _collect_exact_codes(parsed: Any) -> set[str]:
                 codes.add(key)
             if isinstance(value, str) and value.startswith("WS"):
                 codes.add(value)
+    # passive_skill_data commonly uses WS... as top-level keys.
+    for key in _data_mapping(parsed):
+        if isinstance(key, str) and key.startswith("WS"):
+            codes.add(key)
     return codes
 
 
@@ -112,11 +170,60 @@ def _base_attrs_zero(row: dict[str, Any]) -> bool:
     return all(value in (0, 0.0, "0", "0.0", None, "") for value in found)
 
 
+def _joined_row(
+    blueprint_id: int,
+    blueprint: dict[str, Any],
+    attr_star1: dict[str, Any],
+    terms_star1: dict[str, Any],
+) -> dict[str, Any]:
+    """Build one exact blueprint-level comparison row from its owner tables."""
+    return {
+        "blueprint_id": blueprint_id,
+        "item_id": blueprint.get("gun_item_no") or blueprint.get("item_no") or blueprint.get("item_id"),
+        "name": blueprint.get("name") or blueprint.get("blueprint_name") or blueprint.get("item_name"),
+        "blueprint_template_no": blueprint.get("blueprint_template_no"),
+        "endow": blueprint.get("endow"),
+        "plaques": blueprint.get("plaques"),
+        "brand_no": blueprint.get("brand_no"),
+        "prototype_no": blueprint.get("prototype_no"),
+        "fixed_skill_code": attr_star1.get("fixed_skill_code"),
+        "fixed_skill_lv": attr_star1.get("fixed_skill_lv"),
+        "base_attr": {
+            key: value
+            for key, value in attr_star1.items()
+            if key in {"base_attr", "base_attr_val1", "base_attr_val2", "base_attr_val3", "base_attr_val4", "base_attr_name1", "base_attr_name2", "base_attr_name3", "base_attr_name4"}
+        },
+        "attr_star1": attr_star1,
+        "correct_skill": terms_star1.get("correct_skill"),
+        "correct_term_id": terms_star1.get("correct_term_id"),
+        "terms_star1": terms_star1,
+    }
+
+
+def _weapon_rows(blueprints_parsed: Any, attrs_parsed: Any, terms_parsed: Any) -> list[dict[str, Any]]:
+    blueprints = _index_blueprints(blueprints_parsed)
+    attrs = _index_star_rows(attrs_parsed)
+    terms = _index_star_rows(terms_parsed)
+    rows: list[dict[str, Any]] = []
+    for blueprint_id in sorted(blueprints):
+        blueprint = blueprints[blueprint_id]
+        if str(blueprint.get("blueprint_template_no") or "") != "10":
+            continue
+        star_rows = attrs.get(blueprint_id) or {}
+        attr_star1 = star_rows.get(1)
+        if not isinstance(attr_star1, dict):
+            continue
+        rows.append(_joined_row(blueprint_id, blueprint, attr_star1, (terms.get(blueprint_id) or {}).get(1, {})))
+        if len(rows) >= MAX_ROWS:
+            break
+    return rows
+
+
 def _identity(row: dict[str, Any]) -> dict[str, Any]:
     return {
-        "blueprint_id": row.get("blueprint_id") or row.get("blueprint_no") or row.get("id"),
-        "item_id": row.get("item_no") or row.get("item_id"),
-        "name": row.get("name") or row.get("blueprint_name") or row.get("item_name"),
+        "blueprint_id": row.get("blueprint_id"),
+        "item_id": row.get("item_id"),
+        "name": row.get("name"),
         "fixed_skill_code": row.get("fixed_skill_code"),
     }
 
@@ -130,7 +237,7 @@ def _fingerprint(row: dict[str, Any], passive_codes: set[str]) -> dict[str, Any]
         "plaques_empty": _is_empty(row.get("plaques")),
         "correct_skill_absent": _is_empty(row.get("correct_skill")),
         "correct_term_id_absent": _is_empty(row.get("correct_term_id")),
-        "base_attrs_e0100_e0200_e0300_zero": _base_attrs_zero(row),
+        "base_attrs_e0100_e0200_e0300_zero": _base_attrs_zero(row.get("attr_star1") or {}),
     }
 
 
@@ -168,29 +275,38 @@ def trace_fixed_skill_cohort_diff(
     roots: list[tuple[str, Path]], *, activity: ActivityCallback | None = None
 ) -> dict[str, Any]:
     activity = activity or (lambda _message: None)
-    gun_source = _find_source(roots, GUN_BLUEPRINT_PATH)
-    passive_source = _find_source(roots, PASSIVE_SKILL_PATH)
-    if gun_source is None or passive_source is None:
+    required_paths = (
+        GUN_BLUEPRINT_ATTR_PATH,
+        GUN_BLUEPRINT_DATA_PATH,
+        GUN_BLUEPRINT_TERMS_PATH,
+        PASSIVE_SKILL_PATH,
+    )
+    sources = {path: _find_source(roots, path) for path in required_paths}
+    missing = [path for path, source in sources.items() if source is None]
+    if missing:
         return {
             "status": "required-table-missing",
-            "missing": [
-                path for path, source in ((GUN_BLUEPRINT_PATH, gun_source), (PASSIVE_SKILL_PATH, passive_source)) if source is None
-            ],
+            "missing": missing,
             "record_counts": {"normal_weapon_blueprints": 0, "unresolved_cohort": 0, "resolved_control_cohort": 0},
         }
 
     activity("Missing Skill Forensics: comparing unresolved and resolved fixed-skill blueprint cohorts")
-    gun_layer, gun_path = gun_source
-    passive_layer, passive_path = passive_source
-    weapons = _weapon_rows(_parse_bindict(gun_path))
+    attr_layer, attr_path = sources[GUN_BLUEPRINT_ATTR_PATH]  # type: ignore[misc]
+    blueprint_layer, blueprint_path = sources[GUN_BLUEPRINT_DATA_PATH]  # type: ignore[misc]
+    terms_layer, terms_path = sources[GUN_BLUEPRINT_TERMS_PATH]  # type: ignore[misc]
+    passive_layer, passive_path = sources[PASSIVE_SKILL_PATH]  # type: ignore[misc]
+
+    weapons = _weapon_rows(
+        _parse_bindict(blueprint_path),
+        _parse_bindict(attr_path),
+        _parse_bindict(terms_path),
+    )
     passive_codes = _collect_exact_codes(_parse_bindict(passive_path))
 
     unresolved: list[dict[str, Any]] = []
     controls: list[dict[str, Any]] = []
-    all_rows: list[dict[str, Any]] = []
     for row in weapons:
         fp = _fingerprint(row, passive_codes)
-        all_rows.append({"identity": _identity(row), "fingerprint": fp})
         if not fp["fixed_skill_present"] or fp["endow"] is not False:
             continue
         if fp["passive_owner_present"]:
@@ -217,7 +333,9 @@ def trace_fixed_skill_cohort_diff(
     return {
         "status": "complete",
         "source": {
-            "gun_blueprint_attr_data": {"layer": gun_layer, "relative_path": GUN_BLUEPRINT_PATH},
+            "gun_blueprint_attr_data": {"layer": attr_layer, "relative_path": GUN_BLUEPRINT_ATTR_PATH},
+            "gun_blueprint_data": {"layer": blueprint_layer, "relative_path": GUN_BLUEPRINT_DATA_PATH},
+            "gun_blueprint_terms_map_data": {"layer": terms_layer, "relative_path": GUN_BLUEPRINT_TERMS_PATH},
             "passive_skill_data": {"layer": passive_layer, "relative_path": PASSIVE_SKILL_PATH},
         },
         "record_counts": {
@@ -235,7 +353,7 @@ def trace_fixed_skill_cohort_diff(
         ],
         "field_diff": discriminators,
         "policy": {
-            "matching": "Cohorts use exact blueprint fields and exact passive_skill_data code membership only; no fuzzy or similar-ID matching.",
+            "matching": "Cohorts use exact blueprint IDs, exact (blueprint_id, star) table keys, and exact passive_skill_data code membership only; no fuzzy or similar-ID matching.",
             "execution": "Installed Bindict tables are parsed read-only; game modules and bytecode are never executed.",
             "interpretation": "Field differences are structural evidence only and do not prove runtime mechanic semantics.",
             "publication": "Research-only; no player-facing weapon data is modified or promoted.",
