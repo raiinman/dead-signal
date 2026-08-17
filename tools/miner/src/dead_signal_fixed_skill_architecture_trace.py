@@ -22,14 +22,15 @@ from typing import Any, Callable
 
 ActivityCallback = Callable[[str], None]
 MAX_FILE_BYTES = 32 * 1024 * 1024
-MAX_SCALAR_CONSTANTS = 96
-MAX_SYMBOLS = 192
+MAX_SCALAR_CONSTANTS = 192
+MAX_SYMBOLS = 256
+MAX_RAW_WORDCODE_ROWS = 768
 
 BRANCHES: dict[str, tuple[dict[str, Any], ...]] = {
     "damage_passive_mapping": (
         {
             "path": "dcs_extend/component/shoot_new/keyword/CompShootDamageSimulateClient.pyc",
-            "functions": ("get_weapon_passive_skill_config",),
+            "functions": ("<module>", "get_weapon_passive_skill_config"),
             "symbols": (
                 "fixed_skill_code",
                 "WEAPON_PASSIVE_TO_SKILL_DAMAGE_CONFIG",
@@ -44,6 +45,7 @@ BRANCHES: dict[str, tuple[dict[str, Any], ...]] = {
         {
             "path": "game_common/guncore/GunCoreHelper.pyc",
             "functions": (
+                "<module>",
                 "get_blueprint_fixed_skill",
                 "init_fixed_skill",
                 "climp_skill_code",
@@ -115,9 +117,12 @@ BRANCHES: dict[str, tuple[dict[str, Any], ...]] = {
         {
             "path": "game_common/guncore/SkillDataHelper.pyc",
             "functions": (
+                "<module>",
                 "is_fixed_skill",
+                "is_passive",
                 "check_is_passive_skill",
                 "is_skill_exist",
+                "get_table_name",
                 "get_skill_data",
                 "get_skill_name",
                 "get_skill_description",
@@ -129,6 +134,9 @@ BRANCHES: dict[str, tuple[dict[str, Any], ...]] = {
                 "common_skill_data",
                 "skill_data",
                 "skill_code",
+                "table_name",
+                "get_table_name",
+                "is_passive",
                 "name",
                 "description",
                 "discription",
@@ -230,11 +238,46 @@ def _walk_code(code: types.CodeType, qualname: str = "<module>"):
 def _safe_scalar(value: Any) -> Any:
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
-    if isinstance(value, tuple) and len(value) <= 12 and all(
+    if isinstance(value, tuple) and len(value) <= 24 and all(
         item is None or isinstance(item, (str, int, float, bool)) for item in value
     ):
         return list(value)
     return None
+
+
+def _indexed_values(values: tuple[Any, ...], *, scalars_only: bool = False) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for index, value in enumerate(values):
+        if scalars_only:
+            safe = _safe_scalar(value)
+            if safe is None:
+                continue
+            rendered = safe
+        else:
+            rendered = str(value)
+        rows.append({"index": index, "value": rendered})
+        if len(rows) >= MAX_SYMBOLS:
+            break
+    return rows
+
+
+def _raw_wordcode(code: types.CodeType) -> tuple[list[dict[str, int]], bool]:
+    """Return exact raw CPython-style 2-byte wordcode without interpreting opcodes.
+
+    Once Human PYC opcode tables can differ from the local Python runtime.  The
+    report therefore preserves only byte offsets/opcode bytes/argument bytes.
+    Name and constant pools are emitted separately by index so a later forensic
+    pass can correlate them without executing or falsely decoding game bytecode.
+    """
+    raw = bytes(code.co_code)
+    rows: list[dict[str, int]] = []
+    for offset in range(0, len(raw) - 1, 2):
+        rows.append({"offset": offset, "opcode": raw[offset], "arg": raw[offset + 1]})
+        if len(rows) >= MAX_RAW_WORDCODE_ROWS:
+            return rows, offset + 2 < len(raw)
+    if len(raw) % 2:
+        rows.append({"offset": len(raw) - 1, "opcode": raw[-1], "arg": -1})
+    return rows, False
 
 
 def _function_selected(qualname: str, co_name: str, requested: tuple[str, ...]) -> bool:
@@ -261,16 +304,23 @@ def _inspect_function(qualname: str, code: types.CodeType, symbols: tuple[str, .
         if len(constants) >= MAX_SCALAR_CONSTANTS:
             break
     children = [value.co_name for value in code.co_consts if isinstance(value, types.CodeType)]
+    wordcode, wordcode_truncated = _raw_wordcode(code)
     return {
         "qualname": qualname,
         "co_name": code.co_name,
         "co_filename": code.co_filename,
         "co_firstlineno": code.co_firstlineno,
+        "code_length": len(code.co_code),
         "matched_target_symbols": sorted(symbol_set.intersection(universe)),
         "co_names": sorted(names)[:MAX_SYMBOLS],
+        "co_names_indexed": _indexed_values(tuple(code.co_names)),
         "co_varnames": sorted(varnames)[:MAX_SYMBOLS],
+        "co_varnames_indexed": _indexed_values(tuple(code.co_varnames)),
         "string_constants": sorted(strings)[:MAX_SYMBOLS],
         "safe_scalar_constants": constants,
+        "co_consts_indexed": _indexed_values(tuple(code.co_consts), scalars_only=True),
+        "raw_wordcode": wordcode,
+        "raw_wordcode_truncated": wordcode_truncated,
         "nested_code_names": children[:MAX_SYMBOLS],
     }
 
@@ -378,10 +428,11 @@ def trace_fixed_skill_architecture(
             "scope": "All currently known high-value fixed-skill resolution modules/functions are inspected together; there is no fuzzy identity traversal.",
             "matching": "Function selection and reported relationship symbols are exact static CodeType/raw-byte evidence.",
             "execution": "PYC payloads are unmarshaled only; Once Human modules and game bytecode are never executed.",
-            "interpretation": "Names/constants establish static adjacency only; they do not by themselves prove runtime mapping values or player-facing mechanic semantics.",
+            "wordcode": "Raw 2-byte instruction words and indexed name/constant pools are preserved without applying the local Python opcode table.",
+            "interpretation": "Names/constants establish static adjacency only; raw wordcode preserves exact bytes but requires version-correct interpretation before semantic claims.",
         },
         "next_step": (
-            "Compare ownerless codes against BluePrint/GunCore transformation helpers first; inspect PassiveSkillHelper/SkillDataHelper fallbacks second; "
-            "then cross-check damage mapping, server buff, star/stardust and WRGunInfoPart UI branches. Follow only exact returned identifiers into NeoX owners."
+            "Correlate raw wordcode with indexed constant/name pools for get_table_name, climp_skill_code, module-level WEAPON_TO_PASSIVE / "
+            "WEAPON_PASSIVE_TO_SKILL_DAMAGE_CONFIG construction, and get_weapon_passive_skill_config. Follow only exact returned identifiers into NeoX owners."
         ),
     }
