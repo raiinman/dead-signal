@@ -24,7 +24,7 @@ class WeaponSiteProjectionTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
-    def test_promotes_tier_one_gun_fields_and_preserves_family_inheritance(self):
+    def test_promotes_tier_one_gun_fields_and_publishes_lean_payload(self):
         weapons = {
             "weapons": [
                 {
@@ -33,6 +33,8 @@ class WeaponSiteProjectionTests(unittest.TestCase):
                     "prototype_id": 204,
                     "name": "AA12",
                     "category": "Shotgun",
+                    "quality_code": 2,
+                    "quality": "Rare",
                     "short_description": "Installed description",
                     "ranged_stats": {"bullet_pattern_id": "PatShared", "projectile_count": 5, "rpm": 180, "magazine": 8},
                     "blueprint_star_progression": {"stars": [1, 2, 3, 4, 5, 6], "perk_slot_calibration_max": 2},
@@ -47,6 +49,8 @@ class WeaponSiteProjectionTests(unittest.TestCase):
                     "prototype_id": 204,
                     "name": "AA12 Variant",
                     "category": "Shotgun",
+                    "quality_code": 3,
+                    "quality": "Epic",
                     "ranged_stats": {"bullet_pattern_id": "PatShared", "projectile_count": 5},
                     "tiers": [{"tier": 1, "item_id": 10231201, "gun_no": 10230021, "damage": 40}],
                 },
@@ -104,6 +108,7 @@ class WeaponSiteProjectionTests(unittest.TestCase):
         report = build_weapon_site_projection(self.weapons_path, self.published, corpus, readiness)
         self.assertEqual(report["record_counts"]["weapons"], 2)
         self.assertEqual(report["record_counts"]["gun_base_promoted"], 1)
+        self.assertEqual(report["record_counts"]["rarity_promoted"], 2)
         aa12 = report["weapons"][0]
         self.assertEqual(aa12["handling"]["semantic"]["ads_time"], 0.2325)
         self.assertEqual(aa12["handling"]["semantic"]["bullet_speed"], 200.0)
@@ -111,13 +116,24 @@ class WeaponSiteProjectionTests(unittest.TestCase):
         self.assertEqual(aa12["handling"]["semantic"]["fire_rate_display_rpm"], 180)
         self.assertEqual(aa12["firing_mode"]["raw_code"], 3)
         self.assertEqual(aa12["firing_mode"]["label_state"], "unresolved-code-map")
+        self.assertEqual(aa12["rarity"]["label"], "Rare")
         self.assertEqual(aa12["family"]["family_id"], "prototype:204")
         self.assertEqual(len(aa12["family"]["members"]), 2)
         self.assertEqual(aa12["ballistic_family"]["bullet_pattern_id"], "PatShared")
-        self.assertEqual(aa12["ballistic_family"]["precedence"]["variant-local"], 2)
         variant = report["weapons"][1]
         self.assertEqual(variant["handling"]["state"], "unresolved")
-        self.assertTrue((self.published / "site" / "weapons-v2.json").is_file())
+
+        forensic = self.published / "site" / "weapons-v2.json"
+        lean = self.published / "site" / "weapons.json"
+        evidence = self.published / "site" / "weapon-evidence.json"
+        self.assertTrue(forensic.is_file())
+        self.assertTrue(lean.is_file())
+        self.assertTrue(evidence.is_file())
+        lean_payload = json.loads(lean.read_text(encoding="utf-8"))
+        self.assertEqual(lean_payload["weapons"][0]["rarity"]["label"], "Rare")
+        self.assertEqual(lean_payload["weapons"][0]["stats"]["ads_time"], 0.2325)
+        self.assertNotIn("research", lean_payload["weapons"][0]["firing_mode"])
+        self.assertEqual(report["browser_publish"]["record_counts"]["rarity"], 2)
 
 
 if __name__ == "__main__":
