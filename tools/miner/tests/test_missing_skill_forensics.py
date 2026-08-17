@@ -110,7 +110,7 @@ class MissingSkillForensicsTests(unittest.TestCase):
         self.assertTrue(any(row.get("is_fixed_skill_anchor") for row in rows if not row.get("gap")))
         self.assertTrue(any(row.get("argval") == "fixed_skill_code" for row in rows if not row.get("gap")))
 
-    def test_all_four_architecture_branches_are_static_and_bounded(self):
+    def test_all_six_architecture_branches_are_static_and_bounded(self):
         self._write_pyc(
             "dcs_extend/component/shoot_new/keyword/CompShootDamageSimulateClient.pyc",
             "WEAPON_TO_PASSIVE = {}\nWEAPON_PASSIVE_TO_SKILL_DAMAGE_CONFIG = {}\n"
@@ -143,13 +143,15 @@ class MissingSkillForensicsTests(unittest.TestCase):
             [("base", self.base_source.resolve())], activity=lambda _message: None
         )
         self.assertEqual("complete", result["status"])
-        self.assertEqual(4, result["record_counts"]["branches"])
+        self.assertEqual(6, result["record_counts"]["branches"])
         self.assertGreaterEqual(result["record_counts"]["files_found"], 4)
         self.assertGreaterEqual(result["record_counts"]["functions_found"], 4)
         self.assertTrue(result["branches"]["damage_passive_mapping"]["functions_found"])
         self.assertTrue(result["branches"]["guncore_normalization"]["functions_found"])
         self.assertTrue(result["branches"]["star_stardust_resolution"]["functions_found"])
         self.assertTrue(result["branches"]["player_facing_ui"]["functions_found"])
+        self.assertIn("passive_skill_helpers", result["branches"])
+        self.assertIn("skill_data_helpers", result["branches"])
         self.assertEqual(
             "PYC payloads are unmarshaled only; Once Human modules and game bytecode are never executed.",
             result["policy"]["execution"],
@@ -162,8 +164,10 @@ class MissingSkillForensicsTests(unittest.TestCase):
         )
         report = run_missing_skill_forensics(self.base, self.current, ["WS2001"], self.reports)
         self.assertIn("fixed_skill_architecture_trace", report)
-        self.assertEqual(4, report["record_counts"]["architecture_branches"])
+        self.assertEqual(6, report["record_counts"]["architecture_branches"])
         self.assertIn("guncore_normalization", report["fixed_skill_architecture_trace"]["branches"])
+        self.assertIn("passive_skill_helpers", report["fixed_skill_architecture_trace"]["branches"])
+        self.assertIn("skill_data_helpers", report["fixed_skill_architecture_trace"]["branches"])
 
     def test_preload_table_reference_is_context_not_direct_consumer(self):
         self._write_pyc(
