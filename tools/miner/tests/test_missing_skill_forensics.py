@@ -13,6 +13,7 @@ SRC = Path(__file__).resolve().parents[1] / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+from dead_signal_fixed_skill_architecture_trace import trace_fixed_skill_architecture  # noqa: E402
 from dead_signal_fixed_skill_flow_trace import _fallback_instruction_windows  # noqa: E402
 from dead_signal_missing_skill_forensics import _scan_consumers, run_missing_skill_forensics  # noqa: E402
 from dead_signal_schema_trace_batch import _unresolved_skill_codes  # noqa: E402
@@ -109,6 +110,61 @@ class MissingSkillForensicsTests(unittest.TestCase):
         self.assertTrue(any(row.get("is_fixed_skill_anchor") for row in rows if not row.get("gap")))
         self.assertTrue(any(row.get("argval") == "fixed_skill_code" for row in rows if not row.get("gap")))
 
+    def test_all_four_architecture_branches_are_static_and_bounded(self):
+        self._write_pyc(
+            "dcs_extend/component/shoot_new/keyword/CompShootDamageSimulateClient.pyc",
+            "WEAPON_TO_PASSIVE = {}\nWEAPON_PASSIVE_TO_SKILL_DAMAGE_CONFIG = {}\n"
+            "def get_weapon_passive_skill_config(row):\n"
+            "    fixed_skill_code = row.get('fixed_skill_code')\n"
+            "    return WEAPON_PASSIVE_TO_SKILL_DAMAGE_CONFIG.get(fixed_skill_code)\n",
+        )
+        self._write_pyc(
+            "game_common/guncore/GunCoreHelper.pyc",
+            "SKILL_CODE_LEN = 8\nMAX_SKILL_LEVEL = 6\n"
+            "def climp_skill_code(skill_code):\n    return skill_code[:SKILL_CODE_LEN]\n"
+            "def init_fixed_skill(skill_code):\n    return climp_skill_code(skill_code)\n"
+            "def get_blueprint_fixed_skill(row):\n    return row.get('fixed_skill_code')\n",
+        )
+        self._write_pyc(
+            "dcs_extend/component/CompCamera.pyc",
+            "def _get_gun_sp_track_time(row, stardust_gun_skill_data, passive_skill_data):\n"
+            "    skill_code = row.get('fixed_skill_code')\n"
+            "    star_skill_no = stardust_gun_skill_data.get(skill_code)\n"
+            "    return passive_skill_data.get(star_skill_no, {}).get('skill_cast_time')\n",
+        )
+        self._write_pyc(
+            "ui/weapon_craft_part/ScrollViewItems.pyc",
+            "class WRGunInfoPart:\n"
+            "    def update_fixed_skills(self, fixed_passive_skill, skill_data, PassiveSkillHelper):\n"
+            "        skill_code = fixed_passive_skill.get('skill_code')\n"
+            "        return PassiveSkillHelper.get_passive_skill_name(skill_code)\n",
+        )
+        result = trace_fixed_skill_architecture(
+            [("base", self.base_source.resolve())], activity=lambda _message: None
+        )
+        self.assertEqual("complete", result["status"])
+        self.assertEqual(4, result["record_counts"]["branches"])
+        self.assertGreaterEqual(result["record_counts"]["files_found"], 4)
+        self.assertGreaterEqual(result["record_counts"]["functions_found"], 4)
+        self.assertTrue(result["branches"]["damage_passive_mapping"]["functions_found"])
+        self.assertTrue(result["branches"]["guncore_normalization"]["functions_found"])
+        self.assertTrue(result["branches"]["star_stardust_resolution"]["functions_found"])
+        self.assertTrue(result["branches"]["player_facing_ui"]["functions_found"])
+        self.assertEqual(
+            "PYC payloads are unmarshaled only; Once Human modules and game bytecode are never executed.",
+            result["policy"]["execution"],
+        )
+
+    def test_integrated_report_exposes_architecture_trace(self):
+        self._write_pyc(
+            "game_common/guncore/GunCoreHelper.pyc",
+            "def get_blueprint_fixed_skill(row):\n    return row.get('fixed_skill_code')\n",
+        )
+        report = run_missing_skill_forensics(self.base, self.current, ["WS2001"], self.reports)
+        self.assertIn("fixed_skill_architecture_trace", report)
+        self.assertEqual(4, report["record_counts"]["architecture_branches"])
+        self.assertIn("guncore_normalization", report["fixed_skill_architecture_trace"]["branches"])
+
     def test_preload_table_reference_is_context_not_direct_consumer(self):
         self._write_pyc(
             "client_data_preload_pc.pyc",
@@ -125,7 +181,7 @@ class MissingSkillForensicsTests(unittest.TestCase):
     def test_consumer_scan_reports_partial_when_guardrail_is_hit(self):
         self._write_pyc("a.pyc", "VALUE = 'skill_data'\n")
         self._write_pyc("b.pyc", "VALUE = 'fixed_skill_code'\n")
-        result = _scan_consumers([( "base", self.base_source.resolve())], activity=lambda _message: None, max_files_per_root=1)
+        result = _scan_consumers([("base", self.base_source.resolve())], activity=lambda _message: None, max_files_per_root=1)
         self.assertEqual("partial-limit", result["status"])
         self.assertEqual(["base"], result["roots_truncated_at_limit"])
 
