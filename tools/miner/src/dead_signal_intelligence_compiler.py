@@ -3,8 +3,8 @@
 Runs research extensions against an already-completed Miner snapshot without
 modifying the installed game. The full compiler includes canonical all-weapons
 Schema Trace, ownerless fixed-skill forensics, a hardened full-corpus Weapons
-audit, and an authoritative website-readiness ledger, then packages every report
-into one Intelligence ZIP.
+audit, an authoritative website-readiness ledger, and a sanitized website-ready
+Weapons projection, then packages every report into one Intelligence ZIP.
 """
 from __future__ import annotations
 
@@ -22,9 +22,10 @@ from dead_signal_research_suite import run_research_suite
 from dead_signal_schema_trace_batch import DeadSignalSchemaTraceBatch
 from dead_signal_weapon_corpus_audit import run_weapon_corpus_audit
 from dead_signal_weapon_description_consumer import run_weapon_description_consumer_trace
+from dead_signal_weapon_site_projection import build_weapon_site_projection
 from dead_signal_weapon_site_readiness import run_weapon_site_readiness
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 LogCallback = Callable[[str], None]
 ProgressCallback = Callable[[int, str], None]
 ActivityCallback = Callable[[str], None]
@@ -115,6 +116,7 @@ def _bundle_members(paths: dict[str, Path]) -> list[Path]:
     ]
     candidates.extend(sorted(paths["reports"].glob("*.json")))
     candidates.extend(sorted(paths["research"].glob("*.json")))
+    candidates.extend(sorted((paths["published"] / "site").glob("*.json")))
     seen: set[str] = set()
     result = []
     for path in candidates:
@@ -237,19 +239,24 @@ def compile_intelligence(output: Path | str, *, log=None, progress=None, activit
         lambda: run_weapon_site_readiness(paths["base"], paths["current"], paths["weapons"], paths["reports"], corpus_audit, activity=activity),
         log=log, progress=progress, activity=activity, percent=60,
     )
+    site_projection = _stage(
+        stages, "Website Weapons V2 Projection",
+        lambda: build_weapon_site_projection(paths["weapons"], paths["published"], corpus_audit, site_readiness, activity=activity),
+        log=log, progress=progress, activity=activity, percent=65,
+    )
     discovery = _stage(
         stages, "Discovery Engine", lambda: DeadSignalDiscovery(paths["output"]).run_all(),
-        log=log, progress=progress, activity=activity, percent=69,
+        log=log, progress=progress, activity=activity, percent=71,
     )
     analytics_engine = DeadSignalAnalytics(paths["output"])
-    analytics = _stage(stages, "Analytics Warehouse", analytics_engine.build, log=log, progress=progress, activity=activity, percent=78)
-    description_leads = _stage(stages, "Description Leads", lambda: analytics_engine.description_leads(limit=1000), log=log, progress=progress, activity=activity, percent=85)
-    suspicious_fields = _stage(stages, "Description Field Audit", lambda: analytics_engine.suspicious_description_fields(limit=1000), log=log, progress=progress, activity=activity, percent=90)
+    analytics = _stage(stages, "Analytics Warehouse", analytics_engine.build, log=log, progress=progress, activity=activity, percent=80)
+    description_leads = _stage(stages, "Description Leads", lambda: analytics_engine.description_leads(limit=1000), log=log, progress=progress, activity=activity, percent=86)
+    suspicious_fields = _stage(stages, "Description Field Audit", lambda: analytics_engine.suspicious_description_fields(limit=1000), log=log, progress=progress, activity=activity, percent=91)
     _write_json(paths["reports"] / "dead-signal-description-leads.json", description_leads)
     activity("Wrote dead-signal-description-leads.json")
     _write_json(paths["reports"] / "dead-signal-description-field-audit.json", suspicious_fields)
     activity("Wrote dead-signal-description-field-audit.json")
-    gate = _stage(stages, "Publication Gate", lambda: build_gate_report(paths["reports"]), log=log, progress=progress, activity=activity, percent=94)
+    gate = _stage(stages, "Publication Gate", lambda: build_gate_report(paths["reports"]), log=log, progress=progress, activity=activity, percent=95)
 
     research_counts = research.get("record_counts") or {}
     ui_counts = ui_consumer.get("record_counts") or {}
@@ -257,6 +264,7 @@ def compile_intelligence(output: Path | str, *, log=None, progress=None, activit
     corpus_counts = corpus_audit.get("record_counts") or {}
     readiness_counts = site_readiness.get("record_counts") or {}
     readiness_score = site_readiness.get("scoreboard") or {}
+    projection_counts = site_projection.get("record_counts") or {}
     forensic = schema_trace.get("missing_skill_forensics") or {}
     forensic_counts = forensic.get("record_counts") or {}
     compiled = {
@@ -292,6 +300,9 @@ def compile_intelligence(output: Path | str, *, log=None, progress=None, activit
             "site_launch_queue": readiness_counts.get("launch_queue", 0),
             "site_reference_score": (readiness_score.get("reference_question_set") or {}).get("percent", 0),
             "site_enhancement_score": (readiness_score.get("dead_signal_enhancements") or {}).get("percent", 0),
+            "site_projection_weapons": projection_counts.get("weapons", 0),
+            "site_projection_gun_base_promoted": projection_counts.get("gun_base_promoted", 0),
+            "site_projection_family_members": projection_counts.get("variant_family_members", 0),
             "discovery_tables": ((discovery.get("schema_clusters") or {}).get("record_counts") or {}).get("tables", 0),
             "description_hotspots": ((discovery.get("description_hotspots") or {}).get("record_counts") or {}).get("hotspots", 0),
             "analytics_rows": analytics.get("rows", {}),
@@ -310,6 +321,7 @@ def compile_intelligence(output: Path | str, *, log=None, progress=None, activit
             "missing_fixed_skill_forensics": str(paths["research"] / "missing-fixed-skill-forensics.json"),
             "weapon_corpus_audit": str(paths["reports"] / "weapon-corpus-audit.json"),
             "weapon_site_readiness": str(paths["reports"] / "weapon-site-readiness.json"),
+            "website_weapons_v2": str(paths["published"] / "site" / "weapons-v2.json"),
             "discovery": str(paths["reports"] / "dead-signal-discovery.json"),
             "description_leads": str(paths["reports"] / "dead-signal-description-leads.json"),
             "description_field_audit": str(paths["reports"] / "dead-signal-description-field-audit.json"),
@@ -319,10 +331,10 @@ def compile_intelligence(output: Path | str, *, log=None, progress=None, activit
         "policy": {
             "input": "Runs only against an already-completed local Miner snapshot.",
             "game_files": "Does not write to the installed Once Human folder; forensic PYC inspection uses retained snapshot source roots read-only.",
-            "publication": "Compiled intelligence is research-only and does not rewrite player-facing datasets.",
+            "publication": "Research candidates remain gated; the separate published/site/weapons-v2.json feed contains only explicit semantic promotions plus clearly labeled raw codes and unresolved states.",
             "authority": "Installed-game data mined by Dead Signal is the source of truth. External/community sites may define useful questions or UX references only; their values and semantics are never imported as evidence.",
-            "forensics": "The full compiler includes canonical all-weapons Schema Trace, ownerless fixed-skill forensics, exact-identity Base/Current JSON corpus scanning, static retained-PYC consumer scanning, and website-readiness scoring.",
-            "coverage": "The site-readiness ledger asks the full player-facing reference question set for every weapon, then separately scores Dead Signal-only progression, compatibility, recipe, identity, and provenance advantages.",
+            "forensics": "The full compiler includes canonical all-weapons Schema Trace, ownerless fixed-skill forensics, exact-identity Base/Current JSON corpus scanning, static retained-PYC consumer scanning, website-readiness scoring, and website projection generation.",
+            "coverage": "The site-readiness ledger asks the full player-facing reference question set for every weapon, then separately scores Dead Signal-only progression, compatibility, recipe, identity, provenance, family inheritance, and direct website-feed coverage.",
         },
     }
     compiled_path = paths["reports"] / "dead-signal-intelligence-compiled.json"
