@@ -1,5 +1,7 @@
 # Dead Signal — Build Lab / Weapon Selector Handoff
 
+> **CURRENT PRIORITY NOTE — 2026-08-16:** This handoff remains authoritative for the approved Build Lab / Weapon Selector UX history, but it is **not the immediate active research objective**. After reading this file, continue with `HANDOFF-2026-08-16-WEAPON-FORENSICS.md`, which records the current fixed-skill cohort investigation and Miner v1.5.14.42 release state.
+
 > **Date:** 2026-08-15
 > **Repository:** `raiinman/dead-signal`
 > **Branch:** `main`
