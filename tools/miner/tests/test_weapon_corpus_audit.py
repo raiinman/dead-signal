@@ -37,9 +37,9 @@ class WeaponCorpusAuditTests(unittest.TestCase):
         code = compile(source, relative, "exec")
         path.write_bytes(importlib.util.MAGIC_NUMBER + (b"\x00" * 12) + marshal.dumps(code))
 
-    def test_full_audit_uses_exact_identity_and_finds_new_player_fields(self):
-        weapons_path = self.root / "weapons.json"
-        weapons_path.write_text(json.dumps({
+    def _weapons_path(self) -> Path:
+        path = self.root / "weapons.json"
+        path.write_text(json.dumps({
             "weapons": [{
                 "blueprint_id": 123,
                 "item_id": 456,
@@ -67,6 +67,10 @@ class WeaponCorpusAuditTests(unittest.TestCase):
                 "image_reference": "test.png",
             }]
         }), encoding="utf-8")
+        return path
+
+    def test_full_audit_uses_exact_identity_and_finds_new_player_fields(self):
+        weapons_path = self._weapons_path()
         table = self.current / "game_common" / "data" / "gun_extra_stats.json"
         table.parent.mkdir(parents=True, exist_ok=True)
         table.write_text(json.dumps({
@@ -92,6 +96,28 @@ class WeaponCorpusAuditTests(unittest.TestCase):
         self.assertFalse(any(row["record_id"] == "similar-only" for row in records))
         self.assertGreater(report["pyc_consumer_scan"]["group_candidate_counts"]["ads_time"], 0)
         self.assertTrue((self.reports / "weapon-corpus-audit.json").is_file())
+
+    def test_container_map_does_not_leak_sibling_fields_across_records(self):
+        weapons_path = self._weapons_path()
+        table = self.current / "game_common" / "data" / "container_map.json"
+        table.parent.mkdir(parents=True, exist_ok=True)
+        table.write_text(json.dumps({
+            "data": {
+                "7": {"prototype_no": 9999, "ads_time": 9.99},
+                "other": {"gun_no": 8880, "bullet_speed": 1},
+                "real": {"gun_no": 888, "fire_mode": "full_auto"},
+            }
+        }), encoding="utf-8")
+
+        report = run_weapon_corpus_audit(self.base, self.current, weapons_path, self.reports)
+        weapon = report["weapons"][0]
+        records = weapon["exact_corpus_evidence"]
+        self.assertTrue(any(row["record_id"] == "real" for row in records))
+        self.assertFalse(any(row["record_id"] == "7" for row in records))
+        self.assertFalse(any(row["record_id"] == "other" for row in records))
+        self.assertEqual(weapon["coverage"]["ads_time"], "missing")
+        self.assertEqual(weapon["coverage"]["bullet_speed"], "missing")
+        self.assertEqual(weapon["coverage"]["firing_mode"], "candidate-evidence-found")
 
     def test_melee_marks_firearm_only_fields_not_applicable(self):
         weapons_path = self.root / "weapons.json"
