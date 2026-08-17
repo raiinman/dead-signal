@@ -8,7 +8,8 @@ No game module is imported or executed.
 
 Static inspection methods:
 - canonical BindictParser for exact-hit data-table payloads;
-- marshal CodeType metadata for ordinary Python bytecode containers.
+- marshal CodeType metadata for ordinary Python bytecode containers;
+- bounded fixed-skill flow and architecture tracing for proven consumers.
 
 The report is research evidence only and never modifies published weapon data.
 """
@@ -21,10 +22,11 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Callable, Iterable
 
+from dead_signal_fixed_skill_architecture_trace import trace_fixed_skill_architecture
 from dead_signal_fixed_skill_flow_trace import trace_fixed_skill_flows
 from neoxtractor.core.bindict.parser import BindictParser
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 MAX_FILE_BYTES = 32 * 1024 * 1024
 MAX_CANDIDATE_FILES = 5000
 MAX_CONSUMER_FILES_PER_ROOT = 100000
@@ -347,6 +349,7 @@ def run_missing_skill_forensics(
 
     consumer_trace = _scan_consumers(roots, activity=activity)
     fixed_skill_flow_trace = trace_fixed_skill_flows(roots, consumer_trace, activity=activity)
+    fixed_skill_architecture_trace = trace_fixed_skill_architecture(roots, activity=activity)
 
     report = {
         "schema": "dead-signal-missing-fixed-skill-forensics",
@@ -364,35 +367,41 @@ def run_missing_skill_forensics(
             "consumer_candidate_files": consumer_trace["record_counts"]["consumer_candidate_files"],
             "fixed_skill_flow_functions": fixed_skill_flow_trace["record_counts"]["consumer_functions"],
             "fixed_skill_instruction_anchors": fixed_skill_flow_trace["record_counts"]["fixed_skill_instruction_anchors"],
+            "architecture_branches": fixed_skill_architecture_trace["record_counts"]["branches"],
+            "architecture_target_files": fixed_skill_architecture_trace["record_counts"]["target_files"],
+            "architecture_functions_found": fixed_skill_architecture_trace["record_counts"]["functions_found"],
         },
         "source_roots": [{"layer": layer, "root_present": True} for layer, _root in roots],
         "skills": skill_rows,
         "consumer_trace": consumer_trace,
         "fixed_skill_flow_trace": fixed_skill_flow_trace,
+        "fixed_skill_architecture_trace": fixed_skill_architecture_trace,
         "policy": {
             "scope": (
-                "Exact unresolved skill-code bytes are searched in likely skill/weapon/gun/buff modules; "
-                "a separate bounded corpus pass searches exact fixed-skill consumer symbols, then only those exact "
-                "direct consumers receive static instruction-window tracing."
+                "Exact unresolved skill-code bytes are searched in likely skill/weapon/gun/buff modules; a bounded corpus pass searches exact fixed-skill consumer symbols; "
+                "only proven consumers receive instruction tracing; and four exact preselected architecture branches inspect damage/passive mapping, GunCore normalization, "
+                "star/stardust resolution, and player-facing weapon-craft UI metadata."
             ),
-            "matching": "Exact skill-code or exact consumer-symbol bytes only; no fuzzy or substring identity promotion.",
+            "matching": "Exact skill-code, consumer-symbol, target-file, target-function, and architecture-symbol evidence only; no fuzzy identity promotion.",
             "parsing": "Exact-hit files are inspected through BindictParser and/or marshal CodeType metadata where compatible.",
             "consumer_evidence": (
-                "Only static CodeType metadata containing the exact field symbol fixed_skill_code is classified as a "
-                "direct consumer. References to gun_blueprint_attr_data/passive_skill_data/skill_data are retained as "
-                "context references and are not promoted to consumers."
+                "Only static CodeType metadata containing the exact field symbol fixed_skill_code is classified as a direct consumer. "
+                "References to gun_blueprint_attr_data/passive_skill_data/skill_data are retained as context references and are not promoted to consumers."
             ),
             "flow_evidence": (
-                "Direct consumer functions are disassembled into bounded windows around exact fixed_skill_code "
-                "instruction operands. Nearby operations and symbols are static evidence, not claimed runtime semantics."
+                "Direct consumer functions receive bounded instruction windows around exact fixed_skill_code operands. Tolerant fallback rows preserve raw opcode/operand evidence "
+                "when the local Python disassembler cannot safely decode foreign game bytecode."
+            ),
+            "architecture_evidence": (
+                "The architecture trace records exact static function metadata and exact raw symbol presence for the four known resolution branches; adjacency is evidence for targeted follow-up, "
+                "not proof of runtime values or final player-facing mechanics."
             ),
             "execution": "No game module is imported or executed; no game bytecode is executed.",
             "publication": "Research report only. No website/public weapon data is modified or promoted.",
         },
         "next_step": (
-            "Inspect fixed_skill_flow_trace for the immediate operations after fixed_skill_code in BluePrintHelper, "
-            "GunCoreHelper, damage simulation, camera, and skill-manager consumers. Use those exact static flows to "
-            "identify the next typed data/helper relationship without inventing a WS alias."
+            "Inspect fixed_skill_architecture_trace in branch order: damage_passive_mapping for WEAPON_TO_PASSIVE/config relationships; guncore_normalization for code transforms; "
+            "star_stardust_resolution for star_skill_no/stardust handoff; then player_facing_ui for final displayed passive-skill confirmation. Promote nothing until an exact typed/data chain is proven."
         ),
     }
     _write_json(destination, report)
@@ -400,6 +409,7 @@ def run_missing_skill_forensics(
         f"Missing Skill Forensics complete: {len(codes)} codes; {exact_files} exact-hit files; "
         f"{consumer_trace['record_counts']['direct_consumer_candidate_files']} direct consumers; "
         f"{fixed_skill_flow_trace['record_counts']['consumer_functions']} traced consumer functions; "
+        f"{fixed_skill_architecture_trace['record_counts']['functions_found']} architecture functions; "
         f"{consumer_trace['record_counts']['context_reference_candidate_files']} context references"
     )
     return report
