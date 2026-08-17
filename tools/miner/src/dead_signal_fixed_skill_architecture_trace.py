@@ -1,13 +1,14 @@
 """Static architecture trace for unresolved weapon fixed-skill resolution.
 
-This pass is deliberately narrow. It inspects only the exact PYC modules/functions
-already implicated by fixed_skill_code forensics and groups their static metadata
-into four research branches:
+This pass inspects every exact PYC module/function currently implicated by
+fixed_skill_code forensics and groups static metadata into six research branches:
 
 1. damage/passive mapping,
-2. GunCore fixed-skill normalization,
-3. star-skill/stardust resolution,
-4. player-facing weapon-craft UI confirmation.
+2. GunCore / BluePrint fixed-skill normalization,
+3. PassiveSkillHelper / SkillDataHelper fallback resolution,
+4. star-skill/stardust resolution,
+5. server-side buff resolution,
+6. player-facing weapon-craft UI confirmation.
 
 No Once Human module is imported or executed. PYC payloads are unmarshaled only.
 """
@@ -35,12 +36,8 @@ BRANCHES: dict[str, tuple[dict[str, Any], ...]] = {
                 "WEAPON_TO_PASSIVE",
                 "gun_blueprint_attr_data",
                 "passive_skill_damage_simulate_data",
+                "skill_code",
             ),
-        },
-        {
-            "path": "dcs_extend/component_server/CompSkillMgr.pyc",
-            "functions": ("CompSkillMgrNpc._get_gun_ps_buff_id", "_get_gun_ps_buff_id"),
-            "symbols": ("fixed_skill_code", "gun_blueprint_attr_data", "passive_skill_data", "buff"),
         },
     ),
     "guncore_normalization": (
@@ -61,6 +58,7 @@ BRANCHES: dict[str, tuple[dict[str, Any], ...]] = {
                 "climp_skill_code",
                 "convert_data_skill_slots",
                 "get_decompose_skill",
+                "skill_code",
             ),
         },
         {
@@ -71,14 +69,70 @@ BRANCHES: dict[str, tuple[dict[str, Any], ...]] = {
                 "get_fixed_skill_default_data",
                 "get_blueprint_fixed_skill_lv",
                 "get_equip_blueprint_fixed_skill_lv",
+                "get_skill_data",
             ),
             "symbols": (
                 "fixed_skill_code",
+                "fixed_skill_lv",
                 "gun_blueprint_attr_data",
                 "equip_blueprint_attr_data",
                 "package_fixed_skill_data",
                 "equip_package_fixed_skill_data",
                 "get_skill_data",
+                "passive_skill_data",
+                "common_skill_data",
+                "skill_data",
+            ),
+        },
+    ),
+    "helper_fallback_resolution": (
+        {
+            "path": "game_common/guncore/PassiveSkillHelper.pyc",
+            "functions": (
+                "is_fixed_skill",
+                "check_is_passive_skill",
+                "is_skill_exist",
+                "get_passive_skill_name",
+                "get_skill_name",
+                "get_skill_description",
+                "get_passive_skill_desc",
+                "get_passive_skill_data",
+            ),
+            "symbols": (
+                "fixed_skill",
+                "fixed_passive_skill",
+                "passive_skill_data",
+                "common_skill_data",
+                "skill_data",
+                "skill_code",
+                "name",
+                "description",
+                "discription",
+                "copywriting",
+                "get_passive_skill_name",
+            ),
+        },
+        {
+            "path": "game_common/guncore/SkillDataHelper.pyc",
+            "functions": (
+                "is_fixed_skill",
+                "check_is_passive_skill",
+                "is_skill_exist",
+                "get_skill_data",
+                "get_skill_name",
+                "get_skill_description",
+                "get_skill_desc",
+            ),
+            "symbols": (
+                "fixed_skill",
+                "passive_skill_data",
+                "common_skill_data",
+                "skill_data",
+                "skill_code",
+                "name",
+                "description",
+                "discription",
+                "copywriting",
             ),
         },
     ),
@@ -108,6 +162,25 @@ BRANCHES: dict[str, tuple[dict[str, Any], ...]] = {
             ),
         },
     ),
+    "server_buff_resolution": (
+        {
+            "path": "dcs_extend/component_server/CompSkillMgr.pyc",
+            "functions": (
+                "CompSkillMgrNpc._get_gun_ps_buff_id",
+                "_get_gun_ps_buff_id",
+                "_get_ps_buff_id",
+                "_check_buff_need_pause",
+            ),
+            "symbols": (
+                "fixed_skill_code",
+                "gun_blueprint_attr_data",
+                "passive_skill_data",
+                "skill_code",
+                "buff_id",
+                "buff",
+            ),
+        },
+    ),
     "player_facing_ui": (
         {
             "path": "ui/weapon_craft_part/ScrollViewItems.pyc",
@@ -119,6 +192,10 @@ BRANCHES: dict[str, tuple[dict[str, Any], ...]] = {
                 "skill_code",
                 "skill_data",
                 "fixed_skill",
+                "label_skill_desc",
+                "label_skill_passivename",
+                "discription",
+                "copywriting",
             ),
         },
     ),
@@ -165,7 +242,7 @@ def _function_selected(qualname: str, co_name: str, requested: tuple[str, ...]) 
     n = co_name.casefold()
     for target in requested:
         t = target.casefold()
-        if q == t or q.endswith("." + t) or n == t or q.endswith(t):
+        if q == t or q.endswith("." + t) or n == t or n == t.split(".")[-1] or q.endswith(t):
             return True
     return False
 
@@ -199,7 +276,6 @@ def _inspect_function(qualname: str, code: types.CodeType, symbols: tuple[str, .
 
 
 def _find_source(roots: list[tuple[str, Path]], relative: str) -> tuple[str, Path] | None:
-    # Prefer current, then base, matching the rest of Miner snapshot precedence.
     for layer, root in roots:
         path = root / Path(relative)
         if path.is_file():
@@ -299,13 +375,13 @@ def trace_fixed_skill_architecture(
         "branches": branches,
         "errors": errors,
         "policy": {
-            "scope": "Only exact, preselected fixed-skill resolution modules/functions are inspected; there is no broad corpus traversal.",
+            "scope": "All currently known high-value fixed-skill resolution modules/functions are inspected together; there is no fuzzy identity traversal.",
             "matching": "Function selection and reported relationship symbols are exact static CodeType/raw-byte evidence.",
             "execution": "PYC payloads are unmarshaled only; Once Human modules and game bytecode are never executed.",
             "interpretation": "Names/constants establish static adjacency only; they do not by themselves prove runtime mapping values or player-facing mechanic semantics.",
         },
         "next_step": (
-            "Use damage_passive_mapping to identify mapping/config relationships; guncore_normalization to determine whether skill codes are transformed; "
-            "star_stardust_resolution to test star_skill_no/stardust handoff; and player_facing_ui to confirm the final displayed passive-skill identity."
+            "Compare ownerless codes against BluePrint/GunCore transformation helpers first; inspect PassiveSkillHelper/SkillDataHelper fallbacks second; "
+            "then cross-check damage mapping, server buff, star/stardust and WRGunInfoPart UI branches. Follow only exact returned identifiers into NeoX owners."
         ),
     }
