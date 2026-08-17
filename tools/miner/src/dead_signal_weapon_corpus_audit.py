@@ -1,10 +1,15 @@
 """Read-only full-corpus Weapons completeness audit for Dead Signal.
 
-This analyzer is intentionally conservative. It starts from the canonical
-published weapon identities and scans retained NeoX JSON layers for player-facing
-field families, but a record is associated with a weapon only when an exact
-identity appears in a strong record key or in an explicitly typed identity field.
-Small numeric values and arbitrary dictionary keys are never identity proof.
+Weapon evidence is modeled at two explicit scopes:
+
+* variant-local: blueprint/item/prototype/gun identities that own one weapon
+  variant and may answer any weapon-local player-facing field.
+* family-shared: proven shared relationship identities (currently bullet pattern)
+  that may answer only the ballistic/projectile fields owned by that relation.
+
+Variant-local evidence has precedence over inherited family evidence. Shared
+relationship IDs never establish weapon ownership and can never answer local
+handling, firing-mode, reload, mechanic, acquisition, or similar fields.
 
 Retained PYC files are inspected only as static CodeType metadata. Nothing from
 this report is promoted into player-facing data automatically.
@@ -18,7 +23,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Callable
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 MAX_FILE_BYTES = 64 * 1024 * 1024
 MAX_EVIDENCE_PER_WEAPON = 500
 MAX_PYC_ROWS_PER_GROUP = 300
@@ -38,7 +43,7 @@ FIELD_GROUPS: dict[str, tuple[str, ...]] = {
     "firing_mode": ("fire_mode", "firing_mode", "shoot_mode", "auto_fire", "burst"),
     "accuracy": ("accuracy", "spread", "dispersion"),
     "stability": ("stability", "recoil", "shake"),
-    "projectiles": ("projectile_count", "bullet_num", "pellet", "scatter_num"),
+    "projectiles": ("projectile_count", "bullet_num", "pellet", "scatter_num", "scatter"),
     "durability": ("durability", "max_durability"),
     "weight": ("weight",),
     "perk_slots": ("perk_slot", "perk_slots", "calibration_slot", "mod_slot"),
@@ -51,11 +56,19 @@ FIELD_GROUPS: dict[str, tuple[str, ...]] = {
     "image": ("icon", "image", "texture", "forge_icon"),
 }
 
-IDENTITY_FIELDS = {
+OWNER_IDENTITY_FIELDS = {
     "blueprint_id", "blueprint_no", "gun_blueprint_no", "gun_blueprint_id",
     "item_id", "item_no", "equip_no", "weapon_no", "gun_no", "gun_id",
     "prototype_id", "prototype_no", "weapon_prototype_no", "fragment_id", "fragment_no",
 }
+# Compatibility alias used by callers/tests written before evidence scopes existed.
+IDENTITY_FIELDS = OWNER_IDENTITY_FIELDS
+
+FAMILY_RELATION_FIELDS = {
+    "bullet_pattern_id": "bullet-pattern",
+    "bullet_pattern_no": "bullet-pattern",
+}
+FAMILY_SHARED_GROUPS = frozenset({"projectiles", "bullet_speed", "falloff"})
 
 COMPETITOR_BASELINE = (
     "damage", "fire_rate", "magazine", "range", "reload", "mobility", "ads_time",
@@ -124,7 +137,7 @@ def _walk_leaves(value: Any, pointer: str = ""):
 
 
 def _iter_records(payload: Any):
-    """Yield isolated records, flattening common NeoX container maps such as data->{id: record}."""
+    """Yield isolated records, flattening common NeoX data->{id: record} maps."""
     if isinstance(payload, list):
         for index, value in enumerate(payload):
             if isinstance(value, dict):
@@ -153,12 +166,7 @@ def _iter_records(payload: Any):
 
 
 def _weapon_seeds(weapon: dict[str, Any]) -> set[str]:
-    """Return weapon-owner identities only.
-
-    Ammo IDs, selectable ammo IDs, and bullet-pattern IDs are relationships, not
-    weapon ownership. Shared relation IDs must never pull sibling guns into ADS,
-    firing-mode, reload, mobility, or other weapon-local evidence.
-    """
+    """Return variant-owner identities only; shared relation IDs are excluded."""
     seeds: set[str] = set()
     for field in ("blueprint_id", "item_id", "prototype_id", "fragment_id"):
         value = weapon.get(field)
@@ -173,14 +181,25 @@ def _weapon_seeds(weapon: dict[str, Any]) -> set[str]:
     return seeds
 
 
+def _family_seeds(weapon: dict[str, Any]) -> dict[str, str]:
+    """Return exact shared relationship IDs and their relation kind."""
+    result: dict[str, str] = {}
+    ranged = weapon.get("ranged_stats") if isinstance(weapon.get("ranged_stats"), dict) else {}
+    value = ranged.get("bullet_pattern_id")
+    if value not in (None, "", 0):
+        result[str(value)] = "bullet-pattern"
+    return result
+
+
 def _published_coverage(weapon: dict[str, Any]) -> dict[str, str]:
     ranged = weapon.get("ranged_stats") if isinstance(weapon.get("ranged_stats"), dict) else None
     melee = weapon.get("melee_stats") if isinstance(weapon.get("melee_stats"), dict) else None
-    is_ranged = ranged is not None
     coverage = {group: "missing" for group in FIELD_GROUPS}
+
     def known(group: str, value: Any) -> None:
         if value not in (None, "", [], {}):
             coverage[group] = "published"
+
     tiers = [row for row in (weapon.get("tiers") or []) if isinstance(row, dict)]
     known("damage", next((row.get("damage") for row in tiers if row.get("damage") not in (None, "")), None))
     known("description", weapon.get("short_description"))
@@ -192,11 +211,11 @@ def _published_coverage(weapon: dict[str, Any]) -> dict[str, str]:
     resolution = weapon.get("effect_resolution") if isinstance(weapon.get("effect_resolution"), dict) else {}
     if coverage["special_skill"] == "missing" and resolution and (resolution.get("publication_status") or resolution.get("status")):
         coverage["special_skill"] = "unresolved-evidence-state"
-    if is_ranged:
+    if ranged is not None:
         for group, field in {
-            "fire_rate":"rpm", "magazine":"magazine", "range":"range_meters", "reload":"reload_seconds",
-            "mobility":"mobility", "falloff":"full_damage_distance", "ammo":"ammo_item_id",
-            "accuracy":"accuracy", "stability":"stability", "projectiles":"projectile_count",
+            "fire_rate": "rpm", "magazine": "magazine", "range": "range_meters", "reload": "reload_seconds",
+            "mobility": "mobility", "falloff": "full_damage_distance", "ammo": "ammo_item_id",
+            "accuracy": "accuracy", "stability": "stability", "projectiles": "projectile_count",
         }.items():
             known(group, ranged.get(field))
         if ranged.get("minimum_damage_distance") not in (None, "") or ranged.get("minimum_damage_multiplier") not in (None, ""):
@@ -205,9 +224,10 @@ def _published_coverage(weapon: dict[str, Any]) -> dict[str, str]:
         if ammo_cfg:
             coverage["ammo"] = "published"; coverage["attachment_compatibility"] = "published-partial"
     else:
-        for group in ("fire_rate","magazine","reload","ads_time","bullet_speed","falloff","ammo","firing_mode","accuracy","stability","projectiles"):
+        for group in ("fire_rate", "magazine", "reload", "ads_time", "bullet_speed", "falloff", "ammo", "firing_mode", "accuracy", "stability", "projectiles"):
             coverage[group] = "not-applicable"
-        if melee: known("range", melee.get("range") or melee.get("attack_range"))
+        if melee:
+            known("range", melee.get("range") or melee.get("attack_range"))
     star = weapon.get("blueprint_star_progression") if isinstance(weapon.get("blueprint_star_progression"), dict) else {}
     if star.get("perk_slot_calibration_max") not in (None, ""):
         coverage["perk_slots"] = "published"
@@ -224,11 +244,12 @@ def _strong_record_key(record_id: str) -> bool:
 
 
 def _typed_identity_matches(record_id: str, leaves: list[tuple[str, str, Any]], seeds: set[str]) -> set[str]:
+    """Match exact variant-owner identities only."""
     matched: set[str] = set()
     if _strong_record_key(record_id) and str(record_id) in seeds:
         matched.add(str(record_id))
     for _pointer, field, value in leaves:
-        if _normalized_name(field) not in IDENTITY_FIELDS:
+        if _normalized_name(field) not in OWNER_IDENTITY_FIELDS:
             continue
         text = str(value)
         if text in seeds:
@@ -236,55 +257,136 @@ def _typed_identity_matches(record_id: str, leaves: list[tuple[str, str, Any]], 
     return matched
 
 
+def _family_identity_matches(record_id: str, leaves: list[tuple[str, str, Any]], seeds: dict[str, str]) -> dict[str, str]:
+    """Match exact family/shared relationship identities without claiming ownership."""
+    matched: dict[str, str] = {}
+    if _strong_record_key(record_id) and str(record_id) in seeds:
+        matched[str(record_id)] = seeds[str(record_id)]
+    for _pointer, field, value in leaves:
+        normalized = _normalized_name(field)
+        relation_kind = FAMILY_RELATION_FIELDS.get(normalized)
+        if not relation_kind:
+            continue
+        text = str(value)
+        if text in seeds and seeds[text] == relation_kind:
+            matched[text] = relation_kind
+    return matched
+
+
 def _scan_json_layers(base: Path, current: Path, weapon_rows: list[dict[str, Any]], *, activity: ActivityCallback) -> dict[str, Any]:
-    seed_to_weapons: dict[str, set[int]] = defaultdict(set)
+    owner_to_weapons: dict[str, set[int]] = defaultdict(set)
+    family_to_weapons: dict[str, set[int]] = defaultdict(set)
     for index, row in enumerate(weapon_rows):
-        for seed in row["seeds"]: seed_to_weapons[seed].add(index)
+        for seed in row["seeds"]:
+            owner_to_weapons[seed].add(index)
+        for seed in row["family_seeds"]:
+            family_to_weapons[seed].add(index)
+
     evidence: list[list[dict[str, Any]]] = [[] for _ in weapon_rows]
-    group_counts: Counter[str] = Counter(); table_counts: Counter[str] = Counter()
+    group_counts: Counter[str] = Counter(); table_counts: Counter[str] = Counter(); scope_counts: Counter[str] = Counter()
     files_scanned = records_scanned = exact_records = errors = 0
+
     for layer, root in (("base", base), ("current", current)):
         paths = list(root.rglob("*.json")); activity(f"Weapon Corpus Audit: scanning {len(paths)} {layer} NeoX JSON tables")
         for file_index, path in enumerate(paths, start=1):
-            if file_index == 1 or file_index % 1000 == 0: activity(f"Weapon Corpus Audit JSON {layer}: {file_index}/{len(paths)}")
+            if file_index == 1 or file_index % 1000 == 0:
+                activity(f"Weapon Corpus Audit JSON {layer}: {file_index}/{len(paths)}")
             try:
-                if path.stat().st_size > MAX_FILE_BYTES: continue
+                if path.stat().st_size > MAX_FILE_BYTES:
+                    continue
                 payload = _read_json(path, None)
             except OSError:
                 errors += 1; continue
-            if payload is None: errors += 1; continue
+            if payload is None:
+                errors += 1; continue
             files_scanned += 1; relative = path.relative_to(root).as_posix()
+
             for record_id, record in _iter_records(payload):
                 records_scanned += 1
                 leaves = list(_walk_leaves(record))
-                candidate_seed_values: set[str] = set()
+                candidate_owner_values: set[str] = set()
+                candidate_family_values: set[str] = set()
                 if _strong_record_key(record_id):
-                    candidate_seed_values.add(str(record_id))
-                candidate_seed_values.update(str(value) for _p, field, value in leaves if _normalized_name(field) in IDENTITY_FIELDS)
+                    candidate_owner_values.add(str(record_id)); candidate_family_values.add(str(record_id))
+                for _pointer, field, value in leaves:
+                    normalized = _normalized_name(field)
+                    if normalized in OWNER_IDENTITY_FIELDS:
+                        candidate_owner_values.add(str(value))
+                    if normalized in FAMILY_RELATION_FIELDS:
+                        candidate_family_values.add(str(value))
+
                 candidate_indices: set[int] = set()
-                for value in candidate_seed_values: candidate_indices.update(seed_to_weapons.get(value, set()))
-                if not candidate_indices: continue
-                grouped_fields = [(group,pointer,field,value) for pointer,field,value in leaves for group in _group_for_field(field)]
-                if not grouped_fields: continue
+                for value in candidate_owner_values:
+                    candidate_indices.update(owner_to_weapons.get(value, set()))
+                for value in candidate_family_values:
+                    candidate_indices.update(family_to_weapons.get(value, set()))
+                if not candidate_indices:
+                    continue
+
+                grouped_fields = [(group, pointer, field, value) for pointer, field, value in leaves for group in _group_for_field(field)]
+                if not grouped_fields:
+                    continue
+
                 record_matched = False
                 for weapon_index in candidate_indices:
-                    matched = _typed_identity_matches(record_id, leaves, weapon_rows[weapon_index]["seeds"])
-                    if not matched: continue
+                    row = weapon_rows[weapon_index]
+                    owner_matches = _typed_identity_matches(record_id, leaves, row["seeds"])
+                    family_matches = _family_identity_matches(record_id, leaves, row["family_seeds"])
+                    if not owner_matches and not family_matches:
+                        continue
+
+                    if owner_matches:
+                        evidence_scope = "variant-local"
+                        eligible_fields = grouped_fields
+                    else:
+                        evidence_scope = "family-shared"
+                        eligible_fields = [item for item in grouped_fields if item[0] in FAMILY_SHARED_GROUPS]
+                    if not eligible_fields:
+                        continue
+
                     record_matched = True
-                    if len(evidence[weapon_index]) >= MAX_EVIDENCE_PER_WEAPON: continue
+                    if len(evidence[weapon_index]) >= MAX_EVIDENCE_PER_WEAPON:
+                        continue
                     relevant = []
-                    for group,pointer,field,value in grouped_fields:
-                        relevant.append({"group":group,"field":field,"json_pointer":pointer,"value":value}); group_counts[group] += 1
-                    evidence[weapon_index].append({"layer":layer,"table":relative,"record_id":record_id,"matched_identity_values":sorted(matched),"fields":relevant[:80]})
+                    for group, pointer, field, value in eligible_fields:
+                        relevant.append({"group": group, "field": field, "json_pointer": pointer, "value": value})
+                        group_counts[group] += 1
+                    relation_kinds = sorted(set(family_matches.values()))
+                    evidence[weapon_index].append({
+                        "layer": layer,
+                        "table": relative,
+                        "record_id": record_id,
+                        "evidence_scope": evidence_scope,
+                        "precedence": 2 if evidence_scope == "variant-local" else 1,
+                        "matched_identity_values": sorted(owner_matches or family_matches.keys()),
+                        "matched_owner_identity_values": sorted(owner_matches),
+                        "matched_family_identity_values": sorted(family_matches.keys()),
+                        "family_relation_kinds": relation_kinds,
+                        "fields": relevant[:80],
+                    })
+                    scope_counts[evidence_scope] += 1
                 if record_matched:
                     exact_records += 1; table_counts[relative] += 1
-    return {"files_scanned":files_scanned,"records_scanned":records_scanned,"exact_identity_records_with_target_fields":exact_records,"errors":errors,"evidence":evidence,"group_counts":dict(group_counts),"top_tables":[{"table":t,"matched_records":c} for t,c in table_counts.most_common(100)]}
+
+    return {
+        "files_scanned": files_scanned,
+        "records_scanned": records_scanned,
+        "exact_identity_records_with_target_fields": exact_records,
+        "errors": errors,
+        "evidence": evidence,
+        "group_counts": dict(group_counts),
+        "scope_counts": dict(scope_counts),
+        "top_tables": [{"table": table, "matched_records": count} for table, count in table_counts.most_common(100)],
+    }
 
 
 def _load_marshaled_root(raw: bytes) -> types.CodeType | None:
-    if len(raw) < 17: return None
-    try: root = marshal.loads(raw[16:])
-    except Exception: return None
+    if len(raw) < 17:
+        return None
+    try:
+        root = marshal.loads(raw[16:])
+    except Exception:
+        return None
     return root if isinstance(root, types.CodeType) else None
 
 
@@ -297,63 +399,153 @@ def _walk_code(code: types.CodeType, qualname: str = "<module>"):
 
 
 def _scan_pyc_consumers(base: Path, current: Path, *, activity: ActivityCallback) -> dict[str, Any]:
-    roots=[]; seen=set()
-    for layer,snapshot in (("current",current),("base",base)):
-        root=_source_root(snapshot)
-        if root is None or str(root).casefold() in seen: continue
-        seen.add(str(root).casefold()); roots.append((layer,root))
-    rows_by_group={group:[] for group in FIELD_GROUPS}; files_scanned=files_with_tokens=decoded_files=0
-    tokens={alias:alias.encode("ascii",errors="ignore") for aliases in FIELD_GROUPS.values() for alias in aliases if len(alias)>=3}
-    for layer,root in roots:
-        paths=list(root.rglob("*.pyc")); activity(f"Weapon Corpus Audit: scanning {len(paths)} retained PYC files in {layer}")
-        for index,path in enumerate(paths,start=1):
-            if index==1 or index%5000==0: activity(f"Weapon Corpus Audit PYC {layer}: {index}/{len(paths)}")
+    roots = []; seen = set()
+    for layer, snapshot in (("current", current), ("base", base)):
+        root = _source_root(snapshot)
+        if root is None or str(root).casefold() in seen:
+            continue
+        seen.add(str(root).casefold()); roots.append((layer, root))
+    rows_by_group = {group: [] for group in FIELD_GROUPS}; files_scanned = files_with_tokens = decoded_files = 0
+    tokens = {alias: alias.encode("ascii", errors="ignore") for aliases in FIELD_GROUPS.values() for alias in aliases if len(alias) >= 3}
+    for layer, root in roots:
+        paths = list(root.rglob("*.pyc")); activity(f"Weapon Corpus Audit: scanning {len(paths)} retained PYC files in {layer}")
+        for index, path in enumerate(paths, start=1):
+            if index == 1 or index % 5000 == 0:
+                activity(f"Weapon Corpus Audit PYC {layer}: {index}/{len(paths)}")
             try:
-                if path.stat().st_size>MAX_FILE_BYTES: continue
-                raw=path.read_bytes()
-            except OSError: continue
-            files_scanned+=1
-            if not any(token and token in raw for token in tokens.values()): continue
-            files_with_tokens+=1; root_code=_load_marshaled_root(raw)
-            if root_code is None: continue
-            decoded_files+=1; relative=path.relative_to(root).as_posix()
-            for qualname,code in _walk_code(root_code):
-                universe=set(map(str,code.co_names))|set(map(str,code.co_varnames))|{v for v in code.co_consts if isinstance(v,str)}
-                normalized={_normalized_name(v):v for v in universe}
-                for group,aliases in FIELD_GROUPS.items():
-                    if len(rows_by_group[group])>=MAX_PYC_ROWS_PER_GROUP: continue
-                    matched=[str(original) for alias in aliases for norm,original in normalized.items() if _normalized_name(alias) in norm]
-                    if matched: rows_by_group[group].append({"layer":layer,"relative_path":relative,"qualname":qualname,"co_name":code.co_name,"matched_symbols":sorted(set(matched))[:50]})
-    return {"source_roots":len(roots),"files_scanned":files_scanned,"files_with_target_token_bytes":files_with_tokens,"marshal_decoded_token_files":decoded_files,"groups":rows_by_group,"group_candidate_counts":{g:len(r) for g,r in rows_by_group.items()}}
+                if path.stat().st_size > MAX_FILE_BYTES:
+                    continue
+                raw = path.read_bytes()
+            except OSError:
+                continue
+            files_scanned += 1
+            if not any(token and token in raw for token in tokens.values()):
+                continue
+            files_with_tokens += 1; root_code = _load_marshaled_root(raw)
+            if root_code is None:
+                continue
+            decoded_files += 1; relative = path.relative_to(root).as_posix()
+            for qualname, code in _walk_code(root_code):
+                universe = set(map(str, code.co_names)) | set(map(str, code.co_varnames)) | {value for value in code.co_consts if isinstance(value, str)}
+                normalized = {_normalized_name(value): value for value in universe}
+                for group, aliases in FIELD_GROUPS.items():
+                    if len(rows_by_group[group]) >= MAX_PYC_ROWS_PER_GROUP:
+                        continue
+                    matched = [str(original) for alias in aliases for norm, original in normalized.items() if _normalized_name(alias) in norm]
+                    if matched:
+                        rows_by_group[group].append({"layer": layer, "relative_path": relative, "qualname": qualname, "co_name": code.co_name, "matched_symbols": sorted(set(matched))[:50]})
+    return {
+        "source_roots": len(roots), "files_scanned": files_scanned,
+        "files_with_target_token_bytes": files_with_tokens, "marshal_decoded_token_files": decoded_files,
+        "groups": rows_by_group, "group_candidate_counts": {group: len(rows) for group, rows in rows_by_group.items()},
+    }
 
 
-def run_weapon_corpus_audit(base: Path,current: Path,weapons_path: Path,reports_dir: Path,*,activity: ActivityCallback|None=None) -> dict[str,Any]:
-    activity=activity or (lambda _message:None)
-    payload=_read_json(weapons_path,{}) or {}; weapons=[r for r in (payload.get("weapons") or []) if isinstance(r,dict)]
-    rows=[{"weapon":w,"seeds":_weapon_seeds(w),"coverage":_published_coverage(w)} for w in weapons]
+def run_weapon_corpus_audit(base: Path, current: Path, weapons_path: Path, reports_dir: Path, *, activity: ActivityCallback | None = None) -> dict[str, Any]:
+    activity = activity or (lambda _message: None)
+    payload = _read_json(weapons_path, {}) or {}
+    weapons = [row for row in (payload.get("weapons") or []) if isinstance(row, dict)]
+    rows = [{
+        "weapon": weapon,
+        "seeds": _weapon_seeds(weapon),
+        "family_seeds": _family_seeds(weapon),
+        "coverage": _published_coverage(weapon),
+    } for weapon in weapons]
     activity(f"Weapon Corpus Audit: {len(rows)} canonical weapon identities loaded")
-    json_scan=_scan_json_layers(base,current,rows,activity=activity); pyc_scan=_scan_pyc_consumers(base,current,activity=activity)
-    weapon_reports=[]; gap_queue=[]; status_counts:Counter[str]=Counter()
-    for index,row in enumerate(rows):
-        weapon=row["weapon"]; coverage=dict(row["coverage"]); evidence=json_scan["evidence"][index]; candidate_groups=Counter()
+    json_scan = _scan_json_layers(base, current, rows, activity=activity)
+    pyc_scan = _scan_pyc_consumers(base, current, activity=activity)
+
+    weapon_reports = []; gap_queue = []; status_counts: Counter[str] = Counter()
+    for index, row in enumerate(rows):
+        weapon = row["weapon"]; coverage = dict(row["coverage"]); evidence = json_scan["evidence"][index]
+        candidate_groups: Counter[str] = Counter(); local_groups: Counter[str] = Counter(); family_groups: Counter[str] = Counter()
         for record in evidence:
-            for field in record.get("fields") or []: candidate_groups[str(field.get("group"))]+=1
-        for group,state in list(coverage.items()):
-            if state=="missing" and candidate_groups.get(group): coverage[group]="candidate-evidence-found"
-        status_counts.update(coverage.values()); missing=[]
-        for group in COMPETITOR_BASELINE+DEAD_SIGNAL_ADVANTAGE:
-            state=coverage.get(group,"missing")
-            if state in ("published","published-partial","not-applicable"): continue
-            priority=PRIORITY.get(group,50)+(8 if state=="candidate-evidence-found" else 0)
-            item={"group":group,"state":state,"priority":priority,"exact_candidate_records":candidate_groups.get(group,0)}; missing.append(item)
-            gap_queue.append({"priority":priority,"blueprint_id":weapon.get("blueprint_id"),"name":weapon.get("name"),"category":weapon.get("category"),"group":group,"state":state,"exact_candidate_records":candidate_groups.get(group,0),"pyc_consumer_candidates":len((pyc_scan.get("groups") or {}).get(group) or [])})
-        weapon_reports.append({"blueprint_id":weapon.get("blueprint_id"),"item_id":weapon.get("item_id"),"prototype_id":weapon.get("prototype_id"),"name":weapon.get("name"),"category":weapon.get("category"),"identity_seeds":sorted(row["seeds"]),"coverage":coverage,"coverage_counts":dict(Counter(coverage.values())),"gaps":sorted(missing,key=lambda x:(-x["priority"],x["group"])),"exact_corpus_evidence":evidence})
-    gap_queue.sort(key=lambda x:(-x["priority"],-x["exact_candidate_records"],str(x["name"]),x["group"]))
-    group_summary={}
-    for group in COMPETITOR_BASELINE+DEAD_SIGNAL_ADVANTAGE:
-        states=Counter(r["coverage"].get(group,"missing") for r in weapon_reports)
-        group_summary[group]={"states":dict(states),"exact_json_field_hits":int((json_scan.get("group_counts") or {}).get(group,0)),"pyc_consumer_candidates":int((pyc_scan.get("group_candidate_counts") or {}).get(group,0)),"priority":PRIORITY.get(group,50),"baseline":"competitor" if group in COMPETITOR_BASELINE else "dead-signal-advantage"}
-    report={"schema":"dead-signal-weapon-corpus-audit","schema_version":SCHEMA_VERSION,"brand":"Dead Signal","subject":"Complete player-facing Weapons corpus coverage","mode":"overnight-read-only-full-corpus-audit","record_counts":{"weapons":len(weapon_reports),"json_files_scanned":json_scan["files_scanned"],"json_records_scanned":json_scan["records_scanned"],"exact_identity_records_with_target_fields":json_scan["exact_identity_records_with_target_fields"],"pyc_files_scanned":pyc_scan["files_scanned"],"pyc_files_with_target_tokens":pyc_scan["files_with_target_token_bytes"],"gaps":len(gap_queue),"coverage_states":dict(status_counts)},"coverage_contract":{"competitor_baseline":list(COMPETITOR_BASELINE),"dead_signal_advantage":list(DEAD_SIGNAL_ADVANTAGE),"rule":"Competitor-visible fields are research targets, never source-of-truth. Installed-game exact evidence remains authoritative."},"group_summary":group_summary,"gap_queue":gap_queue,"weapons":weapon_reports,"json_scan":{"files_scanned":json_scan["files_scanned"],"records_scanned":json_scan["records_scanned"],"exact_identity_records_with_target_fields":json_scan["exact_identity_records_with_target_fields"],"errors":json_scan["errors"],"top_tables":json_scan["top_tables"]},"pyc_consumer_scan":pyc_scan,"policy":{"identity":"Record association requires an exact canonical weapon-owner seed in a strong isolated record key or a typed identity field. Ammo and bullet-pattern relation IDs never establish weapon ownership; bare scalar/key collisions are forbidden; short prototype numbers require typed fields.","scope":"Both retained NeoX JSON layers are scanned, plus retained PYC source roots available from snapshot metadata.","execution":"PYC files are unmarshaled for static CodeType metadata only; game modules and game bytecode are never executed.","publication":"Candidate evidence is research-only and never auto-promotes values.","absence":"No exact candidate means this audit did not locate one in the current corpus; it does not prove the concept is absent."}}
-    destination=reports_dir/"weapon-corpus-audit.json"; _write_json(destination,report)
+            scope = str(record.get("evidence_scope") or "variant-local")
+            for field in record.get("fields") or []:
+                group = str(field.get("group")); candidate_groups[group] += 1
+                if scope == "family-shared": family_groups[group] += 1
+                else: local_groups[group] += 1
+        for group, state in list(coverage.items()):
+            if state == "missing" and candidate_groups.get(group):
+                coverage[group] = "candidate-evidence-found"
+        status_counts.update(coverage.values()); missing = []
+        for group in COMPETITOR_BASELINE + DEAD_SIGNAL_ADVANTAGE:
+            state = coverage.get(group, "missing")
+            if state in ("published", "published-partial", "not-applicable"):
+                continue
+            priority = PRIORITY.get(group, 50) + (8 if state == "candidate-evidence-found" else 0)
+            item = {
+                "group": group, "state": state, "priority": priority,
+                "exact_candidate_records": candidate_groups.get(group, 0),
+                "variant_local_candidate_records": local_groups.get(group, 0),
+                "family_shared_candidate_records": family_groups.get(group, 0),
+            }
+            missing.append(item)
+            gap_queue.append({
+                "priority": priority, "blueprint_id": weapon.get("blueprint_id"), "name": weapon.get("name"),
+                "category": weapon.get("category"), "group": group, "state": state,
+                "exact_candidate_records": candidate_groups.get(group, 0),
+                "variant_local_candidate_records": local_groups.get(group, 0),
+                "family_shared_candidate_records": family_groups.get(group, 0),
+                "pyc_consumer_candidates": len((pyc_scan.get("groups") or {}).get(group) or []),
+            })
+        weapon_reports.append({
+            "blueprint_id": weapon.get("blueprint_id"), "item_id": weapon.get("item_id"),
+            "prototype_id": weapon.get("prototype_id"), "name": weapon.get("name"), "category": weapon.get("category"),
+            "identity_seeds": sorted(row["seeds"]),
+            "family_inheritance": {
+                "shared_relationships": [{"id": value, "kind": kind} for value, kind in sorted(row["family_seeds"].items())],
+                "allowed_groups": sorted(FAMILY_SHARED_GROUPS),
+                "precedence": ["variant-local", "family-shared"],
+                "rule": "Variant-local exact evidence overrides inherited family evidence for the same field; family relationships never establish variant ownership.",
+            },
+            "coverage": coverage, "coverage_counts": dict(Counter(coverage.values())),
+            "gaps": sorted(missing, key=lambda item: (-item["priority"], item["group"])),
+            "exact_corpus_evidence": evidence,
+        })
+
+    gap_queue.sort(key=lambda item: (-item["priority"], -item["exact_candidate_records"], str(item["name"]), item["group"]))
+    group_summary = {}
+    for group in COMPETITOR_BASELINE + DEAD_SIGNAL_ADVANTAGE:
+        states = Counter(report["coverage"].get(group, "missing") for report in weapon_reports)
+        group_summary[group] = {
+            "states": dict(states), "exact_json_field_hits": int((json_scan.get("group_counts") or {}).get(group, 0)),
+            "pyc_consumer_candidates": int((pyc_scan.get("group_candidate_counts") or {}).get(group, 0)),
+            "priority": PRIORITY.get(group, 50), "baseline": "competitor" if group in COMPETITOR_BASELINE else "dead-signal-advantage",
+        }
+
+    report = {
+        "schema": "dead-signal-weapon-corpus-audit", "schema_version": SCHEMA_VERSION, "brand": "Dead Signal",
+        "subject": "Complete player-facing Weapons corpus coverage", "mode": "overnight-read-only-full-corpus-audit",
+        "record_counts": {
+            "weapons": len(weapon_reports), "json_files_scanned": json_scan["files_scanned"],
+            "json_records_scanned": json_scan["records_scanned"],
+            "exact_identity_records_with_target_fields": json_scan["exact_identity_records_with_target_fields"],
+            "evidence_scope_counts": json_scan.get("scope_counts") or {},
+            "pyc_files_scanned": pyc_scan["files_scanned"], "pyc_files_with_target_tokens": pyc_scan["files_with_target_token_bytes"],
+            "gaps": len(gap_queue), "coverage_states": dict(status_counts),
+        },
+        "coverage_contract": {
+            "competitor_baseline": list(COMPETITOR_BASELINE), "dead_signal_advantage": list(DEAD_SIGNAL_ADVANTAGE),
+            "rule": "Competitor-visible fields are research targets, never source-of-truth. Installed-game exact evidence remains authoritative.",
+            "inheritance": "Shared family relationships are retained as scoped evidence. Variant-local values override inherited family values.",
+        },
+        "group_summary": group_summary, "gap_queue": gap_queue, "weapons": weapon_reports,
+        "json_scan": {
+            "files_scanned": json_scan["files_scanned"], "records_scanned": json_scan["records_scanned"],
+            "exact_identity_records_with_target_fields": json_scan["exact_identity_records_with_target_fields"],
+            "evidence_scope_counts": json_scan.get("scope_counts") or {}, "errors": json_scan["errors"], "top_tables": json_scan["top_tables"],
+        },
+        "pyc_consumer_scan": pyc_scan,
+        "policy": {
+            "identity": "Variant ownership requires an exact canonical owner seed in a strong isolated record key or typed owner field. Shared relation IDs never establish variant ownership.",
+            "family_inheritance": "Exact bullet-pattern relationships may supply only projectile/ballistic evidence groups. Variant-local evidence has higher precedence and acts as an override.",
+            "scope": "Both retained NeoX JSON layers are scanned, plus retained PYC source roots available from snapshot metadata.",
+            "execution": "PYC files are unmarshaled for static CodeType metadata only; game modules and game bytecode are never executed.",
+            "publication": "Candidate evidence is research-only and never auto-promotes values.",
+            "absence": "No exact candidate means this audit did not locate one in the current corpus; it does not prove the concept is absent.",
+        },
+    }
+    destination = reports_dir / "weapon-corpus-audit.json"; _write_json(destination, report)
     activity(f"Weapon Corpus Audit complete: {len(weapon_reports)} weapons; {len(gap_queue)} ranked gaps")
     return report
