@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "version": "1.5.14.54",
+  "version": "1.5.14.55",
   "channel": "stable",
-  "download_url": "https://github.com/raiinman/dead-signal/releases/download/miner-v1.5.14.54/Dead-Signal-Miner-v1.5.14.54-Windows.zip",
-  "sha256": "3b7ac285052238554e403b793c4c95d7f11ac12741cf611030400de8494a938c",
-  "size": 133493747,
-  "notes_url": "https://github.com/raiinman/dead-signal/releases/tag/miner-v1.5.14.54"
+  "download_url": "https://github.com/raiinman/dead-signal/releases/download/miner-v1.5.14.55/Dead-Signal-Miner-v1.5.14.55-Windows.zip",
+  "sha256": "3a00706bb2fc0772c3279246ccdc15a2ba80cf68ebedb0906d00f4dac6f2bdd3",
+  "size": 133503598,
+  "notes_url": "https://github.com/raiinman/dead-signal/releases/tag/miner-v1.5.14.55"
 }
