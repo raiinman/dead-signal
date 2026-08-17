@@ -51,12 +51,10 @@ def _iter_dicts(value: Any) -> Iterable[dict[str, Any]]:
 
 
 def _data_mapping(parsed: Any) -> dict[Any, Any]:
-    """Return the decoded table's canonical data mapping without losing tuple keys."""
     if isinstance(parsed, dict):
         data = parsed.get("data")
         if isinstance(data, dict):
             return data
-        # Tests and some parser versions may already return the table mapping.
         return parsed
     return {}
 
@@ -73,8 +71,7 @@ def _blueprint_id_from_star_key(key: Any) -> int | None:
         return _int_id(key[0])
     if isinstance(key, str):
         text = key.strip().lstrip("(").rstrip(")")
-        first = text.split(",", 1)[0].strip()
-        return _int_id(first)
+        return _int_id(text.split(",", 1)[0].strip())
     return None
 
 
@@ -125,7 +122,6 @@ def _collect_exact_codes(parsed: Any) -> set[str]:
                 codes.add(key)
             if isinstance(value, str) and value.startswith("WS"):
                 codes.add(value)
-    # passive_skill_data commonly uses WS... as top-level keys.
     for key in _data_mapping(parsed):
         if isinstance(key, str) and key.startswith("WS"):
             codes.add(key)
@@ -159,15 +155,29 @@ def _is_empty(value: Any) -> bool:
 
 
 def _base_attrs_zero(row: dict[str, Any]) -> bool:
-    flat = _flatten(row)
-    found = []
-    for suffix in ("E0100", "E0200", "E0300"):
-        values = [value for path, value in flat.items() if path.endswith(suffix)]
-        if values:
-            found.extend(values)
-    if not found:
+    """Return true only when E0100/E0200/E0300 are all explicitly present and zero."""
+    targets = {"E0100", "E0200", "E0300"}
+    observed: dict[str, Any] = {}
+
+    # Real gun_blueprint_attr_data stores property names and values in paired
+    # base_attr_nameN/base_attr_valN fields.
+    for index in range(1, 9):
+        name = row.get(f"base_attr_name{index}")
+        if name in targets:
+            observed[str(name)] = row.get(f"base_attr_val{index}")
+
+    # Keep compatibility with nested/exported shapes that may materialize an
+    # explicit E0100/E0200/E0300 mapping.
+    if targets - set(observed):
+        flat = _flatten(row)
+        for path, value in flat.items():
+            leaf = path.rsplit(".", 1)[-1]
+            if leaf in targets:
+                observed.setdefault(leaf, value)
+
+    if set(observed) != targets:
         return False
-    return all(value in (0, 0.0, "0", "0.0", None, "") for value in found)
+    return all(value in (0, 0.0, "0", "0.0", None, "") for value in observed.values())
 
 
 def _joined_row(
@@ -176,7 +186,6 @@ def _joined_row(
     attr_star1: dict[str, Any],
     terms_star1: dict[str, Any],
 ) -> dict[str, Any]:
-    """Build one exact blueprint-level comparison row from its owner tables."""
     return {
         "blueprint_id": blueprint_id,
         "item_id": blueprint.get("gun_item_no") or blueprint.get("item_no") or blueprint.get("item_id"),
@@ -191,7 +200,10 @@ def _joined_row(
         "base_attr": {
             key: value
             for key, value in attr_star1.items()
-            if key in {"base_attr", "base_attr_val1", "base_attr_val2", "base_attr_val3", "base_attr_val4", "base_attr_name1", "base_attr_name2", "base_attr_name3", "base_attr_name4"}
+            if key in {
+                "base_attr", "base_attr_val1", "base_attr_val2", "base_attr_val3", "base_attr_val4",
+                "base_attr_name1", "base_attr_name2", "base_attr_name3", "base_attr_name4",
+            }
         },
         "attr_star1": attr_star1,
         "correct_skill": terms_star1.get("correct_skill"),
@@ -209,8 +221,7 @@ def _weapon_rows(blueprints_parsed: Any, attrs_parsed: Any, terms_parsed: Any) -
         blueprint = blueprints[blueprint_id]
         if str(blueprint.get("blueprint_template_no") or "") != "10":
             continue
-        star_rows = attrs.get(blueprint_id) or {}
-        attr_star1 = star_rows.get(1)
+        attr_star1 = (attrs.get(blueprint_id) or {}).get(1)
         if not isinstance(attr_star1, dict):
             continue
         rows.append(_joined_row(blueprint_id, blueprint, attr_star1, (terms.get(blueprint_id) or {}).get(1, {})))
