@@ -20,6 +20,7 @@ from dead_signal_discovery import DeadSignalDiscovery
 from dead_signal_consumer_index import run_consumer_index
 from dead_signal_reference_graph import run_reference_graph
 from dead_signal_semantic_registry import write_semantic_registry_report
+from dead_signal_snapshot_diff import build_snapshot_diff
 from dead_signal_publication_gate import build_gate_report
 from dead_signal_research_suite import run_research_suite
 from dead_signal_schema_trace_batch import DeadSignalSchemaTraceBatch
@@ -241,6 +242,11 @@ def compile_intelligence(output: Path | str, *, log=None, progress=None, activit
         lambda: write_semantic_registry_report(paths["reports"]),
         log=log, progress=progress, activity=activity, percent=6,
     )
+    snapshot_diff = _stage(
+        stages, "Base Current Snapshot Diff",
+        lambda: build_snapshot_diff(paths["base"], paths["current"], paths["output"], paths["reports"]),
+        log=log, progress=progress, activity=activity, percent=7,
+    )
 
     ui_consumer = _stage(
         stages, "Weapon UI Consumer Trace",
@@ -297,10 +303,22 @@ def compile_intelligence(output: Path | str, *, log=None, progress=None, activit
     forensic_counts = forensic.get("record_counts") or {}
     registry_counts = (table_registry.get("summary") or {}).get("record_counts") or {}
     census_counts = (table_registry.get("client_data_census") or {}).get("record_counts") or {}
-    cache_stats = table_registry.get("cache_statistics") or {}
+    table_cache_stats = table_registry.get("cache_statistics") or {}
+    pyc_cache_stats = consumer_index.get("cache_statistics") or {}
+    cache_stats = {
+        "files_considered": int(table_cache_stats.get("files_considered", 0)) + int(pyc_cache_stats.get("files_considered", 0)),
+        "files_changed": int(table_cache_stats.get("files_changed", 0)) + int(pyc_cache_stats.get("pycs_reindexed", 0)),
+        "files_reused": int(table_cache_stats.get("files_reused", 0)) + int(pyc_cache_stats.get("pycs_reused", 0)),
+        "tables_reprofiled": table_cache_stats.get("tables_reprofiled", 0),
+        "tables_reused": table_cache_stats.get("tables_reused", 0),
+        "pycs_reindexed": pyc_cache_stats.get("pycs_reindexed", 0),
+        "pycs_reused": pyc_cache_stats.get("pycs_reused", 0),
+        "semantic_definitions_reevaluated": (snapshot_diff.get("dependency_invalidation") or {}).get("semantic_definitions_reevaluated", 0),
+    }
     consumer_counts = (consumer_index.get("summary") or {}).get("record_counts") or {}
     graph_counts = (reference_graph.get("summary") or {}).get("record_counts") or {}
     semantic_counts = semantic_registry.get("record_counts") or {}
+    snapshot_table_counts = snapshot_diff.get("table_counts") or {}
     compiled = {
         "schema": "dead-signal-intelligence-compiled",
         "schema_version": SCHEMA_VERSION,
@@ -315,6 +333,7 @@ def compile_intelligence(output: Path | str, *, log=None, progress=None, activit
             "consumer_index_scopes": consumer_counts.get("scopes", 0),
             "reference_graph_edges": graph_counts.get("edges", 0),
             "semantic_definitions": semantic_counts.get("definitions", 0),
+            "snapshot_changed_tables": snapshot_table_counts.get("changed", 0),
             "client_data_tables": census_counts.get("tables", 0),
             "client_data_distinct_paths": census_counts.get("distinct_paths", 0),
             "weapons": research_counts.get("weapons", 0),
@@ -361,6 +380,7 @@ def compile_intelligence(output: Path | str, *, log=None, progress=None, activit
             "reference_graph_summary": str(paths["reports"] / "reference-graph-summary.json"),
             "reference_graph_database": str(paths["output"] / "catalogs" / "dead-signal-reference-graph.sqlite"),
             "semantic_registry": str(paths["reports"] / "semantic-registry.json"),
+            "snapshot_data_diff": str(paths["reports"] / "snapshot-data-diff.json"),
             "weapon_description_ui_consumer": str(paths["reports"] / "weapon-description-ui-consumer-trace.json"),
             "research_suite": str(paths["reports"] / "dead-signal-research-suite.json"),
             "weapon_description_multihop": str(paths["reports"] / "weapon-description-multihop.json"),
