@@ -12,8 +12,14 @@ import json
 from pathlib import Path
 from typing import Any, Callable
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 ActivityCallback = Callable[[str], None]
+SHOOT_DISPLAY = {
+    "NONE": "None",
+    "SINGLE": "Single",
+    "BURST": "Burst",
+    "AUTO": "Auto",
+}
 
 
 def _read_json(path: Path, default: Any = None) -> Any:
@@ -54,6 +60,25 @@ def _prototype_description_map(published_dir: Path) -> dict[str, dict[str, Any]]
             continue
         result[str(row.get("blueprint_id"))] = row
     return result
+
+
+def _launch_gap_maps(published_dir: Path) -> tuple[dict[Any, str], dict[str, dict[str, Any]], dict[str, Any]]:
+    report = _read_json(published_dir / "reports" / "weapon-launch-gap-trace.json", {}) or {}
+    firing = report.get("firing_mode") if isinstance(report.get("firing_mode"), dict) else {}
+    raw_mapping = firing.get("mapping") if isinstance(firing.get("mapping"), dict) else {}
+    reverse: dict[Any, str] = {}
+    if str(firing.get("state") or "").startswith("resolved-static"):
+        for symbol, code in raw_mapping.items():
+            if isinstance(code, (int, float)) and not isinstance(code, bool):
+                reverse[code] = str(symbol)
+
+    projectile_rows: dict[str, dict[str, Any]] = {}
+    projectiles = report.get("projectiles") if isinstance(report.get("projectiles"), dict) else {}
+    for row in projectiles.get("weapons") or []:
+        if not isinstance(row, dict) or row.get("blueprint_id") in (None, ""):
+            continue
+        projectile_rows[str(row.get("blueprint_id"))] = row
+    return reverse, projectile_rows, report
 
 
 def _promote_description(
@@ -158,6 +183,7 @@ def publish_weapon_site_payloads(
     activity = activity or (lambda _message: None)
     source = _source_map(weapons_path)
     prototype_descriptions = _prototype_description_map(published_dir)
+    shoot_code_to_symbol, launch_projectiles, launch_gap_report = _launch_gap_maps(published_dir)
     rows = [row for row in (projection.get("weapons") or []) if isinstance(row, dict)]
     lean_rows: list[dict[str, Any]] = []
     evidence_rows: list[dict[str, Any]] = []
@@ -199,16 +225,43 @@ def publish_weapon_site_payloads(
         if handling.get("state") == "resolved-installed-game":
             resolved_counts["gun_base"] += 1
 
+        projectile_trace = launch_projectiles.get(bid, {})
         projectile_count = ranged.get("projectile_count") if ranged else None
+        projectile_state = "resolved-installed-game-normalized" if _has(projectile_count) else "unresolved"
+        projectile_provenance = None
+        if not _has(projectile_count):
+            traced = projectile_trace.get("projectile_count") if isinstance(projectile_trace, dict) else None
+            if _has(traced) and projectile_trace.get("state") == "resolved-exact-pattern-record":
+                projectile_count = traced
+                projectile_state = "resolved-installed-game-pattern"
+                projectile_provenance = {
+                    "table": ((projectile_trace.get("source") or {}).get("pattern_table") if isinstance(projectile_trace.get("source"), dict) else None),
+                    "record_id": projectile_trace.get("bullet_pattern_no"),
+                    "field": projectile_trace.get("projectile_count_field"),
+                    "scope": "family-shared" if row.get("ballistic_family") else "variant-local",
+                }
         if _has(projectile_count):
             resolved_counts["projectiles"] += 1
 
-        firing_mode = {
-            "code": raw.get("firing_mode_code"),
-            "burst_bullet_num": raw.get("burst_bullet_num"),
-            "label": None,
-            "label_state": "unresolved-code-map" if raw.get("firing_mode_code") is not None else "not-applicable",
-        }
+        firing_code = raw.get("firing_mode_code")
+        firing_symbol = shoot_code_to_symbol.get(firing_code)
+        if firing_symbol:
+            firing_mode = {
+                "code": firing_code,
+                "symbol": firing_symbol,
+                "burst_bullet_num": raw.get("burst_bullet_num"),
+                "label": SHOOT_DISPLAY.get(firing_symbol, firing_symbol.title()),
+                "label_state": "resolved-installed-game-enum",
+            }
+            resolved_counts["firing_mode_label"] += 1
+        else:
+            firing_mode = {
+                "code": firing_code,
+                "symbol": None,
+                "burst_bullet_num": raw.get("burst_bullet_num"),
+                "label": None,
+                "label_state": "unresolved-code-map" if firing_code is not None else "not-applicable",
+            }
 
         progression = row.get("progression") if isinstance(row.get("progression"), dict) else {}
         acquisition = row.get("acquisition") if isinstance(row.get("acquisition"), dict) else {}
@@ -246,6 +299,7 @@ def publish_weapon_site_payloads(
                 "minimum_damage_distance": ranged.get("minimum_damage_distance") if ranged else None,
                 "minimum_damage_multiplier": ranged.get("minimum_damage_multiplier") if ranged else None,
                 "projectile_count": projectile_count,
+                "projectile_count_state": projectile_state,
                 "melee": melee,
             },
             "firing_mode": firing_mode,
@@ -292,11 +346,21 @@ def publish_weapon_site_payloads(
                 "provenance": description_provenance,
                 "prototype_projection": prototype_descriptions.get(bid),
             },
+            "projectiles": {
+                "state": projectile_state,
+                "value": projectile_count,
+                "provenance": projectile_provenance,
+                "launch_gap_trace": projectile_trace,
+            },
+            "firing_mode": {
+                "published": firing_mode,
+                "enum_trace": (launch_gap_report.get("firing_mode") if isinstance(launch_gap_report, dict) else None),
+                "research": row.get("firing_mode"),
+            },
             "progression": progression,
             "acquisition": acquisition,
             "special_skill_resolution": special.get("resolution"),
             "compatibility_research": compatibility,
-            "firing_mode_research": row.get("firing_mode"),
             "projection_publication": row.get("publication"),
         })
 
@@ -331,7 +395,8 @@ def publish_weapon_site_payloads(
     _write_json(site_dir / "weapon-evidence.json", evidence_payload)
     activity(
         f"Lean Weapon Publisher complete: {len(lean_rows)} weapons; "
-        f"rarity {resolved_counts['rarity']}; descriptions {resolved_counts['description']}"
+        f"rarity {resolved_counts['rarity']}; descriptions {resolved_counts['description']}; "
+        f"firing modes {resolved_counts['firing_mode_label']}; projectiles {resolved_counts['projectiles']}"
     )
     return {
         "record_counts": {"weapons": len(lean_rows), **resolved_counts},
