@@ -44,9 +44,9 @@ def _has(value: Any) -> bool:
 def _source_map(weapons_path: Path) -> dict[str, dict[str, Any]]:
     payload = _read_json(weapons_path, {}) or {}
     return {
-        str(row.get("blueprint_id")): row
+        str(row.get("canonical_id") or (f"blueprint:{row.get('blueprint_id')}" if row.get("blueprint_id") not in (None, "") else f"item:{row.get('item_id')}")): row
         for row in (payload.get("weapons") or [])
-        if isinstance(row, dict) and row.get("blueprint_id") not in (None, "")
+        if isinstance(row, dict)
     }
 
 
@@ -200,7 +200,8 @@ def publish_weapon_site_payloads(
 
     for row in rows:
         bid = str(row.get("blueprint_id"))
-        original = source.get(bid, {})
+        identity_key = str(row.get("canonical_id") or (f"blueprint:{row.get('blueprint_id')}" if row.get("blueprint_id") not in (None, "") else f"item:{(row.get('identity') or {}).get('item_id')}"))
+        original = source.get(identity_key, {})
         handling = row.get("handling") if isinstance(row.get("handling"), dict) else {}
         semantic = handling.get("semantic") if isinstance(handling.get("semantic"), dict) else {}
         raw = handling.get("raw") if isinstance(handling.get("raw"), dict) else {}
@@ -273,6 +274,7 @@ def publish_weapon_site_payloads(
         tiers = _tier_summary(progression)
 
         lean = {
+            "canonical_id": row.get("canonical_id"),
             "blueprint_id": row.get("blueprint_id"),
             "name": row.get("name"),
             "category": row.get("category"),

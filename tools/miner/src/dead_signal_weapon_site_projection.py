@@ -172,8 +172,9 @@ def build_weapon_site_projection(
     activity = activity or (lambda _message: None)
     source = _read_json(weapons_path, {}) or {}
     weapons = [row for row in (source.get("weapons") or []) if isinstance(row, dict)]
-    corpus_rows = {str(row.get("blueprint_id")): row for row in (corpus_audit.get("weapons") or []) if isinstance(row, dict)}
-    readiness_rows = {str(row.get("blueprint_id")): row for row in (site_readiness.get("weapons") or []) if isinstance(row, dict)}
+    identity_key = lambda row: str(row.get("canonical_id") or (f"blueprint:{row.get('blueprint_id')}" if row.get("blueprint_id") not in (None, "") else f"item:{row.get('item_id')}"))
+    corpus_rows = {identity_key(row): row for row in (corpus_audit.get("weapons") or []) if isinstance(row, dict)}
+    readiness_rows = {identity_key(row): row for row in (site_readiness.get("weapons") or []) if isinstance(row, dict)}
     prototype_families, pattern_families = _family_maps(weapons)
 
     base_snapshot, current_snapshot = _snapshot_layers(published_dir)
@@ -191,9 +192,9 @@ def build_weapon_site_projection(
     promoted_gun_base = unresolved_gun_base = variant_family_members = 0
 
     for weapon in weapons:
-        blueprint_id = str(weapon.get("blueprint_id"))
-        corpus_weapon = corpus_rows.get(blueprint_id, {})
-        readiness = readiness_rows.get(blueprint_id, {})
+        weapon_key = identity_key(weapon)
+        corpus_weapon = corpus_rows.get(weapon_key, {})
+        readiness = readiness_rows.get(weapon_key, {})
         questions = readiness.get("questions") if isinstance(readiness.get("questions"), dict) else {}
         enhancements = readiness.get("enhancements") if isinstance(readiness.get("enhancements"), dict) else {}
         first = _first_tier(weapon)
@@ -243,6 +244,7 @@ def build_weapon_site_projection(
             acquisition_states.append("unresolved")
 
         output_rows.append({
+            "canonical_id": weapon.get("canonical_id"),
             "blueprint_id": weapon.get("blueprint_id"),
             "name": weapon.get("name"),
             "category": weapon.get("category"),

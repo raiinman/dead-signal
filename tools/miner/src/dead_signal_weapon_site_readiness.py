@@ -215,7 +215,8 @@ def run_weapon_site_readiness(
     activity = activity or (lambda _message: None)
     payload = _read_json(weapons_path, {}) or {}
     weapons = [row for row in (payload.get("weapons") or []) if isinstance(row, dict)]
-    corpus_rows = {str(row.get("blueprint_id")): row for row in (corpus_audit.get("weapons") or []) if isinstance(row, dict)}
+    identity_key = lambda row: str(row.get("canonical_id") or (f"blueprint:{row.get('blueprint_id')}" if row.get("blueprint_id") not in (None, "") else f"item:{row.get('item_id')}"))
+    corpus_rows = {identity_key(row): row for row in (corpus_audit.get("weapons") or []) if isinstance(row, dict)}
     supplemental = _supplemental_scan(base, current, weapons, activity=activity)
 
     rows = []
@@ -237,7 +238,7 @@ def run_weapon_site_readiness(
 
     for index, weapon in enumerate(weapons):
         answers = _published_answers(weapon)
-        corpus_weapon = corpus_rows.get(str(weapon.get("blueprint_id")), {})
+        corpus_weapon = corpus_rows.get(identity_key(weapon), {})
         corpus_groups = _candidate_by_group(corpus_weapon)
 
         for question, group in audit_group_map.items():
@@ -287,6 +288,7 @@ def run_weapon_site_readiness(
                 resolved_enh += 1
 
         rows.append({
+            "canonical_id": weapon.get("canonical_id"),
             "blueprint_id": weapon.get("blueprint_id"), "name": weapon.get("name"), "category": weapon.get("category"),
             "reference_question_coverage": {
                 "resolved": resolved_page, "applicable": applicable_page,

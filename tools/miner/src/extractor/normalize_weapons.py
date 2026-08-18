@@ -17,6 +17,7 @@ from normalize_armor import (
     table,
     translation_entries,
 )
+from weapon_identity_spine import discover_weapon_identities
 
 
 CURRENT_RECIPE_SERVER_NO = 222
@@ -48,6 +49,14 @@ def load_first_table(*paths: Path):
     return {}
 
 
+def overlay_table(base_path: Path, current_path: Path):
+    """Overlay Current exact owners over Base without discarding unchanged Base rows."""
+    merged = table(base_path) if base_path.exists() else {}
+    if current_path.exists():
+        merged.update(table(current_path))
+    return merged
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base", type=Path, required=True)
@@ -58,7 +67,10 @@ def main() -> int:
     base = args.base
     current = args.current
 
-    blueprints = table(base / "game_common/data/gun_blueprint_data.json")
+    blueprints = overlay_table(
+        base / "game_common/data/gun_blueprint_data.json",
+        current / "game_common/data/gun_blueprint_data.json",
+    )
     blueprint_attributes = table(
         base / "game_common/data/gun_blueprint_attr_data.json"
     )
@@ -79,6 +91,10 @@ def main() -> int:
     origins = load_first_table(
         current / "game_common/data/equip_origin_data.json",
         base / "game_common/data/equip_origin_data.json",
+    )
+    achievements = load_first_table(
+        current / "game_common/data/achieve_item_data.json",
+        base / "game_common/data/achieve_item_data.json",
     )
     buff_levels = load_first_table(
         current / "game_common/data/buff_level_data.json",
@@ -252,43 +268,28 @@ def main() -> int:
     exclusions = Counter()
     weapons = []
 
-    for blueprint_key, blueprint in blueprints.items():
-        if not str(blueprint_key).isdigit() or not isinstance(blueprint, dict):
-            continue
-        blueprint_id = int(blueprint_key)
-        item_id = int(blueprint.get("gun_item_no") or 0)
-        item = items.get(str(item_id), {})
-        equip = equipment.get(str(item_id), {})
+    translated_names = {
+        str(item_id): display_name(translate(record.get("name")))
+        for item_id, record in items.items()
+        if isinstance(record, dict)
+    }
+    identities, identity_exclusions = discover_weapon_identities(
+        items, equipment, origins, achievements, blueprints, translated_names
+    )
+    exclusions.update(identity_exclusions)
+
+    for identity in identities:
+        blueprint = identity["blueprint"]
+        blueprint_id = int(identity.get("blueprint_id") or 0)
+        item_id = int(identity["item_id"])
+        item = identity["item"]
+        equip = identity["equipment"]
         prototype_id = int(blueprint.get("prototype_no") or 0)
         prototype = prototypes.get(str(prototype_id), {})
-        weapon_type = int(prototype.get("weapon_type") or 0)
-        name = display_name(translate(item.get("name"))) if item else ""
-
-        reasons = []
-        if not item_id or not item:
-            reasons.append("missing-current-item")
-        if not equip:
-            reasons.append("missing-current-equipment")
-        if not name:
-            reasons.append("missing-name")
-        if int(item.get("type") or 0) not in (1, 2):
-            reasons.append("not-player-weapon-item")
-        if int(item.get("temp_item") or 0):
-            reasons.append("temporary-item")
-        if int(item.get("private_server_item") or 0):
-            reasons.append("private-server-item")
-        if int(blueprint.get("blueprint_template_no") or 0) == 90:
-            reasons.append("alternate-template")
-        if not weapon_type:
-            reasons.append("missing-weapon-prototype")
+        weapon_type = int(prototype.get("weapon_type") or identity["weapon_type_code"] or 0)
+        name = identity["name"]
         forge_numbers = [int(value) for value in blueprint.get("corr_forge_no", [])]
         forge_levels = [int(value) for value in blueprint.get("corr_forge_lv", [])]
-        if len(forge_numbers) != 5 or len(forge_levels) != 5:
-            reasons.append("missing-five-tier-progression")
-        if reasons:
-            for reason in set(reasons):
-                exclusions[reason] += 1
-            continue
 
         enhancement = blueprint_attributes.get(f"({blueprint_id}, 1)", {})
         fixed_skill_code = str(enhancement.get("fixed_skill_code") or "")
@@ -350,13 +351,22 @@ def main() -> int:
 
         tiers = []
         missing_recipe_levels = []
-        for level, forge_no in zip(forge_levels, forge_numbers):
-            recipe = recipe_for(forge_no, blueprint_id, name)
+        tier_sources = list(zip(forge_levels, forge_numbers))
+        if not tier_sources and blueprint_id:
+            tier_sources = [
+                (level, 0) for level in range(1, 6)
+                if (blueprint_id, level) in tier_items_by_blueprint
+            ]
+        if not tier_sources and identity["identity_state"] == "special-equipped":
+            tier_sources = [(int(equip.get("art_lv") or 0) or 1, 0)]
+        for level, forge_no in tier_sources:
+            recipe = recipe_for(forge_no, blueprint_id, name) if forge_no else None
             if not recipe:
                 missing_recipe_levels.append(level)
             output_item_id = int(
                 (recipe or {}).get("output_item_id")
                 or tier_items_by_blueprint.get((blueprint_id, level))
+                or (item_id if len(tier_sources) == 1 else 0)
                 or 0
             )
             tier_item = items.get(str(output_item_id), {})
@@ -386,7 +396,7 @@ def main() -> int:
                 }
             )
 
-        if missing_recipe_levels:
+        if missing_recipe_levels and identity["craftability_state"] == "standard-tier-progression":
             review_queue.append(
                 {
                     "blueprint_id": blueprint_id,
@@ -447,12 +457,29 @@ def main() -> int:
         short_description = player_facing_effect(translate(item.get("short_desc")), [])
         weapons.append(
             {
-                "blueprint_id": blueprint_id,
+                "canonical_id": identity["canonical_id"],
+                "blueprint_id": blueprint_id or None,
                 "item_id": item_id,
                 "name": name,
                 "category": WEAPON_TYPES.get(weapon_type, f"Type {weapon_type}"),
                 "weapon_type_code": weapon_type,
                 "prototype_id": prototype_id,
+                "gun_no": int(equip.get("gun_no") or 0),
+                "identity": {
+                    "state": "resolved-installed-weapon",
+                    "classification": identity["identity_state"],
+                    "blueprint_owner_state": identity["blueprint_owner_state"],
+                    "referenced_blueprint_id": identity["referenced_blueprint_id"],
+                    "achievement_attrs": identity["achievement_attrs"],
+                    "evidence": [
+                        "game_common/data/item_data.json",
+                        "game_common/data/equip_data.json",
+                        "game_common/data/equip_origin_data.json",
+                        "game_common/data/achieve_item_data.json",
+                    ],
+                },
+                "availability": {"state": identity["availability_state"]},
+                "craftability": {"state": identity["craftability_state"]},
                 "quality_code": quality_code,
                 "quality": QUALITY_NAMES.get(quality_code, "Common"),
                 "icon": item.get("icon") or "",
@@ -641,6 +668,13 @@ def main() -> int:
                 for weapon in weapons
             ),
             "alternate_templates_excluded": exclusions["alternate-template"],
+            "identity_classifications": dict(sorted(Counter(
+                weapon["identity"]["classification"] for weapon in weapons
+            ).items())),
+            "scenario_availability_unresolved": sum(
+                weapon["availability"]["state"] == "unresolved-scenario-availability"
+                for weapon in weapons
+            ),
             "translation_misses": len(meaningful_translation_misses),
             "review_queue": len(review_queue),
         },
@@ -709,7 +743,8 @@ def main() -> int:
 
     print(json.dumps(payload["record_counts"], ensure_ascii=False, indent=2))
     print(f"Blueprint progression audit: {progression_output}")
-    return 0 if len(weapons) == 120 and not duplicate_names else 1
+    canonical_ids = [weapon["canonical_id"] for weapon in weapons]
+    return 0 if weapons and len(canonical_ids) == len(set(canonical_ids)) else 1
 
 
 if __name__ == "__main__":

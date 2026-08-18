@@ -97,14 +97,22 @@ def build_weapon_projection(data_dir: Path) -> dict:
 
     for weapon in weapons_payload.get("weapons", []):
         blueprint_id = weapon.get("blueprint_id")
+        public_canonical_id = (
+            f"ds-w-{blueprint_id}"
+            if blueprint_id not in (None, "")
+            else f"ds-w-item-{weapon.get('item_id')}"
+        )
         math = math_by_blueprint.get(str(blueprint_id), {})
         profile = profile_by_blueprint.get(str(blueprint_id), {})
         ranged = weapon.get("ranged_stats") or {}
         records.append(
             {
-                "canonical_id": f"ds-w-{blueprint_id}",
+                "canonical_id": public_canonical_id,
                 "blueprint_id": blueprint_id,
                 "item_id": weapon.get("item_id"),
+                "identity": weapon.get("identity"),
+                "availability": weapon.get("availability"),
+                "craftability": weapon.get("craftability"),
                 "name": weapon.get("name"),
                 "category": weapon.get("category"),
                 "weapon_type_code": weapon.get("weapon_type_code"),
@@ -319,7 +327,15 @@ def build_quality_report(data_dir: Path, weapons_web: dict, armor_web: dict) -> 
         weapon_blockers.append(f"Duplicate canonical weapon IDs: {weapon_duplicates}")
     if not (math_payload.get("validation") or {}).get("passed", False):
         weapon_blockers.append("Static weapon math validation did not pass")
-    incomplete_tiers = [row.get("canonical_id") for row in weapons if len((row.get("progression") or {}).get("gear_tiers") or []) != 5]
+    standard_progression = [
+        row for row in weapons
+        if (row.get("craftability") or {}).get("state") == "standard-tier-progression"
+        or (
+            not (row.get("craftability") or {}).get("state")
+            and len((row.get("progression") or {}).get("gear_tiers") or []) == 5
+        )
+    ]
+    incomplete_tiers = [row.get("canonical_id") for row in standard_progression if len((row.get("progression") or {}).get("gear_tiers") or []) != 5]
     if incomplete_tiers:
         weapon_blockers.append(f"Weapons without exactly five Gear Tier rows: {len(incomplete_tiers)}")
     unresolved_ranged = int((profiles_payload.get("record_counts") or {}).get("unresolved_gun_profiles") or 0)
@@ -328,13 +344,16 @@ def build_quality_report(data_dir: Path, weapons_web: dict, armor_web: dict) -> 
     missing_effects = sum(not bool(row.get("effect")) for row in weapons)
     missing_recipes = sum(
         not all((tier.get("recipe") for tier in (row.get("progression") or {}).get("gear_tiers") or []))
-        for row in weapons
+        for row in standard_progression
     )
+    unresolved_progression = len(weapons) - len(standard_progression)
     missing_images = sum(not bool(row.get("image_asset")) for row in weapons)
     if missing_effects:
         weapon_warnings.append(f"Weapon effect text unresolved or absent: {missing_effects}")
     if missing_recipes:
         weapon_warnings.append(f"Weapons with one or more missing Tier recipes: {missing_recipes}")
+    if unresolved_progression:
+        weapon_warnings.append(f"Weapons with nonstandard or non-applicable progression: {unresolved_progression}")
     if missing_images:
         weapon_warnings.append(f"Weapons without linked website artwork: {missing_images}")
 
@@ -370,9 +389,11 @@ def build_quality_report(data_dir: Path, weapons_web: dict, armor_web: dict) -> 
             "warnings": weapon_warnings,
             "metrics": {
                 "canonical_ids_unique": weapon_unique,
-                "exactly_five_tiers": len(weapons) - len(incomplete_tiers),
+                "standard_progression_weapons": len(standard_progression),
+                "exactly_five_tiers": len(standard_progression) - len(incomplete_tiers),
+                "nonstandard_or_nonapplicable_progression": unresolved_progression,
                 "weapon_effects": len(weapons) - missing_effects,
-                "complete_tier_recipes": len(weapons) - missing_recipes,
+                "complete_tier_recipes": len(standard_progression) - missing_recipes,
                 "linked_artwork": len(weapons) - missing_images,
                 "unresolved_firearm_profiles": unresolved_ranged,
                 "tier_star_combinations": (math_payload.get("record_counts") or {}).get("tier_star_combinations", 0),

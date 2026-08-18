@@ -490,6 +490,7 @@ def run_weapon_corpus_audit(base: Path, current: Path, weapons_path: Path, repor
                 "pyc_consumer_candidates": len((pyc_scan.get("groups") or {}).get(group) or []),
             })
         weapon_reports.append({
+            "canonical_id": weapon.get("canonical_id"),
             "blueprint_id": weapon.get("blueprint_id"), "item_id": weapon.get("item_id"),
             "prototype_id": weapon.get("prototype_id"), "name": weapon.get("name"), "category": weapon.get("category"),
             "identity_seeds": sorted(row["seeds"]),

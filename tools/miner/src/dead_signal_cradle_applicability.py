@@ -275,6 +275,7 @@ def build(base: Path | str, current: Path | str, output: Path | str, weapons_pay
         relationship_counts["not_applicable"] += state_counts["not-weapon-selected"]
         if not any(row.get("category") == weapon.get("category") for row in controls):
             controls.append({
+                "canonical_id": weapon.get("canonical_id"),
                 "weapon": weapon.get("name"),
                 "blueprint_id": weapon.get("blueprint_id"),
                 "item_id": weapon.get("item_id"),
