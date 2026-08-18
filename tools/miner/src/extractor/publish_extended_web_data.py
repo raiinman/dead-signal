@@ -183,6 +183,14 @@ def build_attachments(payload: dict[str, Any]) -> dict[str, Any]:
         for row in player
     )
     unresolved_compatibility = len(player) - direct_compatibility
+    category_compatibility = sum(
+        bool(row.get("compatibility_evidence", {}).get("compatible_weapon_categories"))
+        for row in player
+    )
+    all_weapon_compatibility = sum(
+        bool(row.get("compatibility_evidence", {}).get("all_weapons"))
+        for row in player
+    )
     return {
         "schema": "dead-signal-attachments",
         "schema_version": 2,
@@ -193,10 +201,12 @@ def build_attachments(payload: dict[str, Any]) -> dict[str, Any]:
             "player_weapon_attachments": len(player),
             "excluded_non_weapon-slot_records": len(excluded),
             "direct_compatibility_text": direct_compatibility,
+            "structured_category_compatibility": category_compatibility,
+            "all_weapons_compatibility": all_weapon_compatibility,
             "unresolved_compatibility": unresolved_compatibility,
         },
         "publication_status": "ready" if not duplicates else "blocked-duplicate-canonical-id",
-        "compatibility_policy": "Direct localized installed-game wording is preserved verbatim; no English phrase is converted into inferred weapon IDs or class codes.",
+        "compatibility_policy": "Direct localized installed-game wording is preserved verbatim. Explicit generic category wording is projected to canonical Weapon categories; named-model wording remains text and is never guessed into weapon IDs.",
         "slot_types": sorted(PLAYER_ATTACHMENT_TYPES),
         "duplicate_canonical_ids": duplicates,
         "attachments": sorted(player, key=lambda row: (row["attachment_type"], row["name"].casefold(), str(row["canonical_id"]))),

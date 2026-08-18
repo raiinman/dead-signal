@@ -2,7 +2,7 @@
 
 Current operational handoff:
 
-- `HANDOFF-2026-08-18-WEAPON-IDENTITY-SPINE-COMPLETE.md`
+- `HANDOFF-2026-08-18-WEAPON-LAUNCH-WARNINGS-AND-ATTACHMENTS.md`
 
 Read order for a new engineering/research session:
 
@@ -15,8 +15,9 @@ Read order for a new engineering/research session:
 7. `HANDOFF-2026-08-18-WEAPON-IDENTITY-SPINE-TRACE.md`
 8. `HANDOFF-2026-08-18-CODEX-WEAPON-IDENTITY-SPINE-IMPLEMENTATION.md`
 9. `HANDOFF-2026-08-18-WEAPON-IDENTITY-SPINE-COMPLETE.md`
+10. `HANDOFF-2026-08-18-WEAPON-LAUNCH-WARNINGS-AND-ATTACHMENTS.md`
 
-For current operational state, the Weapon Identity Spine completion handoff supersedes older Miner/Weapons handoffs where they conflict. Older handoffs remain evidence history and design rationale.
+For current operational state, the Weapon launch-warning and attachment handoff supersedes older Miner/Weapons handoffs where they conflict. Older handoffs remain evidence history and design rationale.
 
 Key current transition:
 
@@ -28,5 +29,8 @@ Key current transition:
 - scenario activation remains unresolved for the six special-equipped identities;
 - use the persistent indexes and the exact consumer trace in the new handoff before running any new scan;
 - do not reopen the ownerless fixed-skill branch unless new typed installed-game evidence changes its state.
+- ten melee recipes now have exact seasonal formula owners while their material bodies remain unresolved;
+- Morgan has an exact one-level Blueprint Star owner while its gear-tier owner remains unresolved;
+- attachment compatibility publishes only direct installed-game text plus explicit generic category claims; named-model wording is not guessed into IDs;
 - stable Miner release boundary remains `v1.5.14.62`; no new release was cut;
 - `tools/miner.zip` remains protected and untouched.

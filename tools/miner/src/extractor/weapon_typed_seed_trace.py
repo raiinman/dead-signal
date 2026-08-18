@@ -223,6 +223,8 @@ def _typed_trace(module: Any, payload: dict[str, Any], base: Path, current: Path
         system_refs = list(system_by_weapon[index].values())
         for entry in candidates + system_refs:
             resolve(entry)
+        unresolved_references = [entry for entry in candidates if not entry["exact_target_record_found"]]
+        candidates = [entry for entry in candidates if entry["exact_target_record_found"]]
         related = related_by_weapon[index]
         if candidates:
             status = "blank-fixed-skill-local-typed-trace-found-weapon-specific-candidates"
@@ -238,6 +240,7 @@ def _typed_trace(module: Any, payload: dict[str, Any], base: Path, current: Path
             "seeds": seeds_by_weapon[index],
             "exact_related_records": related,
             "mechanic_reference_candidates": candidates,
+            "unresolved_mechanic_references": unresolved_references,
             "shared_system_references": system_refs,
             "related_record_count": len(related),
             "mechanic_candidate_count": len(candidates),

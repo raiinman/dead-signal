@@ -33,7 +33,7 @@ REFERENCE_FIELD = re.compile(
     re.IGNORECASE,
 )
 MECHANIC_FIELD = re.compile(
-    r"(?:buff|skill|status|keyword|logic|behavior|ability|effect|trigger|passive)",
+    r"(?:^|_)(?:buff|skill|status|keyword|logic|behavior|ability|effect|trigger|passive)(?:$|_)",
     re.IGNORECASE,
 )
 RELEVANT_TABLE = re.compile(
@@ -109,8 +109,13 @@ def _effect_evidence(weapon: dict[str, Any], passive_skills: dict[str, Any]) -> 
     skill_code = _fixed_skill_code(weapon)
     exact_skill = passive_skills.get(skill_code) if skill_code else None
     effect = weapon.get("effect")
+    existing = weapon.get("effect_resolution") or {}
     if not skill_code:
-        status = "no-fixed-skill-reference"
+        status = (
+            "effect-owner-unresolved"
+            if existing.get("status") == "effect-owner-unresolved"
+            else "no-fixed-skill-reference"
+        )
     elif not isinstance(exact_skill, dict):
         status = "exact-fixed-skill-record-missing"
     elif effect:
@@ -122,7 +127,7 @@ def _effect_evidence(weapon: dict[str, Any], passive_skills: dict[str, Any]) -> 
         "fixed_skill_code": skill_code,
         "exact_passive_skill_record_present": isinstance(exact_skill, dict),
         "effect_present": bool(effect),
-        "source_table": PASSIVE_TABLE,
+        "source_table": existing.get("source_table") or PASSIVE_TABLE,
         "identity_policy": "exact record ID only; similarity aliases are forbidden",
     }
 

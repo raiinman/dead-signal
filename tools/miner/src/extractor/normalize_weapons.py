@@ -113,6 +113,10 @@ def main() -> int:
         base / "client_data/forge_formula_map_data.json",
     )
     item_to_forge = forge_formula_maps.get("ITEM_NO_TO_FORGE_NO_MAP", {})
+    seasonal_blueprint_recipes = load_first_table(
+        current / "game_common/data/blueprint_recipe_season_data.json",
+        base / "game_common/data/blueprint_recipe_season_data.json",
+    )
     currency_data = load_first_table(
         current / "game_common/data/money_material_data.json",
         base / "game_common/data/money_material_data.json",
@@ -298,6 +302,24 @@ def main() -> int:
     )
     exclusions.update(identity_exclusions)
 
+    def seasonal_formula_owner(blueprint_id: int, level: int) -> dict | None:
+        owners = seasonal_blueprint_recipes.get(str(blueprint_id), {})
+        if not isinstance(owners, dict):
+            return None
+        for season_id, owner in owners.items():
+            if not isinstance(owner, dict):
+                continue
+            for owner_level, forge_no in zip(owner.get("corr_forge_lv", []), owner.get("corr_forge_no", [])):
+                if int(owner_level) == level:
+                    return {
+                        "state": "exact-seasonal-formula-owner-material-body-unresolved",
+                        "season_id": str(season_id),
+                        "forge_no": int(forge_no),
+                        "source_table": "game_common/data/blueprint_recipe_season_data.json",
+                        "record_id": str(blueprint_id),
+                    }
+        return None
+
     for identity in identities:
         blueprint = identity["blueprint"]
         blueprint_id = int(identity.get("blueprint_id") or 0)
@@ -320,6 +342,7 @@ def main() -> int:
             "fixed_skill_code": fixed_skill_code or None,
             "source_table": "game_common/data/gun_blueprint_attr_data.json",
         }
+
         if fixed_skill_code:
             skill = passive_skills.get(fixed_skill_code, {})
             buff_id = int(skill.get("buff_id") or 0)
@@ -409,6 +432,16 @@ def main() -> int:
                 or 0
             )
             recipe = recipe_for(forge_no, blueprint_id, name, output_item_id) if forge_no or output_item_id else None
+            recipe_resolution = (
+                {
+                    "state": "resolved-forge-material-body",
+                    "forge_no": recipe.get("forge_no"),
+                    "source_table": "game_common/data/forge_data.json",
+                    "record_id": recipe.get("recipe_key"),
+                }
+                if recipe
+                else seasonal_formula_owner(blueprint_id, level)
+            )
             if not recipe:
                 missing_recipe_levels.append(level)
             output_item_id = int((recipe or {}).get("output_item_id") or output_item_id)
@@ -436,6 +469,7 @@ def main() -> int:
                     "melee_attack_speed": translate(origin.get("melee_attack_speed")),
                     "melee_attack_range": translate(origin.get("melee_attack_range")),
                     "recipe": recipe,
+                    "recipe_resolution": recipe_resolution or {"state": "recipe-owner-unresolved"},
                 }
             )
 
@@ -529,6 +563,12 @@ def main() -> int:
                         if tiers and not missing_recipe_levels
                         else "base-formula-plus-tier-selection"
                         if weapon_type == 9 and any(row.get("recipe") for row in tiers)
+                        else "seasonal-formula-owners-material-bodies-unresolved"
+                        if tiers and all(
+                            (row.get("recipe_resolution") or {}).get("state")
+                            == "exact-seasonal-formula-owner-material-body-unresolved"
+                            for row in tiers
+                        )
                         else "unresolved-recipe-path"
                         if identity["craftability_state"] == "standard-tier-progression"
                         else "not-applicable-or-nonstandard"
@@ -541,6 +581,8 @@ def main() -> int:
                     if len(tiers) == 5
                     else "not-applicable-special-equipped"
                     if identity["identity_state"] == "special-equipped"
+                    else "exact-blueprint-star-owner-gear-tier-owner-unresolved"
+                    if progression_levels
                     else "unresolved-progression-owner"
                 ),
                 "quality_code": quality_code,

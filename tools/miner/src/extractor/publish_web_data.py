@@ -348,22 +348,32 @@ def build_quality_report(data_dir: Path, weapons_web: dict, armor_web: dict) -> 
         and (row.get("effect_resolution") or {}).get("status") != "no-fixed-skill-reference"
         for row in weapons
     )
-    missing_recipes = sum(
-        (row.get("craftability") or {}).get("recipe_model") != "base-formula-plus-tier-selection"
-        and not all((tier.get("recipe") for tier in (row.get("progression") or {}).get("gear_tiers") or []))
+    missing_recipe_owners = sum(
+        (row.get("craftability") or {}).get("recipe_model") == "unresolved-recipe-path"
+        for row in standard_progression
+    )
+    missing_recipe_bodies = sum(
+        (row.get("craftability") or {}).get("recipe_model")
+        == "seasonal-formula-owners-material-bodies-unresolved"
         for row in standard_progression
     )
     unresolved_progression = sum(
-        row.get("progression_state") == "unresolved-progression-owner"
+        row.get("progression_state")
+        in {
+            "unresolved-progression-owner",
+            "exact-blueprint-star-owner-gear-tier-owner-unresolved",
+        }
         for row in weapons
     )
     missing_images = sum(not bool(row.get("image_asset")) for row in weapons)
     if missing_effects:
         weapon_warnings.append(f"Weapon effect text unresolved or absent: {missing_effects}")
-    if missing_recipes:
-        weapon_warnings.append(f"Weapons with one or more missing Tier recipes: {missing_recipes}")
+    if missing_recipe_owners:
+        weapon_warnings.append(f"Weapons with unresolved recipe owners: {missing_recipe_owners}")
+    if missing_recipe_bodies:
+        weapon_warnings.append(f"Weapons with exact seasonal recipe owners but unresolved material bodies: {missing_recipe_bodies}")
     if unresolved_progression:
-        weapon_warnings.append(f"Weapons with unresolved progression owner: {unresolved_progression}")
+        weapon_warnings.append(f"Weapons with unresolved gear-tier progression owner: {unresolved_progression}")
     if missing_images:
         weapon_warnings.append(f"Weapons without linked website artwork: {missing_images}")
 
@@ -403,7 +413,8 @@ def build_quality_report(data_dir: Path, weapons_web: dict, armor_web: dict) -> 
                 "exactly_five_tiers": len(standard_progression) - len(incomplete_tiers),
                 "unresolved_progression_owner": unresolved_progression,
                 "weapon_effects": len(weapons) - missing_effects,
-                "complete_tier_recipes": len(standard_progression) - missing_recipes,
+                "resolved_recipe_owners": len(standard_progression) - missing_recipe_owners,
+                "exact_recipe_owners_missing_material_bodies": missing_recipe_bodies,
                 "linked_artwork": len(weapons) - missing_images,
                 "unresolved_firearm_profiles": unresolved_ranged,
                 "tier_star_combinations": (math_payload.get("record_counts") or {}).get("tier_star_combinations", 0),
