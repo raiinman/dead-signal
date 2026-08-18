@@ -1,9 +1,9 @@
 """Focused read-only trace for the last high-value Weapons launch gaps.
 
-This pass is intentionally narrow.  It statically inspects retained snapshot
+This pass is intentionally narrow. It statically inspects retained snapshot
 sources for the ShootMode enum, follows Tier-I gun -> bullet_scatter_no into the
 exact bullet_scatter_data record, and inventories Cradle-related structured
-tables.  It never executes game bytecode and never promotes a human-facing label
+tables. It never executes game bytecode and never promotes a human-facing label
 from a guess.
 """
 from __future__ import annotations
@@ -16,7 +16,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Callable
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 ActivityCallback = Callable[[str], None]
 SHOOT_CONST_PYC = "dcs_extend/const/shoot_const.pyc"
 GUN_BASE_TABLE = "game_common/data/gun_base_params_data.json"
@@ -48,7 +48,7 @@ def _source_root(snapshot: Path) -> Path | None:
     return root if root.is_dir() else None
 
 
-def _roots(base: Path, current: Path) -> list[tuple[str, Path]]:
+def _source_roots(base: Path, current: Path) -> list[tuple[str, Path]]:
     result: list[tuple[str, Path]] = []
     seen: set[str] = set()
     for layer, snapshot in (("current", current), ("base", base)):
@@ -63,17 +63,30 @@ def _roots(base: Path, current: Path) -> list[tuple[str, Path]]:
     return result
 
 
+def _table_roots(base: Path, current: Path) -> list[tuple[str, Path]]:
+    result: list[tuple[str, Path]] = []
+    seen: set[str] = set()
+    for layer, snapshot in (("current", current), ("base", base)):
+        root = snapshot.resolve()
+        if not root.is_dir():
+            continue
+        key = str(root).casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append((layer, root))
+    return result
+
+
 def _load_code(path: Path) -> types.CodeType | None:
+    raw: bytes | None = None
     try:
         raw = path.read_bytes()
         value = marshal.loads(raw[16:]) if len(raw) >= 17 else None
     except Exception:
         return None
     finally:
-        try:
-            del raw
-        except UnboundLocalError:
-            pass
+        raw = None
     return value if isinstance(value, types.CodeType) else None
 
 
@@ -95,7 +108,16 @@ def _shoot_mode_enum(roots: list[tuple[str, Path]]) -> dict[str, Any]:
         for child in _walk(code):
             if child.co_name != "ShootMode":
                 continue
-            instructions = list(dis.get_instructions(child))
+            try:
+                instructions = list(dis.get_instructions(child))
+            except Exception:
+                return {
+                    "state": "marshal-compatible-disassembly-failed",
+                    "layer": layer,
+                    "relative_path": SHOOT_CONST_PYC,
+                    "mapping": {},
+                    "evidence": [],
+                }
             mapping: dict[str, int] = {}
             evidence: list[dict[str, Any]] = []
             for index, instruction in enumerate(instructions):
@@ -247,13 +269,14 @@ def run_weapon_launch_gap_trace(
     activity = activity or (lambda _message: None)
     payload = _read_json(weapons_path, {}) or {}
     weapons = [row for row in (payload.get("weapons") or []) if isinstance(row, dict)]
-    roots = _roots(base, current)
+    source_roots = _source_roots(base, current)
+    table_roots = _table_roots(base, current)
     activity("Launch Gap Trace: resolving static ShootMode enum")
-    firing_mode = _shoot_mode_enum(roots)
+    firing_mode = _shoot_mode_enum(source_roots)
     activity("Launch Gap Trace: following Tier-I gun -> bullet_scatter_data")
-    projectiles = _projectile_trace(roots, weapons)
+    projectiles = _projectile_trace(table_roots, weapons)
     activity("Launch Gap Trace: inventorying Cradle structured tables")
-    cradle = _cradle_inventory(roots)
+    cradle = _cradle_inventory(table_roots)
     report = {
         "schema": "dead-signal-weapon-launch-gap-trace",
         "schema_version": SCHEMA_VERSION,
