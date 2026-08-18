@@ -63,6 +63,27 @@ class WeaponSiteProjectionTests(unittest.TestCase):
             ]
         }
         self.weapons_path.write_text(json.dumps(weapons), encoding="utf-8")
+        reports = self.published / "reports"
+        reports.mkdir(parents=True, exist_ok=True)
+        (reports / "weapon-description-prototype-projection.json").write_text(json.dumps({
+            "weapons": [
+                {
+                    "blueprint_id": 13231201,
+                    "prototype_id": "204",
+                    "status": "prototype-desc-resolved-consistently",
+                    "text": "Shared installed prototype description",
+                    "shared_across_prototypes": True,
+                    "shared_prototype_ids": ["204", "205"],
+                    "translation_matches": [{"source": "current/translate/translate_data_en.json"}],
+                    "source": {
+                        "layer": "base",
+                        "relative_path": "game_common/data/weapon_prototype_data.pyc",
+                        "record_id": "204",
+                        "field": "prototype_desc",
+                    },
+                }
+            ]
+        }), encoding="utf-8")
         fields = [
             {"group": "ads_time", "field": "ads_time", "json_pointer": "/ads_time", "value": 0.2325},
             {"group": "bullet_speed", "field": "bullet_speed", "json_pointer": "/bullet_speed", "value": 200.0},
@@ -138,9 +159,16 @@ class WeaponSiteProjectionTests(unittest.TestCase):
         lean_payload = json.loads(lean.read_text(encoding="utf-8"))
         evidence_payload = json.loads(evidence.read_text(encoding="utf-8"))
         lean_aa12 = lean_payload["weapons"][0]
+        lean_variant = lean_payload["weapons"][1]
         evidence_aa12 = evidence_payload["weapons"][0]
+        evidence_variant = evidence_payload["weapons"][1]
         self.assertEqual(lean_aa12["rarity"]["label"], "Rare")
         self.assertEqual(lean_aa12["stats"]["ads_time"], 0.2325)
+        self.assertEqual(lean_aa12["description"], "Installed description")
+        self.assertEqual(lean_aa12["description_state"], "resolved-installed-game-weapon-local")
+        self.assertEqual(lean_variant["description"], "Shared installed prototype description")
+        self.assertEqual(lean_variant["description_state"], "resolved-installed-game-prototype")
+        self.assertEqual(evidence_variant["description"]["provenance"]["scope"], "family-shared")
         self.assertNotIn("research", lean_aa12["firing_mode"])
         self.assertEqual(lean_aa12["progression"]["blueprint_stars"]["levels"], [1, 2])
         self.assertNotIn("base_attributes", json.dumps(lean_aa12["progression"]))
@@ -149,6 +177,7 @@ class WeaponSiteProjectionTests(unittest.TestCase):
         self.assertIn("base_attributes", json.dumps(evidence_aa12["progression"]))
         self.assertIn("recipes_by_tier", evidence_aa12["acquisition"])
         self.assertEqual(report["browser_publish"]["record_counts"]["rarity"], 2)
+        self.assertEqual(report["browser_publish"]["record_counts"]["description"], 2)
 
 
 if __name__ == "__main__":
