@@ -18,6 +18,7 @@ from typing import Any, Callable
 from dead_signal_analytics import DeadSignalAnalytics
 from dead_signal_discovery import DeadSignalDiscovery
 from dead_signal_consumer_index import run_consumer_index
+from dead_signal_reference_graph import run_reference_graph
 from dead_signal_publication_gate import build_gate_report
 from dead_signal_research_suite import run_research_suite
 from dead_signal_schema_trace_batch import DeadSignalSchemaTraceBatch
@@ -114,6 +115,7 @@ def _bundle_members(paths: dict[str, Path]) -> list[Path]:
         output / "catalogs" / "structured-tables.sqlite",
         output / "catalogs" / "dead-signal-table-registry.sqlite",
         output / "catalogs" / "dead-signal-consumer-index.sqlite",
+        output / "catalogs" / "dead-signal-reference-graph.sqlite",
         output / "catalogs" / "dead-signal-analytics.duckdb",
         paths["published"] / "indexes" / "reference-tracer.sqlite",
         paths["weapons"],
@@ -228,6 +230,11 @@ def compile_intelligence(output: Path | str, *, log=None, progress=None, activit
         lambda: run_consumer_index(paths["base"], paths["current"], paths["output"], paths["reports"], activity=activity),
         log=log, progress=progress, activity=activity, percent=4,
     )
+    reference_graph = _stage(
+        stages, "Persistent Typed Reference Graph",
+        lambda: run_reference_graph(paths["weapons"], paths["output"], paths["reports"]),
+        log=log, progress=progress, activity=activity, percent=5,
+    )
 
     ui_consumer = _stage(
         stages, "Weapon UI Consumer Trace",
@@ -286,6 +293,7 @@ def compile_intelligence(output: Path | str, *, log=None, progress=None, activit
     census_counts = (table_registry.get("client_data_census") or {}).get("record_counts") or {}
     cache_stats = table_registry.get("cache_statistics") or {}
     consumer_counts = (consumer_index.get("summary") or {}).get("record_counts") or {}
+    graph_counts = (reference_graph.get("summary") or {}).get("record_counts") or {}
     compiled = {
         "schema": "dead-signal-intelligence-compiled",
         "schema_version": SCHEMA_VERSION,
@@ -298,6 +306,7 @@ def compile_intelligence(output: Path | str, *, log=None, progress=None, activit
             "registry_tables": registry_counts.get("tables", 0),
             "consumer_index_files": consumer_counts.get("files", 0),
             "consumer_index_scopes": consumer_counts.get("scopes", 0),
+            "reference_graph_edges": graph_counts.get("edges", 0),
             "client_data_tables": census_counts.get("tables", 0),
             "client_data_distinct_paths": census_counts.get("distinct_paths", 0),
             "weapons": research_counts.get("weapons", 0),
@@ -341,6 +350,8 @@ def compile_intelligence(output: Path | str, *, log=None, progress=None, activit
             "table_registry_database": str(paths["output"] / "catalogs" / "dead-signal-table-registry.sqlite"),
             "consumer_index_summary": str(paths["reports"] / "consumer-index-summary.json"),
             "consumer_index_database": str(paths["output"] / "catalogs" / "dead-signal-consumer-index.sqlite"),
+            "reference_graph_summary": str(paths["reports"] / "reference-graph-summary.json"),
+            "reference_graph_database": str(paths["output"] / "catalogs" / "dead-signal-reference-graph.sqlite"),
             "weapon_description_ui_consumer": str(paths["reports"] / "weapon-description-ui-consumer-trace.json"),
             "research_suite": str(paths["reports"] / "dead-signal-research-suite.json"),
             "weapon_description_multihop": str(paths["reports"] / "weapon-description-multihop.json"),
