@@ -71,6 +71,8 @@ The canonical Miner completes extraction/normalization/publishing first. Data In
 
 `COMPILE DATA INTELLIGENCE` also maintains `catalogs/dead-signal-table-registry.sqlite`, a content-fingerprinted structural catalog of every Base and Current JSON table. Unchanged tables reuse their prior profiles. The compiler writes `published/reports/table-registry-summary.json` and a first-class `published/reports/client-data-census.json`; all domain, presentation, translation, and reference labels in these reports are discovery hints rather than semantic proof.
 
+The compiler also maintains `catalogs/dead-signal-consumer-index.sqlite`, a fingerprinted static index of PYC code scopes, names, safe constants, parent/child scopes, and raw-token fallbacks. It never imports or executes game modules and allows exact same-scope consumer queries without rescanning the retained PYC trees.
+
 See [`docs/DATA-INTELLIGENCE.md`](docs/DATA-INTELLIGENCE.md) for the complete architecture, evidence-state definitions, automatic report list, and Weapon Description verification policy.
 
 ## Verify

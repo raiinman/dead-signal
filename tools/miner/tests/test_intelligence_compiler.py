@@ -134,6 +134,7 @@ class IntelligenceCompilerTests(unittest.TestCase):
 
         self.assertEqual(84, result["record_counts"]["ui_consumer_candidates"])
         self.assertEqual(0, result["record_counts"]["registry_tables"])
+        self.assertEqual(0, result["record_counts"]["consumer_index_files"])
         self.assertEqual(0, result["record_counts"]["client_data_tables"])
         self.assertEqual(90, result["record_counts"]["prototype_desc_fields_found"])
         self.assertEqual(88, result["record_counts"]["prototype_desc_resolved"])
@@ -160,6 +161,8 @@ class IntelligenceCompilerTests(unittest.TestCase):
         self.assertIn("published/reports/table-registry-summary.json", names)
         self.assertIn("published/reports/client-data-census.json", names)
         self.assertIn("catalogs/dead-signal-table-registry.sqlite", names)
+        self.assertIn("catalogs/dead-signal-consumer-index.sqlite", names)
+        self.assertIn("published/reports/consumer-index-summary.json", names)
         self.assertIn("research/schema-trace-all-weapons.json", names)
         self.assertIn("research/missing-fixed-skill-forensics.json", names)
         self.assertIn("published/data/weapons.json", names)
