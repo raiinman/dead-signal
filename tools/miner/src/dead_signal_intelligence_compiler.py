@@ -21,6 +21,7 @@ from dead_signal_consumer_index import run_consumer_index
 from dead_signal_reference_graph import run_reference_graph
 from dead_signal_semantic_registry import write_semantic_registry_report
 from dead_signal_snapshot_diff import build_snapshot_diff
+from dead_signal_coverage_dashboard import build_coverage_dashboard
 from dead_signal_publication_gate import build_gate_report
 from dead_signal_research_suite import run_research_suite
 from dead_signal_schema_trace_batch import DeadSignalSchemaTraceBatch
@@ -278,6 +279,11 @@ def compile_intelligence(output: Path | str, *, log=None, progress=None, activit
         lambda: build_weapon_site_projection(paths["weapons"], paths["published"], corpus_audit, site_readiness, activity=activity),
         log=log, progress=progress, activity=activity, percent=65,
     )
+    coverage_dashboard = _stage(
+        stages, "Launch Coverage Dashboard",
+        lambda: build_coverage_dashboard(site_projection, paths["reports"]),
+        log=log, progress=progress, activity=activity, percent=69,
+    )
     discovery = _stage(
         stages, "Discovery Engine", lambda: DeadSignalDiscovery(paths["output"]).run_all(),
         log=log, progress=progress, activity=activity, percent=71,
@@ -299,6 +305,7 @@ def compile_intelligence(output: Path | str, *, log=None, progress=None, activit
     readiness_counts = site_readiness.get("record_counts") or {}
     readiness_score = site_readiness.get("scoreboard") or {}
     projection_counts = site_projection.get("record_counts") or {}
+    coverage_counts = coverage_dashboard.get("record_counts") or {}
     forensic = schema_trace.get("missing_skill_forensics") or {}
     forensic_counts = forensic.get("record_counts") or {}
     registry_counts = (table_registry.get("summary") or {}).get("record_counts") or {}
@@ -363,6 +370,7 @@ def compile_intelligence(output: Path | str, *, log=None, progress=None, activit
             "site_projection_weapons": projection_counts.get("weapons", 0),
             "site_projection_gun_base_promoted": projection_counts.get("gun_base_promoted", 0),
             "site_projection_family_members": projection_counts.get("variant_family_members", 0),
+            "coverage_dashboard_fields": coverage_counts.get("fields", 0),
             "discovery_tables": ((discovery.get("schema_clusters") or {}).get("record_counts") or {}).get("tables", 0),
             "description_hotspots": ((discovery.get("description_hotspots") or {}).get("record_counts") or {}).get("hotspots", 0),
             "analytics_rows": analytics.get("rows", {}),
@@ -394,6 +402,7 @@ def compile_intelligence(output: Path | str, *, log=None, progress=None, activit
             "website_weapons_v2": str(paths["published"] / "site" / "weapons-v2.json"),
             "website_site_delta": str(paths["published"] / "site" / "site-delta.json"),
             "self_diagnostics": str(paths["reports"] / "dead-signal-self-diagnostics.json"),
+            "coverage_dashboard": str(paths["reports"] / "dead-signal-coverage-dashboard.json"),
             "discovery": str(paths["reports"] / "dead-signal-discovery.json"),
             "description_leads": str(paths["reports"] / "dead-signal-description-leads.json"),
             "description_field_audit": str(paths["reports"] / "dead-signal-description-field-audit.json"),

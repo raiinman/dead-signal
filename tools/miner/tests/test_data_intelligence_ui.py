@@ -54,6 +54,12 @@ class DataIntelligenceUiTests(unittest.TestCase):
         self.assertEqual("01:05", _format_elapsed(65))
         self.assertEqual("1:01:01", _format_elapsed(3661))
 
+    def test_window_exposes_existing_runtime_coverage_tab(self):
+        source = (SRC / "dead_signal_intelligence_window.py").read_text(encoding="utf-8")
+        self.assertIn('self._build_coverage(notebook)', source)
+        self.assertIn('"Launch Coverage"', source)
+        self.assertIn('dead-signal-coverage-dashboard.json', source)
+
 
 if __name__ == "__main__":
     unittest.main()

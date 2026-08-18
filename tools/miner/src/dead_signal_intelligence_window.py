@@ -122,6 +122,7 @@ class DataIntelligenceWindow:
         self._build_explorer(notebook)
         self._build_profiler(notebook)
         self._build_source_finder(notebook)
+        self._build_coverage(notebook)
 
     def _tab(self, notebook, title):
         frame = tk.Frame(notebook, bg=PANEL, padx=13, pady=13)
@@ -218,6 +219,40 @@ class DataIntelligenceWindow:
         self.source_rows.bind("<<TreeviewSelect>>", self._source_selected)
         self.source_detail = self._json_text(right)
         self.source_detail.pack(fill="both", expand=True, padx=7, pady=7)
+
+    def _build_coverage(self, notebook):
+        frame = self._tab(notebook, "Launch Coverage")
+        bar = tk.Frame(frame, bg=PANEL)
+        bar.pack(fill="x", pady=(0, 8))
+        tk.Label(bar, text="POST-PROMOTION FIELD COVERAGE", bg=PANEL, fg=TEXT,
+                 font=("Segoe UI", 9, "bold")).pack(side="left")
+        self._button(bar, "REFRESH", self._load_coverage, muted=True).pack(side="right")
+        self.coverage_summary = tk.Label(bar, text="", bg=PANEL, fg=MUTED, font=("Segoe UI", 9))
+        self.coverage_summary.pack(side="right", padx=12)
+        self.coverage_rows = self._tree(frame, ("field", "coverage", "pending", "partial", "unresolved", "report"), (230, 100, 100, 90, 100, 430))
+        self.coverage_rows.pack(fill="both", expand=True)
+        self._load_coverage()
+
+    def _load_coverage(self):
+        path = self.output / "published" / "reports" / "dead-signal-coverage-dashboard.json"
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            payload = {"fields": [], "record_counts": {}}
+        if not hasattr(self, "coverage_rows"):
+            return
+        self.coverage_rows.delete(*self.coverage_rows.get_children())
+        for row in payload.get("fields") or []:
+            states = row.get("states") or {}
+            self.coverage_rows.insert("", "end", values=(
+                row.get("field"), row.get("display"),
+                states.get("exact evidence located but semantic proof pending", 0),
+                states.get("partial", 0),
+                states.get("unresolved", 0) + states.get("unresolved evidence state", 0),
+                row.get("evidence_report"),
+            ))
+        counts = payload.get("record_counts") or {}
+        self.coverage_summary.configure(text=f"Fields {counts.get('fields', 0)}  /  Blocker slots {counts.get('blocker_slots', 0)}")
 
     def _open_evidence(self):
         self.open_evidence_console(self.parent, self.output)
