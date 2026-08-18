@@ -406,3 +406,67 @@ After that, continue into the highest-value unresolved player-facing lane using 
 The guiding principle is now:
 
 > **Use the local persistent architecture to answer questions directly. Stop exporting or rescanning enormous corpora when the proof is already indexed on the user's machine.**
+
+---
+
+# Local takeover progress — 2026-08-18
+
+The local Codex session completed the immediate Intelligence infrastructure audit and fix on canonical `main`.
+
+## Verified local evidence
+
+- Active output: `C:\Users\mikea\Documents\Dead Signal Miner`
+- Inspected Intelligence workspace: `intelligence\Dead-Signal-Intelligence-20260818-054930Z`
+- The extracted workspace was approximately 7.88 GB:
+  - table registry SQLite: 4.20 GB
+  - consumer index SQLite: 2.23 GB
+  - snapshot diff JSON: 849.7 MB
+  - reference tracer SQLite: 217.1 MB
+  - analytics DuckDB: 120.3 MB
+- Report/database consistency was confirmed:
+  - registry tables: 41,771
+  - consumer files: 94,165
+  - consumer scopes: 562,321
+  - reference edges: 919
+  - semantic definitions: 12
+  - client-data instances: 10,886
+  - distinct client-data paths: 10,703
+
+## Implemented fixes
+
+- Split the product contract into a full local forensic workspace and a compact shareable ZIP.
+- Replaced broad report globbing and database inclusion with an explicit shareable artifact allowlist.
+- Excluded SQLite, DuckDB, local indexes, raw snapshots, and broad forensic corpora from the shareable ZIP.
+- Added a bundle manifest with member-level uncompressed byte accounting and an explicit policy statement.
+- Redacted absolute local paths from the compiled summary embedded in the shareable ZIP.
+- Raised the compiler schema to version 8.
+- Raised snapshot-diff schema to version 2.
+- Bounded snapshot-diff tables, records, fields, and individual serialized values.
+- Added truncation metadata and a pointer to the local registry/index/snapshot evidence for deep inspection.
+- Added regression coverage for database exclusion, path redaction, bundle accounting, and oversized diff values.
+
+## Real-output validation
+
+- Regenerated `published\reports\snapshot-data-diff.json` against the completed local Base/Current snapshot.
+- Snapshot diff reduced from 849.7 MB to 531,890 bytes (about 519 KB).
+- Built `intelligence\Dead-Signal-Intelligence-20260818-140741Z.zip` without rerunning mining or heavy research.
+- Shareable archive:
+  - 16 allowlisted evidence artifacts plus compiled summary and manifest
+  - 27.9 MiB uncompressed allowlisted payload
+  - 2,031,475 bytes compressed (about 1.94 MiB)
+  - zero SQLite/DuckDB entries
+  - zero detected `C:\Users\...` or `C:/Users/...` paths
+- The original extracted forensic workspace was deliberately retained unchanged as local evidence.
+
+## Validation
+
+- Focused Intelligence compiler and snapshot-diff tests: 7 passed.
+- Full Miner source suite: 184 passed.
+- `git diff --check`: clean except expected Windows line-ending notices.
+- Pre-existing untracked `tools/miner.zip` remains untouched.
+
+## Remaining release work
+
+- These source changes have not yet been rebuilt into a new packaged Miner version.
+- Packaged Windows self-test and release-gate validation remain required before any `.62` release or updater-manifest change.
+- The next evidence lane remains Cradle compatibility/applicability, using the local registry, consumer index, reference graph, and analytics warehouse rather than another full-corpus export.
