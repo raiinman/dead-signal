@@ -16,15 +16,16 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Callable
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 ActivityCallback = Callable[[str], None]
 SHOOT_CONST_PYC = "dcs_extend/const/shoot_const.pyc"
 GUN_BASE_TABLE = "game_common/data/gun_base_params_data.json"
 BULLET_SCATTER_TABLE = "game_common/data/bullet_scatter_data.json"
-BULLET_PATTERN_TABLE = "game_common/data/bullet_pattern_data.json"
+BULLET_PATTERN_TABLE = "client_data/bullet_pattern_data.json"
 CRADLE_ENTRY_TABLE = "game_common/data/cradle_override_entry_data.json"
 CRADLE_CONFIG_TABLE = "game_common/data/cradle_override_config_new_data.json"
-TARGET_SHOOT_NAMES = {"SINGLE", "BURST", "AUTO"}
+SHOOT_NAME_ORDER = ("NONE", "SINGLE", "BURST", "AUTO")
+TARGET_SHOOT_NAMES = set(SHOOT_NAME_ORDER)
 RELATION_TOKENS = ("bullet", "projectile", "pattern", "scatter", "pellet")
 CRADLE_CONSUMER_TOKENS = (
     b"cradle_override_entry", b"cradle_override", b"weapon_type", b"gun_type",
@@ -130,16 +131,24 @@ def _shoot_mode_enum(roots: list[tuple[str, Path]]) -> dict[str, Any]:
         for qualname, child in _walk(code):
             if child.co_name != "ShootMode":
                 continue
+            names = [name for name in map(str, child.co_names) if name in TARGET_SHOOT_NAMES]
+            int_consts = [
+                int(value) for value in child.co_consts
+                if isinstance(value, int) and not isinstance(value, bool)
+            ]
+            structural_mapping: dict[str, int] = {}
+            structural_ok = (
+                names == list(SHOOT_NAME_ORDER)
+                and len(int_consts) == len(SHOOT_NAME_ORDER)
+                and len(set(int_consts)) == len(int_consts)
+            )
+            if structural_ok:
+                structural_mapping = dict(zip(SHOOT_NAME_ORDER, int_consts))
+
             try:
                 instructions = list(dis.get_instructions(child))
             except Exception:
-                return {
-                    "state": "marshal-compatible-disassembly-failed",
-                    "layer": layer,
-                    "relative_path": SHOOT_CONST_PYC,
-                    "mapping": {},
-                    "evidence": [],
-                }
+                instructions = []
             mapping: dict[str, int] = {}
             evidence: list[dict[str, Any]] = []
             for index, instruction in enumerate(instructions):
@@ -160,16 +169,32 @@ def _shoot_mode_enum(roots: list[tuple[str, Path]]) -> dict[str, Any]:
                 })
                 if value is not None:
                     mapping[name] = value
+
+            if not TARGET_SHOOT_NAMES.issubset(mapping) and structural_mapping:
+                mapping = structural_mapping
+                state = "resolved-static-class-constant-order"
+                proof = {
+                    "method": "class-code-object-name-and-integer-constant-order",
+                    "name_order": names,
+                    "integer_constant_order": int_consts,
+                    "mapping": structural_mapping,
+                    "constraints": "Exactly four enum names in canonical order and exactly four unique integer constants are required.",
+                }
+            else:
+                state = "resolved-static-enum" if TARGET_SHOOT_NAMES.issubset(mapping) else "partial-static-enum"
+                proof = None
+
             return {
-                "state": "resolved-static-enum" if TARGET_SHOOT_NAMES.issubset(mapping) else "partial-static-enum",
+                "state": state,
                 "layer": layer,
                 "relative_path": SHOOT_CONST_PYC,
                 "qualname": qualname,
                 "mapping": mapping,
                 "evidence": evidence,
+                "structural_proof": proof,
                 "co_names": list(map(str, child.co_names)),
                 "co_consts": [value for value in child.co_consts if isinstance(value, (str, int, float, bool, type(None)))][:100],
-                "policy": "Numeric enum values come from static class-body bytecode only; game bytecode is never executed.",
+                "policy": "Numeric enum values require either direct static assignment evidence or an exact one-to-one class name/constant ordering with no extra integer constants; game bytecode is never executed.",
             }
     return {"state": "unresolved", "mapping": {}, "evidence": []}
 
@@ -225,20 +250,26 @@ def _projectile_trace(roots: list[tuple[str, Path]], weapons: list[dict[str, Any
                 pattern_field_counts[str(field)] += 1
 
     resolved = 0
+    ranged_total = 0
+    patternless_ranged = 0
     for weapon in weapons:
+        published_ranged = weapon.get("ranged_stats") if isinstance(weapon.get("ranged_stats"), dict) else {}
+        if published_ranged:
+            ranged_total += 1
         gun_no = _first_tier_gun(weapon)
         gun_record = gun_table.get(str(gun_no)) if gun_no not in (None, "") else None
         relations = _relation_fields(gun_record)
         scatter_no = relations.get("bullet_scatter_no") if relations else None
         scatter_record = scatter_table.get(str(scatter_no)) if scatter_no not in (None, "") else None
 
-        published_ranged = weapon.get("ranged_stats") if isinstance(weapon.get("ranged_stats"), dict) else {}
         pattern_no = published_ranged.get("bullet_pattern_id")
         if pattern_no in (None, "") and isinstance(gun_record, dict):
             for key in ("bullet_pattern_no", "bullet_pattern_id", "bullet_pattern"):
                 if gun_record.get(key) not in (None, ""):
                     pattern_no = gun_record.get(key)
                     break
+        if published_ranged and pattern_no in (None, ""):
+            patternless_ranged += 1
         pattern_record = pattern_table.get(str(pattern_no)) if pattern_no not in (None, "") else None
         exact_count = None
         exact_field = None
@@ -280,10 +311,12 @@ def _projectile_trace(roots: list[tuple[str, Path]], weapons: list[dict[str, Any
     return {
         "record_counts": {
             "weapons": len(rows),
+            "ranged_weapons": ranged_total,
             "gun_records": sum(bool(row.get("gun_relation_fields")) for row in rows),
             "scatter_records": sum(bool(row.get("scatter_record_found")) for row in rows),
             "pattern_records": sum(bool(row.get("pattern_record_found")) for row in rows),
             "projectile_counts_resolved": resolved,
+            "patternless_ranged_weapons": patternless_ranged,
         },
         "gun_relation_field_inventory": dict(sorted(relation_field_counts.items())),
         "pattern_projectile_field_inventory": dict(sorted(pattern_field_counts.items())),
@@ -454,7 +487,7 @@ def run_weapon_launch_gap_trace(
         "policy": {
             "authority": "Installed-game snapshot only.",
             "publication": "Only exact numeric enum assignments and exact typed table relationships may be promoted; table-name, text, or token matches remain locators.",
-            "bytecode": "Static marshal/disassembly and raw-token inspection only; game bytecode is never imported or executed.",
+            "bytecode": "Static marshal/disassembly and code-object structure only; game bytecode is never imported or executed.",
         },
     }
     destination = reports_dir / "weapon-launch-gap-trace.json"
