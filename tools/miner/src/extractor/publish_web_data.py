@@ -113,6 +113,7 @@ def build_weapon_projection(data_dir: Path) -> dict:
                 "identity": weapon.get("identity"),
                 "availability": weapon.get("availability"),
                 "craftability": weapon.get("craftability"),
+                "progression_state": weapon.get("progression_state"),
                 "name": weapon.get("name"),
                 "category": weapon.get("category"),
                 "weapon_type_code": weapon.get("weapon_type_code"),
@@ -145,6 +146,7 @@ def build_weapon_projection(data_dir: Path) -> dict:
                 } if ranged else None,
                 "ammo_item_id": ranged.get("ammo_item_id") if ranged else None,
                 "effect": weapon.get("effect"),
+                "effect_resolution": weapon.get("effect_resolution"),
                 "cradle_applicability": {
                     "state": ((weapon.get("compatibility") or {}).get("cradle") or {}).get("state", "unresolved"),
                     "compatible_exact_ids": ((weapon.get("compatibility") or {}).get("cradle") or {}).get("compatible_exact_ids", []),
@@ -341,19 +343,27 @@ def build_quality_report(data_dir: Path, weapons_web: dict, armor_web: dict) -> 
     unresolved_ranged = int((profiles_payload.get("record_counts") or {}).get("unresolved_gun_profiles") or 0)
     if unresolved_ranged:
         weapon_blockers.append(f"Unresolved firearm profiles: {unresolved_ranged}")
-    missing_effects = sum(not bool(row.get("effect")) for row in weapons)
+    missing_effects = sum(
+        not bool(row.get("effect"))
+        and (row.get("effect_resolution") or {}).get("status") != "no-fixed-skill-reference"
+        for row in weapons
+    )
     missing_recipes = sum(
-        not all((tier.get("recipe") for tier in (row.get("progression") or {}).get("gear_tiers") or []))
+        (row.get("craftability") or {}).get("recipe_model") != "base-formula-plus-tier-selection"
+        and not all((tier.get("recipe") for tier in (row.get("progression") or {}).get("gear_tiers") or []))
         for row in standard_progression
     )
-    unresolved_progression = len(weapons) - len(standard_progression)
+    unresolved_progression = sum(
+        row.get("progression_state") == "unresolved-progression-owner"
+        for row in weapons
+    )
     missing_images = sum(not bool(row.get("image_asset")) for row in weapons)
     if missing_effects:
         weapon_warnings.append(f"Weapon effect text unresolved or absent: {missing_effects}")
     if missing_recipes:
         weapon_warnings.append(f"Weapons with one or more missing Tier recipes: {missing_recipes}")
     if unresolved_progression:
-        weapon_warnings.append(f"Weapons with nonstandard or non-applicable progression: {unresolved_progression}")
+        weapon_warnings.append(f"Weapons with unresolved progression owner: {unresolved_progression}")
     if missing_images:
         weapon_warnings.append(f"Weapons without linked website artwork: {missing_images}")
 
@@ -391,7 +401,7 @@ def build_quality_report(data_dir: Path, weapons_web: dict, armor_web: dict) -> 
                 "canonical_ids_unique": weapon_unique,
                 "standard_progression_weapons": len(standard_progression),
                 "exactly_five_tiers": len(standard_progression) - len(incomplete_tiers),
-                "nonstandard_or_nonapplicable_progression": unresolved_progression,
+                "unresolved_progression_owner": unresolved_progression,
                 "weapon_effects": len(weapons) - missing_effects,
                 "complete_tier_recipes": len(standard_progression) - missing_recipes,
                 "linked_artwork": len(weapons) - missing_images,

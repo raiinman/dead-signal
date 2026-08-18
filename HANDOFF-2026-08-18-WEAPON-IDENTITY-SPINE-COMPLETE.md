@@ -66,3 +66,21 @@ Regression coverage includes the six standard omissions, six special identities,
 - Do not cut a Miner release solely from this handoff; release packaging remains a separate explicit task.
 - Leave the pre-existing untracked `tools/miner.zip` untouched.
 
+## Launch-warning follow-up
+
+The first launch-impact cleanup pass is also complete:
+
+- effect publication now distinguishes 76 resolved effects, 27 exact no-fixed-skill records, 14 dangling fixed-skill text owners, and 13 unresolved nonstandard/special effect owners;
+- the prior blanket 54-effect absence warning is replaced by 27 genuine unresolved effect owners;
+- the 14 dangling fixed-skill records remain gated by the already-closed ownerless fixed-skill forensics branch;
+- exact item-to-forge fallback uses `client_data/forge_formula_map_data.json:ITEM_NO_TO_FORGE_NO_MAP` only when the blueprint forge number has no exact recipe owner;
+- Machete now resolves through exact server-222 forge formula `3301401`;
+- 10 conventional melee recipe paths remain unresolved because the installed formula map has no exact owner for their tier-one items;
+- six nonstandard weapons with exact five-tier equipment rows publish `exact-five-tier-nonstandard-progression` instead of being grouped with missing progression;
+- Morgan remains the one unresolved progression owner;
+- all six special-equipped identities publish progression as not applicable and availability remains unresolved;
+- the extracted artwork linker resolves all 130 Weapon artwork references, clearing the Weapon artwork warning;
+- public quality remains `PARTIAL` with 27 effect, 10 recipe, and 1 progression warning; artwork warning is zero.
+
+The full Miner suite still passes 195 tests after this follow-up.
+

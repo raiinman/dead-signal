@@ -108,6 +108,11 @@ def main() -> int:
         current / "game_common/data/forge_data.json",
         base / "game_common/data/forge_data.json",
     )
+    forge_formula_maps = load_first_table(
+        current / "client_data/forge_formula_map_data.json",
+        base / "client_data/forge_formula_map_data.json",
+    )
+    item_to_forge = forge_formula_maps.get("ITEM_NO_TO_FORGE_NO_MAP", {})
     currency_data = load_first_table(
         current / "game_common/data/money_material_data.json",
         base / "game_common/data/money_material_data.json",
@@ -203,8 +208,18 @@ def main() -> int:
         ):
             tier_items_by_blueprint[(blueprint_id, art_level)] = int(tier_item_id)
 
-    def recipe_for(forge_no: int, blueprint_id: int, weapon_name: str):
-        current_key = f"({forge_no}, {CURRENT_RECIPE_SERVER_NO})"
+    def recipe_for(forge_no: int, blueprint_id: int, weapon_name: str, output_item_id: int = 0):
+        mapped = item_to_forge.get(str(output_item_id)) if output_item_id else None
+        mapped_server = None
+        if isinstance(mapped, list) and mapped:
+            mapped_server = int(mapped[1]) if len(mapped) > 1 else None
+            mapped = mapped[0]
+        mapped_used = False
+        if not forge_data.get(f"({forge_no}, {CURRENT_RECIPE_SERVER_NO})") and not forge_data.get(str(forge_no)) and mapped:
+            forge_no = int(mapped)
+            mapped_used = True
+        server_no = (mapped_server if mapped_used else None) or CURRENT_RECIPE_SERVER_NO
+        current_key = f"({forge_no}, {server_no})"
         forge = forge_data.get(current_key) or forge_data.get(str(forge_no), {})
         if not forge:
             return None
@@ -248,7 +263,7 @@ def main() -> int:
             "forge_no": forge_no,
             "recipe_key": current_key if current_key in forge_data else str(forge_no),
             "recipe_server_no": (
-                CURRENT_RECIPE_SERVER_NO if current_key in forge_data else 0
+                server_no if current_key in forge_data else 0
             ),
             "output_item_id": int(forge.get("item_no") or 0),
             "fixed_materials": materials,
@@ -262,6 +277,11 @@ def main() -> int:
             "source_status": "mined-current-recipe-layer"
             if current_key in forge_data
             else "mined-fallback-recipe-layer",
+            "identity_source": (
+                "client_data/forge_formula_map_data.json:ITEM_NO_TO_FORGE_NO_MAP"
+                if mapped_used
+                else "game_common/data/gun_blueprint_data.json:corr_forge_no"
+            ),
         }
 
     review_queue = []
@@ -295,6 +315,11 @@ def main() -> int:
         fixed_skill_code = str(enhancement.get("fixed_skill_code") or "")
         fixed_skill_level = int(enhancement.get("fixed_skill_lv") or 1)
         effect = None
+        effect_resolution = {
+            "status": "effect-owner-unresolved",
+            "fixed_skill_code": fixed_skill_code or None,
+            "source_table": "game_common/data/gun_blueprint_attr_data.json",
+        }
         if fixed_skill_code:
             skill = passive_skills.get(fixed_skill_code, {})
             buff_id = int(skill.get("buff_id") or 0)
@@ -314,7 +339,19 @@ def main() -> int:
                     "keyword_buff_id": int(skill.get("keyword_buff_id") or 0),
                     "keyword_status_id": int(skill.get("keyword_status_id") or 0),
                 }
+                effect_resolution = {
+                    "status": "resolved-player-facing-effect",
+                    "fixed_skill_code": fixed_skill_code,
+                    "buff_id": buff_id or None,
+                    "source_table": "game_common/data/gun_blueprint_attr_data.json",
+                }
             else:
+                effect_resolution = {
+                    "status": "fixed-skill-text-unresolved",
+                    "fixed_skill_code": fixed_skill_code,
+                    "buff_id": buff_id or None,
+                    "source_table": "game_common/data/gun_blueprint_attr_data.json",
+                }
                 review_queue.append(
                     {
                         "blueprint_id": blueprint_id,
@@ -322,6 +359,12 @@ def main() -> int:
                         "reason": f"Fixed weapon skill {fixed_skill_code} did not resolve to player-facing text",
                     }
                 )
+        elif identity["identity_state"] == "standard-blueprint" and enhancement:
+            effect_resolution = {
+                "status": "no-fixed-skill-reference",
+                "fixed_skill_code": None,
+                "source_table": "game_common/data/gun_blueprint_attr_data.json",
+            }
 
         base_attributes = normalized_blueprint_attributes(enhancement)
         progression_levels = blueprint_attribute_levels.get(blueprint_id, [])
@@ -360,15 +403,15 @@ def main() -> int:
         if not tier_sources and identity["identity_state"] == "special-equipped":
             tier_sources = [(int(equip.get("art_lv") or 0) or 1, 0)]
         for level, forge_no in tier_sources:
-            recipe = recipe_for(forge_no, blueprint_id, name) if forge_no else None
-            if not recipe:
-                missing_recipe_levels.append(level)
             output_item_id = int(
-                (recipe or {}).get("output_item_id")
-                or tier_items_by_blueprint.get((blueprint_id, level))
+                tier_items_by_blueprint.get((blueprint_id, level))
                 or (item_id if len(tier_sources) == 1 else 0)
                 or 0
             )
+            recipe = recipe_for(forge_no, blueprint_id, name, output_item_id) if forge_no or output_item_id else None
+            if not recipe:
+                missing_recipe_levels.append(level)
+            output_item_id = int((recipe or {}).get("output_item_id") or output_item_id)
             tier_item = items.get(str(output_item_id), {})
             tier_equip = equipment.get(str(output_item_id), {})
             origin_id = str(tier_equip.get("equip_origin_id") or output_item_id)
@@ -479,7 +522,27 @@ def main() -> int:
                     ],
                 },
                 "availability": {"state": identity["availability_state"]},
-                "craftability": {"state": identity["craftability_state"]},
+                "craftability": {
+                    "state": identity["craftability_state"],
+                    "recipe_model": (
+                        "per-tier-formulas"
+                        if tiers and not missing_recipe_levels
+                        else "base-formula-plus-tier-selection"
+                        if weapon_type == 9 and any(row.get("recipe") for row in tiers)
+                        else "unresolved-recipe-path"
+                        if identity["craftability_state"] == "standard-tier-progression"
+                        else "not-applicable-or-nonstandard"
+                    ),
+                },
+                "progression_state": (
+                    "standard-five-tier-progression"
+                    if identity["craftability_state"] == "standard-tier-progression"
+                    else "exact-five-tier-nonstandard-progression"
+                    if len(tiers) == 5
+                    else "not-applicable-special-equipped"
+                    if identity["identity_state"] == "special-equipped"
+                    else "unresolved-progression-owner"
+                ),
                 "quality_code": quality_code,
                 "quality": QUALITY_NAMES.get(quality_code, "Common"),
                 "icon": item.get("icon") or "",
@@ -508,6 +571,7 @@ def main() -> int:
                 "ranged_stats": ranged_stats,
                 "melee_stats": melee_stats,
                 "effect": effect,
+                "effect_resolution": effect_resolution,
                 "tiers": tiers,
                 "verification_notes": [
                     "Weapon identity, stats, effect text, and recipes were reconstructed from the installed game snapshot.",
