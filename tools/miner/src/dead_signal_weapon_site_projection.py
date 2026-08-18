@@ -11,9 +11,10 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Callable
 
+from dead_signal_weapon_launch_gap_trace import run_weapon_launch_gap_trace
 from dead_signal_weapon_site_publish import publish_weapon_site_payloads
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 ActivityCallback = Callable[[str], None]
 
 GUN_BASE_SEMANTIC_FIELDS = {
@@ -139,6 +140,23 @@ def _member_stub(weapon: dict[str, Any]) -> dict[str, Any]:
     return {"blueprint_id": weapon.get("blueprint_id"), "name": weapon.get("name"), "category": weapon.get("category")}
 
 
+def _snapshot_layers(published_dir: Path) -> tuple[Path | None, Path | None]:
+    output = published_dir.parent
+    last_run = _read_json(output / "last-run.json", {}) or {}
+    active = last_run.get("active_snapshots") if isinstance(last_run, dict) else {}
+    active = active if isinstance(active, dict) else {}
+
+    def resolve(raw: Any) -> Path | None:
+        text = str(raw or "").strip()
+        if not text:
+            return None
+        path = Path(text).expanduser()
+        path = (output / path).resolve() if not path.is_absolute() else path.resolve()
+        return path if path.is_dir() else None
+
+    return resolve(active.get("base")), resolve(active.get("current"))
+
+
 def build_weapon_site_projection(
     weapons_path: Path,
     published_dir: Path,
@@ -153,6 +171,17 @@ def build_weapon_site_projection(
     corpus_rows = {str(row.get("blueprint_id")): row for row in (corpus_audit.get("weapons") or []) if isinstance(row, dict)}
     readiness_rows = {str(row.get("blueprint_id")): row for row in (site_readiness.get("weapons") or []) if isinstance(row, dict)}
     prototype_families, pattern_families = _family_maps(weapons)
+
+    base_snapshot, current_snapshot = _snapshot_layers(published_dir)
+    launch_gap_trace: dict[str, Any] = {"state": "snapshot-layers-unavailable"}
+    if base_snapshot is not None and current_snapshot is not None:
+        launch_gap_trace = run_weapon_launch_gap_trace(
+            base_snapshot,
+            current_snapshot,
+            weapons_path,
+            published_dir / "reports",
+            activity=activity,
+        )
 
     output_rows: list[dict[str, Any]] = []
     promoted_gun_base = unresolved_gun_base = variant_family_members = 0
@@ -285,7 +314,11 @@ def build_weapon_site_projection(
             "gun_base_unresolved": unresolved_gun_base,
             "variant_family_members": variant_family_members,
             "rarity_promoted": sum(1 for row in output_rows if (row.get("rarity") or {}).get("state") == "resolved-installed-game"),
+            "launch_gap_shoot_mode_values": ((launch_gap_trace.get("record_counts") or {}).get("shoot_mode_values", 0) if isinstance(launch_gap_trace, dict) else 0),
+            "launch_gap_projectiles_resolved": ((launch_gap_trace.get("record_counts") or {}).get("projectile_counts_resolved", 0) if isinstance(launch_gap_trace, dict) else 0),
+            "launch_gap_cradle_tables": ((launch_gap_trace.get("record_counts") or {}).get("cradle_tables", 0) if isinstance(launch_gap_trace, dict) else 0),
         },
+        "launch_gap_trace": launch_gap_trace,
         "weapons": output_rows,
     }
     destination = published_dir / "site" / "weapons-v2.json"
