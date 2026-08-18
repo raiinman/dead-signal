@@ -2,19 +2,112 @@
 
 > Read this file and `PROJECT-RULES.md` first. Canonical current-state continuity for `raiinman/dead-signal` on `main`.
 >
-> Updated **2026-08-16 night shift / 2026-08-17 UTC** after the weapon-description breakthrough, ownerless fixed-skill architecture expansion, Data Intelligence compiler integration, and Miner v1.5.14.47 release.
+> Updated **2026-08-17 America/Phoenix / 2026-08-18 UTC** after completion of the Miner architecture upgrade, unified Miner shell, Data Intelligence task-hub redesign, Windows packaging verification, and installation into the user's active Desktop Miner.
 
-## Immediate objective
+## Current implementation state — read before older research sections
 
-Finish the player-facing Once Human Weapons database from exact installed-game evidence.
+Miner source remains version **v1.5.14.61**. The architecture upgrade is complete through Phase 7; do not restart at Phase 0.
+
+Current source state:
+
+- canonical repository: `raiinman/dead-signal`
+- canonical branch: `main`
+- GitHub `origin/main`: `302d6d7` — unified Miner pipeline console
+- local `main`: `ca958f2` — Data Intelligence task hubs (**one commit ahead of origin; not pushed yet**)
+- unrelated `tools/miner.zip` remains untracked and must not be touched
+
+Canonical editable checkout used for this work:
+
+`C:\Users\mikea\Documents\Codex\2026-08-12\check-the-ai-continuity-on-girhub`
+
+User's active packaged Miner installation:
+
+`C:\Users\mikea\OneDrive\Desktop\Dead Signal Miner`
+
+Canonical generated Miner data/output:
+
+`C:\Users\mikea\Documents\Dead Signal Miner`
+
+Recoverable pre-redesign package backup:
+
+`C:\Users\mikea\OneDrive\Desktop\Dead Signal Miner.backup-20260817-211543`
+
+The active Desktop package contains the `ca958f2` Data Intelligence redesign and passes the packaged self-test. Installed executable SHA-256 at handoff:
+
+`E1E44952F48775FCC165ADC561617546274B754D9D162DEB9D479028CB263914`
+
+Latest validation:
+
+- 183 Miner source tests PASS
+- source window construction PASS
+- Data Intelligence 20-page construction PASS: 5 task hubs + 15 preserved specialist tools
+- live Windows visual QA PASS for Overview, Explore hub, NeoX Explorer, and contextual navigation
+- Windows build PASS
+- built package self-test PASS
+- installed Desktop package self-test PASS
+
+The previous `.47` release notes and ownerless fixed-skill research below remain useful historical evidence, but they are no longer the current implementation or immediate action.
+
+## Current objective
+
+Use the completed persistent architecture and consolidated UI to finish unresolved player-facing Once Human evidence lanes without repeating full-tree discovery work.
 
 The active blocker is **14 normal public weapons with a real `fixed_skill_code` but no conventional `passive_skill_data` owner**. Do not call these “no mechanic” or “broken weapon records.” Their identity, item, prototype, gun, tier, and presentation paths are normal; the unresolved subsystem is specifically fixed-skill ownership/resolution.
 
-Active question:
+Primary unresolved evidence question:
 
 > What alternate resolver, transformation, mapping, direct buff path, stardust path, helper fallback, or player-facing UI path handles the ownerless fixed-skill class?
 
 See `HANDOFF-2026-08-16-WEAPON-FORENSICS.md` for the detailed current-session research state.
+
+Current operational next steps:
+
+1. Push local commit `ca958f2` to `raiinman/dead-signal` `main` only after explicit approval for that commit.
+2. Use **Data Intelligence → Overview** to choose the next evidence task.
+3. Use **Trace & Resolve** for Source Finder, Evidence Graph, Schema Trace, Description Flow, and Discovery.
+4. Use **Review & Publish** for Workflow Lab, Verification, Publication Gate, Launch Coverage, and Pipeline Inspector.
+5. Use **Build → Compiler** for changed-stage compilation and bundle export.
+6. Preserve all unresolved evidence states until the typed owner/consumer chain proves semantics.
+
+## Completed Miner architecture and UI
+
+Architecture phases completed on `main`:
+
+- Phase 0/1 — persistent table registry and full `client_data` census
+- Phase 2 — persistent static PYC consumer index
+- Phase 3 — typed reference graph with explicit candidate/proven/rejected states
+- Phase 4 — semantic registry, structured promotion engine, and family inheritance registry
+- Phase 5 — registry-backed Base/Current snapshot diff and dependency invalidation
+- Phase 6 — lean website delta and field-level publication diagnostics
+- Phase 7 — coverage dashboard integrated into the Miner
+
+Real-snapshot results retained as implementation evidence:
+
+- 41,771 structured tables in the persistent registry
+- 10,886 `client_data` layer entries / 10,703 paths
+- 94,165 PYC files / 562,321 code scopes in the consumer index
+- 919 typed reference edges: 94 semantic-proven and 825 typed
+- unchanged Weapons publication coverage: 120 weapons / 95 ranged gun records / 120 rarity
+- coverage: Weapons 120/120, Descriptions 119/120, Tier-I ranged gun stats 95/95, Firing mode 95/95, Projectile semantics 13/95, Cradle 0/120, Special Skill 76/120 with 44 explicit evidence states
+
+The long final all-stages real compile was intentionally stopped at the user's request to avoid wasting compute/credits. Phase-specific real-snapshot runs, compiler integration tests, packaged self-tests, and the full source suite are the verification basis. Do not claim that interrupted run completed.
+
+The Miner UI is now one unified operations console:
+
+- **Run Pipeline** combines Mine → Index → Resolve → Compile → Verify
+- **Explore Data** groups Data Intelligence, Research Console, and published datasets
+- **Publish & Verify** groups site output, site delta, evidence reports, and health refresh
+- health metrics and activity use generated reports/state rather than hard-coded demo values
+
+Data Intelligence no longer exposes a wall of 15 tabs. It uses five task hubs:
+
+- Overview
+- Explore
+- Trace & Resolve
+- Review & Publish
+- Build
+
+All 15 specialist tools remain available behind those hubs and have contextual back-navigation. No evidence boundary or manual-verification rule was weakened.
 
 ## Non-negotiables
 
@@ -37,9 +130,9 @@ See `HANDOFF-2026-08-16-WEAPON-FORENSICS.md` for the detailed current-session re
 - GitHub source is authoritative; release packages are artifacts.
 - Updater manifest must be published last after release asset verification.
 
-## Stable Miner
+## Historical Miner release baseline — superseded by current state above
 
-Miner **v1.5.14.47 is RELEASED and stable**.
+Miner **v1.5.14.47 was released and stable** at the time of the original forensic handoff. Current source and active package are v1.5.14.61; do not downgrade to `.47`.
 
 Release source commit:
 
@@ -294,7 +387,7 @@ The Intelligence ZIP must include:
 - `research/schema-trace-all-weapons.json`
 - `research/missing-fixed-skill-forensics.json`
 
-## Immediate next steps
+## Historical `.47` next steps — completed/superseded
 
 1. Installed Miner updates from `.46` to **v1.5.14.47**.
 2. Open **Research Console → Compiler**.

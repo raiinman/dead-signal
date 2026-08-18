@@ -7,6 +7,55 @@
 > **Baseline:** Miner **v1.5.14.61** stable
 > **Release commit:** `0b0b999be3ede3a3d634e543a3735a1ae79418e7`
 > **Updater publication:** `29a9b0e48bdd9a1d2c9639f5c12a8aad52027646`
+> **Status:** **COMPLETE through Phase 7**; unified Miner and Data Intelligence redesign installed locally
+> **Latest local commit:** `ca958f2` — Data Intelligence task hubs (not yet pushed)
+
+## Completion update — 2026-08-17
+
+This handoff's implementation objective is complete. The phase descriptions below are retained as the design contract and historical rationale; they are no longer a to-do list.
+
+Delivered commits:
+
+- `de43d70` — persistent table registry and client-data census
+- `d057ad2` — persistent static PYC consumer index
+- `2a5779d` — persistent typed reference graph
+- `d1e45d7` — semantic promotion and family registries
+- `79a85a9` — registry-backed snapshot dependency diff
+- `858288f` — website delta and publication diagnostics
+- `bd5b828` — launch coverage dashboard
+- `302d6d7` — unified Miner pipeline console
+- `ca958f2` — Data Intelligence task hubs
+
+Git state at handoff:
+
+- `origin/main` includes through `302d6d7`
+- local `main` is one commit ahead at `ca958f2`
+- `ca958f2` needs explicit approval before pushing to `raiinman/dead-signal` `main`
+- `tools/miner.zip` is still untracked and untouched
+
+Validation state:
+
+- 183 source tests PASS
+- real-snapshot phase verification PASS where practical
+- Windows build PASS
+- built executable self-test PASS
+- active Desktop installation self-test PASS
+- live Windows visual QA PASS
+
+Active package and data locations:
+
+```text
+editable source:
+C:\Users\mikea\Documents\Codex\2026-08-12\check-the-ai-continuity-on-girhub
+
+active packaged Miner:
+C:\Users\mikea\OneDrive\Desktop\Dead Signal Miner
+
+Miner data/output:
+C:\Users\mikea\Documents\Dead Signal Miner
+```
+
+The active installed UI includes the unified pipeline console plus the Data Intelligence task hubs. Do not confuse the editable Git checkout with the packaged Desktop installation again.
 
 ## Read first
 
@@ -1003,19 +1052,16 @@ The desired end state is:
 
 ---
 
-# Immediate first action for Codex
+# Immediate next action for Codex
 
-Start with **Phase 0 + Phase 1** only.
+Do **not** restart the architecture phases.
 
-1. Read current `main` source and existing tests.
-2. Run the test suite before changing anything.
-3. Design the table-registry schema around the actual completed-snapshot directory structure already used by the Miner.
-4. Implement persistent per-table fingerprinting and structural profiling.
-5. Add the complete `client_data` census report.
-6. Wire the registry/census into `COMPILE DATA INTELLIGENCE` without removing existing analyzers.
-7. Add tests for caching, Base/Current precedence, schema profiling, and client-data classification.
-8. Run full source tests.
-9. Commit cleanly on `main`.
-10. Report exact files changed, tests run, timings, registry counts, client_data table count, and any newly surfaced high-value tables/relationships.
+1. Read `AI-CONTINUITY.md`, `PROJECT-RULES.md`, and this completion update.
+2. Confirm local/remote Git state before changing code.
+3. If authorized, push `ca958f2` to `raiinman/dead-signal` `main`.
+4. Use the installed task-hub UI and persistent indexes for the next unresolved evidence lane.
+5. Prefer incremental/changed-stage compilation; do not rerun an expensive full real-snapshot compile without a concrete reason.
+6. Keep the 183-test source suite green and require packaged self-test success before replacing the Desktop installation.
+7. Preserve the active package/data separation and the recoverable Desktop backup.
 
-Do not ask for approval between those implementation steps unless an actual destructive/ambiguous project decision is encountered. Continue until Phase 1 is green and committed.
+The architecture handoff is complete when future work uses these registries, indexes, graph edges, semantic definitions, diffs, diagnostics, and coverage reports instead of rebuilding one-off full-tree scans.
