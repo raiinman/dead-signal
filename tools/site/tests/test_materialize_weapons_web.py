@@ -34,6 +34,7 @@ class MaterializeWeaponsWebTests(unittest.TestCase):
     @classmethod
     def weapon(cls, canonical_id: str, name: str, rarity: str, star_cap: int, ranged: bool) -> dict:
         return {
+            "schema_contract": "weapons-v1",
             "canonical_id": canonical_id,
             "name": name,
             "rarity": rarity,
@@ -48,13 +49,17 @@ class MaterializeWeaponsWebTests(unittest.TestCase):
                 "validation_issues": [],
             },
             "nested": {"value": 7 if ranged else 9},
+            "attachment_compatibility": {"state": "resolved-four-state-relationship", "compatible_ids": [], "incompatible_ids": [], "unresolved_ids": [], "not_applicable_ids": []},
+            "calibration_compatibility": {"state": "resolved-four-state-relationship", "compatible_ids": [], "incompatible_ids": [], "unresolved_ids": [], "not_applicable_ids": []},
+            "ammo_configuration": {"state": "resolved-selectable-options" if ranged else "not-applicable"},
         }
 
     @classmethod
     def payload(cls) -> dict:
         return {
             "schema": "dead-signal-weapons",
-            "schema_version": 1,
+            "schema_version": 2,
+            "schema_contract": {"name": "Weapons v1", "status": "locked"},
             "generated_utc": "2026-08-13T00:00:00+00:00",
             "record_counts": {"weapons": 2, "ranged_weapons": 1, "melee_weapons": 1},
             "weapons": [
@@ -112,7 +117,7 @@ class MaterializeWeaponsWebTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             source = Path(folder) / "weapons.json"
             payload = self.payload()
-            payload["schema_version"] = 2
+            payload["schema_version"] = 1
             source.write_text(json.dumps(payload), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "schema_version"):
                 MODULE.load_and_validate(source)

@@ -17,7 +17,7 @@ from typing import Any
 
 
 EXPECTED_SCHEMA = "dead-signal-weapons"
-EXPECTED_SCHEMA_VERSION = 1
+EXPECTED_SCHEMA_VERSION = 2
 LEGAL_GEAR_TIERS = {1, 2, 3, 4, 5}
 RARITY_STAR_CAPS = {
     "common": 3,
@@ -95,6 +95,17 @@ def _validate_progression(record: dict[str, Any]) -> None:
     if not isinstance(progression, dict):
         raise ValueError(f"Weapon {canonical_id} is missing progression data")
 
+    progression_state = record.get("progression_state")
+    if progression_state == "not-applicable-special-equipped":
+        gear_tiers = progression.get("gear_tiers")
+        if not isinstance(gear_tiers, list) or len(gear_tiers) != 1:
+            raise ValueError(f"Weapon {canonical_id} special-equipped progression must retain its exact single tier")
+        return
+    if progression_state == "exact-blueprint-star-owner-gear-tier-owner-unresolved":
+        if progression.get("gear_tiers") or progression.get("tier_star_matrix"):
+            raise ValueError(f"Weapon {canonical_id} unresolved Gear Tier owner must not publish inferred tier rows")
+        return
+
     gear_tiers = progression.get("gear_tiers")
     if not isinstance(gear_tiers, list) or len(gear_tiers) != 5:
         raise ValueError(f"Weapon {canonical_id} must contain exactly five Gear Tier rows")
@@ -108,6 +119,13 @@ def _validate_progression(record: dict[str, Any]) -> None:
     matrix_tiers = [_positive_int(row.get("gear_tier")) if isinstance(row, dict) else None for row in matrix]
     if set(matrix_tiers) != LEGAL_GEAR_TIERS or len(set(matrix_tiers)) != 5:
         raise ValueError(f"Weapon {canonical_id} Tier × Star matrix must cover unique Gear Tier I-V")
+
+    if progression.get("formula_status") == "partial-nonstandard-progression":
+        if any(_number(row.get("tier_base_attack_at_1_star")) is None for row in matrix):
+            raise ValueError(f"Weapon {canonical_id} partial nonstandard progression is missing an exact tier base")
+        if any(row.get("blueprint_star_values") for row in matrix):
+            raise ValueError(f"Weapon {canonical_id} partial nonstandard progression must not infer Blueprint Star rows")
+        return
 
     expected_stars = _validated_star_axis(record, progression)
 
@@ -164,6 +182,9 @@ def load_and_validate(path: Path) -> dict[str, Any]:
         raise ValueError(
             f"Expected schema_version {EXPECTED_SCHEMA_VERSION}, found {payload.get('schema_version')!r}"
         )
+    contract = payload.get("schema_contract")
+    if not isinstance(contract, dict) or contract.get("name") != "Weapons v1" or contract.get("status") != "locked":
+        raise ValueError("Weapons schema_version 2 must carry the locked Weapons v1 schema_contract")
     records = payload.get("weapons")
     if not isinstance(records, list) or not records:
         raise ValueError("Published Weapons payload contains no weapon records")
@@ -179,6 +200,20 @@ def load_and_validate(path: Path) -> dict[str, Any]:
     for record in records:
         if not str(record.get("name") or "").strip():
             raise ValueError(f"Weapon {record.get('canonical_id')} is missing a player-facing name")
+        if record.get("schema_contract") != "weapons-v1":
+            raise ValueError(f"Weapon {record.get('canonical_id')} is not bound to the locked weapons-v1 contract")
+        for field in ("attachment_compatibility", "calibration_compatibility"):
+            relationship = record.get(field)
+            if not isinstance(relationship, dict) or relationship.get("state") != "resolved-four-state-relationship":
+                raise ValueError(f"Weapon {record.get('canonical_id')} has an invalid {field} relationship")
+            for bucket in ("compatible_ids", "incompatible_ids", "unresolved_ids", "not_applicable_ids"):
+                if not isinstance(relationship.get(bucket), list):
+                    raise ValueError(f"Weapon {record.get('canonical_id')} {field}.{bucket} must be a list")
+        ammo = record.get("ammo_configuration")
+        if not isinstance(ammo, dict) or ammo.get("state") not in {
+            "resolved-selectable-options", "unresolved", "not-applicable"
+        }:
+            raise ValueError(f"Weapon {record.get('canonical_id')} has an invalid ammo_configuration state")
         _validate_progression(record)
 
     counts = payload.get("record_counts") or {}

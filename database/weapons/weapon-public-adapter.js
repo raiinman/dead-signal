@@ -4,7 +4,9 @@
   const published = window.DS_WEAPONS_WEB;
   const validContract = !!published
     && published.schema === 'dead-signal-weapons'
-    && published.schema_version === 1
+    && published.schema_version === 2
+    && published.schema_contract?.name === 'Weapons v1'
+    && published.schema_contract?.status === 'locked'
     && Array.isArray(published.weapons)
     && published.weapons.length > 0;
   if (!validContract) return;
@@ -29,11 +31,23 @@
 
   const validProgressionFor = (weapon) => {
     const progression = weapon?.progression;
-    if (!progression || progression.formula_status !== 'proven-static-base-attack' || (progression.validation_issues || []).length) return false;
+    if (!progression) return false;
+    if (weapon.progression_state === 'not-applicable-special-equipped') {
+      return Array.isArray(progression.gear_tiers) && progression.gear_tiers.length === 1;
+    }
+    if (weapon.progression_state === 'exact-blueprint-star-owner-gear-tier-owner-unresolved') {
+      return !(progression.gear_tiers || []).length && !(progression.tier_star_matrix || []).length;
+    }
+    if (!['proven-static-base-attack', 'partial-nonstandard-progression'].includes(progression.formula_status)) return false;
     const gearTiers = progression.gear_tiers;
     const matrix = progression.tier_star_matrix;
     if (!Array.isArray(gearTiers) || gearTiers.length !== 5 || !hasExactNumbers(gearTiers.map((row) => row?.tier), LEGAL_TIERS)) return false;
     if (!Array.isArray(matrix) || matrix.length !== 5 || !hasExactNumbers(matrix.map((row) => row?.gear_tier), LEGAL_TIERS)) return false;
+    if (progression.formula_status === 'partial-nonstandard-progression') {
+      return matrix.every((row) => isFiniteNumber(row?.tier_base_attack_at_1_star)
+        && Array.isArray(row?.blueprint_star_values) && row.blueprint_star_values.length === 0);
+    }
+    if ((progression.validation_issues || []).length) return false;
     const expectedStars = minedStarAxisFor(weapon, progression);
     if (!expectedStars) return false;
     return matrix.every((row) => {
@@ -46,8 +60,17 @@
     });
   };
 
+  const validRelationship = (relationship) => relationship?.state === 'resolved-four-state-relationship'
+    && ['compatible_ids', 'incompatible_ids', 'unresolved_ids', 'not_applicable_ids']
+      .every((key) => Array.isArray(relationship[key]));
+  const validBuildContract = (weapon) => weapon?.schema_contract === 'weapons-v1'
+    && validRelationship(weapon.attachment_compatibility)
+    && validRelationship(weapon.calibration_compatibility)
+    && ['resolved-selectable-options', 'unresolved', 'not-applicable'].includes(weapon?.ammo_configuration?.state);
+
   const canonicalIds = published.weapons.map((weapon) => String(weapon?.canonical_id || '').trim());
-  if (!(canonicalIds.length === new Set(canonicalIds).size && canonicalIds.every(Boolean) && published.weapons.every(validProgressionFor))) return;
+  if (!(canonicalIds.length === new Set(canonicalIds).size && canonicalIds.every(Boolean)
+    && published.weapons.every((weapon) => validProgressionFor(weapon) && validBuildContract(weapon)))) return;
 
   const weapons = published.weapons.map((weapon) => ({
     canonical_id: weapon.canonical_id,
@@ -67,6 +90,10 @@
     tier_star_matrix: weapon.progression?.tier_star_matrix || [],
     formula_status: weapon.progression?.formula_status,
     validation_issues: weapon.progression?.validation_issues || [],
+    attachment_compatibility: weapon.attachment_compatibility,
+    calibration_compatibility: weapon.calibration_compatibility,
+    ammo_configuration: weapon.ammo_configuration,
+    crafting: weapon.crafting,
     public_contract: weapon,
   }));
 

@@ -15,6 +15,7 @@ function makeWeapon(rarity = 'Legendary', starCount = 6) {
   const tiers = [1, 2, 3, 4, 5];
   const ratios = Array.from({ length: starCount }, (_, index) => 1 + (index * 0.05));
   return {
+    schema_contract: 'weapons-v1',
     canonical_id: 'ds-w-test',
     blueprint_id: 100,
     item_id: 200,
@@ -22,6 +23,9 @@ function makeWeapon(rarity = 'Legendary', starCount = 6) {
     category: 'Sniper Rifle',
     rarity,
     baseline: { ranged: { rpm: 100 } },
+    attachment_compatibility: { state: 'resolved-four-state-relationship', compatible_ids: [], incompatible_ids: [], unresolved_ids: [], not_applicable_ids: [] },
+    calibration_compatibility: { state: 'resolved-four-state-relationship', compatible_ids: [], incompatible_ids: [], unresolved_ids: [], not_applicable_ids: [] },
+    ammo_configuration: { state: 'resolved-selectable-options', selectable_ammo_item_ids: [1] },
     progression: {
       formula_status: 'proven-static-base-attack',
       validation_issues: [],
@@ -50,7 +54,8 @@ function runWith(weapon) {
   const window = {
     DS_WEAPONS_WEB: {
       schema: 'dead-signal-weapons',
-      schema_version: 1,
+      schema_version: 2,
+      schema_contract: { name: 'Weapons v1', status: 'locked' },
       generated_utc: '2026-08-13T00:00:00Z',
       record_counts: { weapons: 1 },
       weapons: [weapon],
