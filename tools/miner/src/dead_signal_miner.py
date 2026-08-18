@@ -383,7 +383,7 @@ class DeadSignalMinerApp:
             open_data_intelligence(
                 self.root,
                 Path(self.output_var.get().strip()).expanduser().resolve(),
-                self._open_research_console,
+                lambda *_args: self._open_research_console(),
             )
         except Exception as error:
             messagebox.showerror("Data Intelligence", f"A completed local snapshot is required.\n\n{error}", parent=self.root)

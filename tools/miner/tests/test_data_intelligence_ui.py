@@ -12,6 +12,7 @@ if str(SRC) not in sys.path:
 from dead_signal_compiler_tab import _format_elapsed  # noqa: E402
 from dead_signal_intelligence_window import configure_data_intelligence_styles  # noqa: E402
 from dead_signal_miner import PIPELINE_STAGES  # noqa: E402
+from dead_signal_intelligence_hub import WORKSPACES  # noqa: E402
 
 
 class FakeStyle:
@@ -73,6 +74,22 @@ class DataIntelligenceUiTests(unittest.TestCase):
             ("MINE", "INDEX", "RESOLVE", "COMPILE", "VERIFY"),
             tuple(stage[0] for stage in PIPELINE_STAGES),
         )
+
+    def test_intelligence_tools_are_grouped_into_task_hubs(self):
+        self.assertEqual(
+            ("Explore", "Trace & Resolve", "Review & Publish", "Build"),
+            tuple(WORKSPACES),
+        )
+        tools = [title for rows in WORKSPACES.values() for title, _description in rows]
+        self.assertEqual(15, len(tools))
+        self.assertEqual(15, len(set(tools)))
+        for required in ("NeoX Explorer", "Schema Trace", "Verification", "Launch Coverage", "Compiler"):
+            self.assertIn(required, tools)
+
+        source = (SRC / "dead_signal_intelligence_hub.py").read_text(encoding="utf-8")
+        self.assertIn('style.layout("DSIHub.TNotebook.Tab", [])', source)
+        self.assertIn('self._build_overview(notebook)', source)
+        self.assertIn('self._add_context_bar', source)
 
 
 if __name__ == "__main__":
