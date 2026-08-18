@@ -465,8 +465,55 @@ The local Codex session completed the immediate Intelligence infrastructure audi
 - `git diff --check`: clean except expected Windows line-ending notices.
 - Pre-existing untracked `tools/miner.zip` remains untouched.
 
-## Remaining release work
+## Release transition at that checkpoint
 
-- These source changes have not yet been rebuilt into a new packaged Miner version.
-- Packaged Windows self-test and release-gate validation remain required before any `.62` release or updater-manifest change.
+- At the time of the local takeover checkpoint, these changes had not yet been packaged.
+- The completed release outcome is recorded below.
 - The next evidence lane remains Cradle compatibility/applicability, using the local registry, consumer index, reference graph, and analytics warehouse rather than another full-corpus export.
+
+---
+
+# Canonicalization and v1.5.14.62 release — complete
+
+The source/release boundary required by `HANDOFF-2026-08-18-CODEX-PUSH-AND-RELEASE.md` completed successfully on 2026-08-18.
+
+## Canonical source
+
+- Data Intelligence task-hub UI: `ca958f2` — `Rework Data Intelligence into task hubs`
+- Architecture/UI continuity update: `511d151` — `Update Miner architecture and UI handoff`
+- Compact Intelligence export and bounded diff: `d8685a8` — `Bound shareable Intelligence artifacts`
+- Canonical merged source boundary: `8de2d48` — `Merge remote-tracking branch 'origin/main'`
+- Release commit: `386e05a` — `Release Miner v1.5.14.62`
+- Updater publication commit: `11ea607` — `Publish Miner v1.5.14.62 updater release`
+
+Generated output, databases, local snapshots, release downloads, and the pre-existing untracked `tools/miner.zip` were not committed.
+
+## Validation and release gate
+
+- Local compileall: passed with bytecode directed to a temporary cache.
+- Local full Miner source suite: 184 passed.
+- Local focused Intelligence/snapshot-diff suite: 7 passed.
+- Real shareable Intelligence ZIP re-verification:
+  - 16 manifest members
+  - manifest bytes: 29,243,661
+  - actual payload bytes: 29,243,661
+  - zero SQLite/DB/DuckDB/snapshot entries
+  - zero detected absolute Windows user paths
+- GitHub Actions release run: `32152160998` — success.
+- Windows build: passed.
+- Packaged Miner self-test: passed.
+- Release package generation: passed.
+- GitHub release publication: passed.
+- Public asset re-download/hash/size verification: passed.
+- Updater manifest publication ran last and passed.
+
+## Stable release
+
+- Version/tag: `v1.5.14.62` / `miner-v1.5.14.62`
+- Asset: `Dead-Signal-Miner-v1.5.14.62-Windows.zip`
+- Size: 133,611,898 bytes
+- SHA-256: `82956c1a25e25974907c96d656c3200a69a3d94d8a9264420914ab00343c8356`
+- Stable updater manifest now points exactly to the verified `.62` asset.
+- An independent post-workflow public download reproduced the declared byte size and SHA-256; its temporary local copy was removed after verification.
+
+The compact shareable Intelligence contract and bounded snapshot diff are now part of the released Miner. The source is canonical on GitHub and the release boundary is clean. New Cradle research may resume in a subsequent task.
