@@ -31,7 +31,25 @@ from dead_signal_weapon_description_consumer import run_weapon_description_consu
 from dead_signal_weapon_site_projection import build_weapon_site_projection
 from dead_signal_weapon_site_readiness import run_weapon_site_readiness
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
+SHAREABLE_BUNDLE_ALLOWLIST = (
+    "published/data/weapons.json",
+    "published/reports/consumer-index-summary.json",
+    "published/reports/client-data-census.json",
+    "published/reports/dead-signal-coverage-dashboard.json",
+    "published/reports/dead-signal-publication-gate.json",
+    "published/reports/dead-signal-self-diagnostics.json",
+    "published/reports/reference-graph-summary.json",
+    "published/reports/semantic-registry.json",
+    "published/reports/snapshot-data-diff.json",
+    "published/reports/table-registry-summary.json",
+    "published/reports/weapon-description-ui-consumer-trace.json",
+    "published/site/site-delta.json",
+    "published/site/weapon-evidence.json",
+    "published/site/weapons-v2.json",
+    "research/missing-fixed-skill-forensics.json",
+    "research/schema-trace-all-weapons.json",
+)
 LogCallback = Callable[[str], None]
 ProgressCallback = Callable[[int, str], None]
 ActivityCallback = Callable[[str], None]
@@ -113,30 +131,22 @@ def _stage(stages, name, operation, *, log, progress, activity, percent):
 
 def _bundle_members(paths: dict[str, Path]) -> list[Path]:
     output = paths["output"]
-    candidates = [
-        output / "last-run.json",
-        output / "catalogs" / "structured-tables.sqlite",
-        output / "catalogs" / "dead-signal-table-registry.sqlite",
-        output / "catalogs" / "dead-signal-consumer-index.sqlite",
-        output / "catalogs" / "dead-signal-reference-graph.sqlite",
-        output / "catalogs" / "dead-signal-analytics.duckdb",
-        paths["published"] / "indexes" / "reference-tracer.sqlite",
-        paths["weapons"],
-    ]
-    candidates.extend(sorted(paths["reports"].glob("*.json")))
-    candidates.extend(sorted(paths["research"].glob("*.json")))
-    candidates.extend(sorted((paths["published"] / "site").glob("*.json")))
-    seen: set[str] = set()
-    result = []
-    for path in candidates:
-        if not path.is_file():
-            continue
-        key = str(path.resolve()).casefold()
-        if key in seen:
-            continue
-        seen.add(key)
-        result.append(path)
-    return result
+    return [output / relative for relative in SHAREABLE_BUNDLE_ALLOWLIST if (output / relative).is_file()]
+
+
+def _shareable_compiled(compiled: Any, output: Path) -> Any:
+    if isinstance(compiled, dict):
+        return {key: _shareable_compiled(value, output) for key, value in compiled.items()}
+    if isinstance(compiled, list):
+        return [_shareable_compiled(value, output) for value in compiled]
+    if isinstance(compiled, str):
+        candidate = Path(compiled)
+        if candidate.is_absolute():
+            try:
+                return candidate.resolve().relative_to(output.resolve()).as_posix()
+            except ValueError:
+                return "<local-path-redacted>"
+    return compiled
 
 
 def build_bundle(paths: dict[str, Path], compiled: dict[str, Any], *, activity: ActivityCallback | None = None) -> Path:
@@ -147,9 +157,23 @@ def build_bundle(paths: dict[str, Path], compiled: dict[str, Any], *, activity: 
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%SZ")
     archive = intelligence_dir / f"Dead-Signal-Intelligence-{stamp}.zip"
     members = _bundle_members(paths)
-    activity(f"Bundling {len(members)} intelligence files")
+    manifest = {
+        "schema": "dead-signal-shareable-intelligence-bundle",
+        "schema_version": 1,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "policy": "Explicit shareable allowlist. Local SQLite/DuckDB indexes, raw snapshots, and broad forensic reports remain in the local Intelligence workspace.",
+        "members": [
+            {"path": path.relative_to(output).as_posix(), "uncompressed_bytes": path.stat().st_size}
+            for path in members
+        ],
+    }
+    manifest["member_count"] = len(manifest["members"])
+    manifest["uncompressed_bytes"] = sum(item["uncompressed_bytes"] for item in manifest["members"])
+    activity(f"Bundling {len(members)} shareable files ({manifest['uncompressed_bytes'] / (1024 * 1024):.1f} MiB uncompressed)")
     with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as destination:
-        destination.writestr("dead-signal-intelligence-compiled.json", json.dumps(compiled, ensure_ascii=False, indent=2) + "\n")
+        shareable_compiled = _shareable_compiled(compiled, output)
+        destination.writestr("dead-signal-intelligence-compiled.json", json.dumps(shareable_compiled, ensure_ascii=False, indent=2) + "\n")
+        destination.writestr("shareable-bundle-manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
         for index, path in enumerate(members, start=1):
             try:
                 relative = path.relative_to(output)

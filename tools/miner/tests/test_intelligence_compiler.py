@@ -35,6 +35,10 @@ class IntelligenceCompilerTests(unittest.TestCase):
             "active_snapshots": {"base": str(self.base), "current": str(self.current)},
             "published": str(published),
         }), encoding="utf-8")
+        for name in ("table-registry-summary.json", "consumer-index-summary.json", "reference-graph-summary.json",
+                     "semantic-registry.json", "snapshot-data-diff.json", "dead-signal-self-diagnostics.json",
+                     "dead-signal-coverage-dashboard.json"):
+            (published / "reports" / name).write_text("{}", encoding="utf-8")
 
     def tearDown(self):
         self.temp.cleanup()
@@ -160,14 +164,18 @@ class IntelligenceCompilerTests(unittest.TestCase):
         self.assertTrue(archive.is_file())
         with zipfile.ZipFile(archive) as bundle:
             names = set(bundle.namelist())
+            manifest = json.loads(bundle.read("shareable-bundle-manifest.json"))
+            compiled_bundle = bundle.read("dead-signal-intelligence-compiled.json").decode("utf-8")
         self.assertIn("dead-signal-intelligence-compiled.json", names)
+        self.assertEqual(len(manifest["members"]), manifest["member_count"])
+        self.assertNotIn(str(self.root), compiled_bundle)
         self.assertIn("published/reports/weapon-description-ui-consumer-trace.json", names)
         self.assertIn("published/reports/table-registry-summary.json", names)
         self.assertIn("published/reports/client-data-census.json", names)
-        self.assertIn("catalogs/dead-signal-table-registry.sqlite", names)
-        self.assertIn("catalogs/dead-signal-consumer-index.sqlite", names)
+        self.assertNotIn("catalogs/dead-signal-table-registry.sqlite", names)
+        self.assertNotIn("catalogs/dead-signal-consumer-index.sqlite", names)
         self.assertIn("published/reports/consumer-index-summary.json", names)
-        self.assertIn("catalogs/dead-signal-reference-graph.sqlite", names)
+        self.assertNotIn("catalogs/dead-signal-reference-graph.sqlite", names)
         self.assertIn("published/reports/reference-graph-summary.json", names)
         self.assertIn("published/reports/semantic-registry.json", names)
         self.assertIn("published/reports/snapshot-data-diff.json", names)

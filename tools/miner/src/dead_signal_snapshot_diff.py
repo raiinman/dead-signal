@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import Any
 from dead_signal_semantic_registry import DEFINITIONS
 
-SCHEMA_VERSION=1
-MAX_TABLE_DETAILS=500;MAX_RECORD_DETAILS=200;MAX_FIELD_DETAILS=100
+SCHEMA_VERSION=2
+MAX_TABLE_DETAILS=100;MAX_RECORD_DETAILS=50;MAX_FIELD_DETAILS=25;MAX_VALUE_BYTES=2048
 def _now():return datetime.now(timezone.utc).isoformat()
 def _atomic(path,payload):path=Path(path);path.parent.mkdir(parents=True,exist_ok=True);tmp=path.with_suffix('.json.tmp');tmp.write_text(json.dumps(payload,ensure_ascii=False,indent=2,sort_keys=True)+'\n',encoding='utf-8');os.replace(tmp,path)
 def _load(path):
@@ -25,17 +25,23 @@ def _records(payload):
   return {'$':payload}
  if isinstance(payload,list):return {str(i):v for i,v in enumerate(payload)}
  return {'$':payload}
+def _bounded_value(value):
+ try:text=json.dumps(value,ensure_ascii=False,sort_keys=True)
+ except (TypeError,ValueError):text=repr(value)
+ size=len(text.encode('utf-8'))
+ if size<=MAX_VALUE_BYTES:return value
+ return {'truncated':True,'value_type':type(value).__name__,'serialized_bytes':size,'preview':text[:512]}
 def _field_changes(before,after):
- if not isinstance(before,dict) or not isinstance(after,dict):return [{'field':'$','before':before,'after':after}] if before!=after else []
+ if not isinstance(before,dict) or not isinstance(after,dict):return [{'field':'$','before':_bounded_value(before),'after':_bounded_value(after)}] if before!=after else []
  rows=[]
  for field in sorted(set(before)|set(after),key=str.casefold):
-  if before.get(field)!=after.get(field):rows.append({'field':field,'before':before.get(field),'after':after.get(field),'change':'added' if field not in before else 'removed' if field not in after else 'changed'})
+  if before.get(field)!=after.get(field):rows.append({'field':field,'before':_bounded_value(before.get(field)),'after':_bounded_value(after.get(field)),'change':'added' if field not in before else 'removed' if field not in after else 'changed'})
  return rows[:MAX_FIELD_DETAILS]
 def structured_diff(base_path,current_path):
  before=_records(_load(base_path));after=_records(_load(current_path));added=sorted(set(after)-set(before));removed=sorted(set(before)-set(after));changed=[]
  for record_id in sorted(set(before)&set(after)):
   if before[record_id]!=after[record_id]:changed.append({'record_id':record_id,'fields':_field_changes(before[record_id],after[record_id])})
- return {'record_counts':{'base':len(before),'current':len(after),'added':len(added),'removed':len(removed),'changed':len(changed)},'added_record_ids':added[:MAX_RECORD_DETAILS],'removed_record_ids':removed[:MAX_RECORD_DETAILS],'changed_records':changed[:MAX_RECORD_DETAILS],'truncated':len(added)>MAX_RECORD_DETAILS or len(removed)>MAX_RECORD_DETAILS or len(changed)>MAX_RECORD_DETAILS}
+ return {'record_counts':{'base':len(before),'current':len(after),'added':len(added),'removed':len(removed),'changed':len(changed)},'added_record_ids':added[:MAX_RECORD_DETAILS],'removed_record_ids':removed[:MAX_RECORD_DETAILS],'changed_records':changed[:MAX_RECORD_DETAILS],'truncated':len(added)>MAX_RECORD_DETAILS or len(removed)>MAX_RECORD_DETAILS or len(changed)>MAX_RECORD_DETAILS or any(len(row['fields'])>=MAX_FIELD_DETAILS for row in changed),'detail_limits':{'records_per_state':MAX_RECORD_DETAILS,'fields_per_record':MAX_FIELD_DETAILS,'value_bytes':MAX_VALUE_BYTES}}
 def _registry_rows(database,table='tables',path_column='relative_path'):
  with closing(sqlite3.connect(database)) as c:
   c.row_factory=sqlite3.Row;return [dict(r) for r in c.execute(f'SELECT layer,{path_column} path,sha256 FROM {table}')]
@@ -62,4 +68,4 @@ def build_snapshot_diff(base,current,output,reports):
    c.row_factory=sqlite3.Row
    for row in c.execute('SELECT source_table,source_record_id,source_field,target_table,target_record_id,proof_state FROM edges'):
     if row['source_table'] in changed_set or row['target_table'] in changed_set:impacted.append(dict(row))
- report={'schema':'dead-signal-snapshot-data-diff','schema_version':SCHEMA_VERSION,'generated_at':_now(),'table_counts':{'added':len(added),'removed_or_patch_absent':len(removed),'changed':len(changed),'unchanged':len(unchanged)},'tables':{'added':added[:MAX_TABLE_DETAILS],'removed_or_patch_absent':removed[:MAX_TABLE_DETAILS],'changed':changed[:MAX_TABLE_DETAILS]},'changed_table_details':details,'pyc_counts':dict(pyc_counts),'pyc_paths':{k:v[:MAX_TABLE_DETAILS] for k,v in pyc_paths.items()},'affected_semantic_definitions':sorted(affected),'potentially_affected_website_records':impacted[:MAX_RECORD_DETAILS],'dependency_invalidation':{'changed_table_dependencies':len(changed)+len(added),'changed_pyc_dependencies':pyc_counts['changed']+pyc_counts['added'],'semantic_definitions_reevaluated':len(affected),'potentially_affected_website_records':len(impacted)},'policy':'Current is a patch layer. Base-only tables/records are reported as patch-absent and never asserted to be removed player-facing content.'};_atomic(Path(reports)/'snapshot-data-diff.json',report);return report
+ report={'schema':'dead-signal-snapshot-data-diff','schema_version':SCHEMA_VERSION,'generated_at':_now(),'table_counts':{'added':len(added),'removed_or_patch_absent':len(removed),'changed':len(changed),'unchanged':len(unchanged)},'tables':{'added':added[:MAX_TABLE_DETAILS],'removed_or_patch_absent':removed[:MAX_TABLE_DETAILS],'changed':changed[:MAX_TABLE_DETAILS]},'changed_table_details':details,'pyc_counts':dict(pyc_counts),'pyc_paths':{k:v[:MAX_TABLE_DETAILS] for k,v in pyc_paths.items()},'affected_semantic_definitions':sorted(affected),'potentially_affected_website_records':impacted[:MAX_RECORD_DETAILS],'dependency_invalidation':{'changed_table_dependencies':len(changed)+len(added),'changed_pyc_dependencies':pyc_counts['changed']+pyc_counts['added'],'semantic_definitions_reevaluated':len(affected),'potentially_affected_website_records':len(impacted)},'truncation':{'applied':len(changed)>MAX_TABLE_DETAILS or len(added)>MAX_TABLE_DETAILS or len(removed)>MAX_TABLE_DETAILS or len(impacted)>MAX_RECORD_DETAILS or any(item['diff']['truncated'] for item in details),'table_details':MAX_TABLE_DETAILS,'records_per_state':MAX_RECORD_DETAILS,'fields_per_record':MAX_FIELD_DETAILS,'value_bytes':MAX_VALUE_BYTES,'deep_detail':'Use the local registry, consumer index, reference graph, and retained Base/Current snapshots for unbounded forensic inspection.'},'policy':'Current is a patch layer. Base-only tables/records are reported as patch-absent and never asserted to be removed player-facing content.'};_atomic(Path(reports)/'snapshot-data-diff.json',report);return report
