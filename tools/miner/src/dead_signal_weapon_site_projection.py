@@ -13,20 +13,15 @@ from typing import Any, Callable
 
 from dead_signal_weapon_launch_gap_trace import run_weapon_launch_gap_trace
 from dead_signal_weapon_site_publish import publish_weapon_site_payloads
+from dead_signal_promotion_engine import promote
+from dead_signal_semantic_registry import DEFINITIONS, GUN_BASE_TABLE
 
 SCHEMA_VERSION = 3
 ActivityCallback = Callable[[str], None]
 
 GUN_BASE_SEMANTIC_FIELDS = {
-    "ads_time": "ads_time",
-    "bullet_speed": "bullet_speed",
-    "reload_score": "reload_loop_affix_value",
-    "reload_time_seconds": "reload_loop_time",
-    "magazine": "weapon_magazine_size_affix_value",
-    "mobility": "weapon_mobility",
-    "effective_range": "weapon_range_affix_value",
-    "range_score": "weapon_range_value",
-    "fire_rate_display_rpm": "weapon_rpm_affix_value",
+    row.semantic_name: row.source_field for row in DEFINITIONS
+    if row.source_table == GUN_BASE_TABLE and row.semantic_name not in {"firing_mode"}
 }
 GUN_BASE_RAW_FIELDS = {
     "firing_mode_code": "default_shoot_mode",
@@ -88,14 +83,21 @@ def _gun_base_record(corpus_weapon: dict[str, Any], tier_one_gun: Any) -> dict[s
 
 def _promote_gun_base(record: dict[str, Any] | None) -> dict[str, Any]:
     if not record:
-        return {"state": "unresolved", "semantic": {}, "raw": {}, "provenance": None}
+        return {"state": "unresolved", "semantic": {}, "raw": {}, "provenance": None, "promotions": {}}
     fields = _field_map(record)
     semantic: dict[str, Any] = {}
     raw: dict[str, Any] = {}
+    promotions: dict[str, Any] = {}
     for public_name, source_name in GUN_BASE_SEMANTIC_FIELDS.items():
         rows = fields.get(source_name) or []
         if rows:
-            semantic[public_name] = rows[0].get("value")
+            result = promote(
+                public_name, raw_value=rows[0].get("value"), evidence={"exact-owner-record"},
+                scope="variant-local", provenance={"table": record.get("table"), "record_id": record.get("record_id"), "field": source_name},
+            )
+            promotions[public_name] = result
+            if not result["reasons_not_promoted"]:
+                semantic[public_name] = result["value"]
     for public_name, source_name in GUN_BASE_RAW_FIELDS.items():
         rows = fields.get(source_name) or []
         if rows:
@@ -104,6 +106,7 @@ def _promote_gun_base(record: dict[str, Any] | None) -> dict[str, Any]:
         "state": "resolved-installed-game" if semantic else "exact-record-located",
         "semantic": semantic,
         "raw": raw,
+        "promotions": promotions,
         "provenance": {
             "table": record.get("table"),
             "record_id": record.get("record_id"),

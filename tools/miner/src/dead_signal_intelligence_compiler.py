@@ -19,6 +19,7 @@ from dead_signal_analytics import DeadSignalAnalytics
 from dead_signal_discovery import DeadSignalDiscovery
 from dead_signal_consumer_index import run_consumer_index
 from dead_signal_reference_graph import run_reference_graph
+from dead_signal_semantic_registry import write_semantic_registry_report
 from dead_signal_publication_gate import build_gate_report
 from dead_signal_research_suite import run_research_suite
 from dead_signal_schema_trace_batch import DeadSignalSchemaTraceBatch
@@ -235,6 +236,11 @@ def compile_intelligence(output: Path | str, *, log=None, progress=None, activit
         lambda: run_reference_graph(paths["weapons"], paths["output"], paths["reports"]),
         log=log, progress=progress, activity=activity, percent=5,
     )
+    semantic_registry = _stage(
+        stages, "Semantic Field Registry",
+        lambda: write_semantic_registry_report(paths["reports"]),
+        log=log, progress=progress, activity=activity, percent=6,
+    )
 
     ui_consumer = _stage(
         stages, "Weapon UI Consumer Trace",
@@ -294,6 +300,7 @@ def compile_intelligence(output: Path | str, *, log=None, progress=None, activit
     cache_stats = table_registry.get("cache_statistics") or {}
     consumer_counts = (consumer_index.get("summary") or {}).get("record_counts") or {}
     graph_counts = (reference_graph.get("summary") or {}).get("record_counts") or {}
+    semantic_counts = semantic_registry.get("record_counts") or {}
     compiled = {
         "schema": "dead-signal-intelligence-compiled",
         "schema_version": SCHEMA_VERSION,
@@ -307,6 +314,7 @@ def compile_intelligence(output: Path | str, *, log=None, progress=None, activit
             "consumer_index_files": consumer_counts.get("files", 0),
             "consumer_index_scopes": consumer_counts.get("scopes", 0),
             "reference_graph_edges": graph_counts.get("edges", 0),
+            "semantic_definitions": semantic_counts.get("definitions", 0),
             "client_data_tables": census_counts.get("tables", 0),
             "client_data_distinct_paths": census_counts.get("distinct_paths", 0),
             "weapons": research_counts.get("weapons", 0),
@@ -352,6 +360,7 @@ def compile_intelligence(output: Path | str, *, log=None, progress=None, activit
             "consumer_index_database": str(paths["output"] / "catalogs" / "dead-signal-consumer-index.sqlite"),
             "reference_graph_summary": str(paths["reports"] / "reference-graph-summary.json"),
             "reference_graph_database": str(paths["output"] / "catalogs" / "dead-signal-reference-graph.sqlite"),
+            "semantic_registry": str(paths["reports"] / "semantic-registry.json"),
             "weapon_description_ui_consumer": str(paths["reports"] / "weapon-description-ui-consumer-trace.json"),
             "research_suite": str(paths["reports"] / "dead-signal-research-suite.json"),
             "weapon_description_multihop": str(paths["reports"] / "weapon-description-multihop.json"),
