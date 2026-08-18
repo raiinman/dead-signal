@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any, Callable
+from dead_signal_site_delta import build_site_delta
 
 SCHEMA_VERSION = 4
 ActivityCallback = Callable[[str], None]
@@ -181,6 +182,7 @@ def publish_weapon_site_payloads(
     activity: ActivityCallback | None = None,
 ) -> dict[str, Any]:
     activity = activity or (lambda _message: None)
+    previous_lean = _read_json(published_dir / "site" / "weapons.json", {}) or {}
     source = _source_map(weapons_path)
     prototype_descriptions = _prototype_description_map(published_dir)
     shoot_code_to_symbol, launch_projectiles, launch_gap_report = _launch_gap_maps(published_dir)
@@ -393,6 +395,7 @@ def publish_weapon_site_payloads(
     }
     _write_json(site_dir / "weapons.json", lean_payload)
     _write_json(site_dir / "weapon-evidence.json", evidence_payload)
+    delta = build_site_delta(previous_lean, lean_payload, site_dir / "site-delta.json")
     activity(
         f"Lean Weapon Publisher complete: {len(lean_rows)} weapons; "
         f"rarity {resolved_counts['rarity']}; descriptions {resolved_counts['description']}; "
@@ -401,6 +404,7 @@ def publish_weapon_site_payloads(
     return {
         "record_counts": {"weapons": len(lean_rows), **resolved_counts},
         "scoreboard": scoreboard,
+        "site_delta": delta,
         "outputs": {
             "weapons": str(site_dir / "weapons.json"),
             "evidence": str(site_dir / "weapon-evidence.json"),

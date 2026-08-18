@@ -156,6 +156,8 @@ class WeaponSiteProjectionTests(unittest.TestCase):
         self.assertTrue(forensic.is_file())
         self.assertTrue(lean.is_file())
         self.assertTrue(evidence.is_file())
+        self.assertTrue((self.published / "site" / "site-delta.json").is_file())
+        self.assertTrue((self.published / "reports" / "dead-signal-self-diagnostics.json").is_file())
         lean_payload = json.loads(lean.read_text(encoding="utf-8"))
         evidence_payload = json.loads(evidence.read_text(encoding="utf-8"))
         lean_aa12 = lean_payload["weapons"][0]

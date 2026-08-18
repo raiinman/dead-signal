@@ -15,6 +15,7 @@ from dead_signal_weapon_launch_gap_trace import run_weapon_launch_gap_trace
 from dead_signal_weapon_site_publish import publish_weapon_site_payloads
 from dead_signal_promotion_engine import promote
 from dead_signal_semantic_registry import DEFINITIONS, GUN_BASE_TABLE
+from dead_signal_self_diagnostics import apply_publication_blocks, build_self_diagnostics
 
 SCHEMA_VERSION = 3
 ActivityCallback = Callable[[str], None]
@@ -323,6 +324,12 @@ def build_weapon_site_projection(
         },
         "launch_gap_trace": launch_gap_trace,
         "weapons": output_rows,
+    }
+    diagnostics = build_self_diagnostics(published_dir.parent, report, published_dir / "reports")
+    apply_publication_blocks(report, diagnostics.get("publication_blocked_fields") or [])
+    report["self_diagnostics"] = {
+        "record_counts": diagnostics.get("record_counts") or {},
+        "publication_blocked_fields": diagnostics.get("publication_blocked_fields") or [],
     }
     destination = published_dir / "site" / "weapons-v2.json"
     _write_json(destination, report)

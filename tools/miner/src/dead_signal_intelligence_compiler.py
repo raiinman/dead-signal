@@ -392,6 +392,8 @@ def compile_intelligence(output: Path | str, *, log=None, progress=None, activit
             "weapon_corpus_audit": str(paths["reports"] / "weapon-corpus-audit.json"),
             "weapon_site_readiness": str(paths["reports"] / "weapon-site-readiness.json"),
             "website_weapons_v2": str(paths["published"] / "site" / "weapons-v2.json"),
+            "website_site_delta": str(paths["published"] / "site" / "site-delta.json"),
+            "self_diagnostics": str(paths["reports"] / "dead-signal-self-diagnostics.json"),
             "discovery": str(paths["reports"] / "dead-signal-discovery.json"),
             "description_leads": str(paths["reports"] / "dead-signal-description-leads.json"),
             "description_field_audit": str(paths["reports"] / "dead-signal-description-field-audit.json"),

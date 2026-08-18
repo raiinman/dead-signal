@@ -170,6 +170,8 @@ class IntelligenceCompilerTests(unittest.TestCase):
         self.assertIn("published/reports/reference-graph-summary.json", names)
         self.assertIn("published/reports/semantic-registry.json", names)
         self.assertIn("published/reports/snapshot-data-diff.json", names)
+        self.assertIn("published/site/site-delta.json", names)
+        self.assertIn("published/reports/dead-signal-self-diagnostics.json", names)
         self.assertIn("research/schema-trace-all-weapons.json", names)
         self.assertIn("research/missing-fixed-skill-forensics.json", names)
         self.assertIn("published/data/weapons.json", names)
