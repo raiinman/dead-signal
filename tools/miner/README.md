@@ -69,6 +69,8 @@ The Miner now includes a branded, read-only **DEAD SIGNAL / DATA INTELLIGENCE** 
 
 The canonical Miner completes extraction/normalization/publishing first. Data Intelligence then generates non-publishing research products. Discovery, clustering, analytics, and workflows can suggest leads but cannot assign `VERIFIED`; only explicit manual evidence review can do that. Even a `PUBLISHABLE` Publication Gate decision is advisory and does not automatically rewrite `published/web/*`.
 
+`COMPILE DATA INTELLIGENCE` also maintains `catalogs/dead-signal-table-registry.sqlite`, a content-fingerprinted structural catalog of every Base and Current JSON table. Unchanged tables reuse their prior profiles. The compiler writes `published/reports/table-registry-summary.json` and a first-class `published/reports/client-data-census.json`; all domain, presentation, translation, and reference labels in these reports are discovery hints rather than semantic proof.
+
 See [`docs/DATA-INTELLIGENCE.md`](docs/DATA-INTELLIGENCE.md) for the complete architecture, evidence-state definitions, automatic report list, and Weapon Description verification policy.
 
 ## Verify

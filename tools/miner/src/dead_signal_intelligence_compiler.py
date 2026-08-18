@@ -20,12 +20,13 @@ from dead_signal_discovery import DeadSignalDiscovery
 from dead_signal_publication_gate import build_gate_report
 from dead_signal_research_suite import run_research_suite
 from dead_signal_schema_trace_batch import DeadSignalSchemaTraceBatch
+from dead_signal_table_registry import run_table_registry
 from dead_signal_weapon_corpus_audit import run_weapon_corpus_audit
 from dead_signal_weapon_description_consumer import run_weapon_description_consumer_trace
 from dead_signal_weapon_site_projection import build_weapon_site_projection
 from dead_signal_weapon_site_readiness import run_weapon_site_readiness
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 LogCallback = Callable[[str], None]
 ProgressCallback = Callable[[int, str], None]
 ActivityCallback = Callable[[str], None]
@@ -110,6 +111,7 @@ def _bundle_members(paths: dict[str, Path]) -> list[Path]:
     candidates = [
         output / "last-run.json",
         output / "catalogs" / "structured-tables.sqlite",
+        output / "catalogs" / "dead-signal-table-registry.sqlite",
         output / "catalogs" / "dead-signal-analytics.duckdb",
         paths["published"] / "indexes" / "reference-tracer.sqlite",
         paths["weapons"],
@@ -214,6 +216,12 @@ def compile_intelligence(output: Path | str, *, log=None, progress=None, activit
     paths["research"].mkdir(parents=True, exist_ok=True)
     stages: list[dict[str, Any]] = []
 
+    table_registry = _stage(
+        stages, "Table Registry + Client Data Census",
+        lambda: run_table_registry(paths["base"], paths["current"], paths["output"], paths["reports"], activity=activity),
+        log=log, progress=progress, activity=activity, percent=2,
+    )
+
     ui_consumer = _stage(
         stages, "Weapon UI Consumer Trace",
         lambda: run_weapon_description_consumer_trace(paths["base"], paths["current"], paths["weapons"], paths["reports"], activity=activity),
@@ -267,6 +275,9 @@ def compile_intelligence(output: Path | str, *, log=None, progress=None, activit
     projection_counts = site_projection.get("record_counts") or {}
     forensic = schema_trace.get("missing_skill_forensics") or {}
     forensic_counts = forensic.get("record_counts") or {}
+    registry_counts = (table_registry.get("summary") or {}).get("record_counts") or {}
+    census_counts = (table_registry.get("client_data_census") or {}).get("record_counts") or {}
+    cache_stats = table_registry.get("cache_statistics") or {}
     compiled = {
         "schema": "dead-signal-intelligence-compiled",
         "schema_version": SCHEMA_VERSION,
@@ -276,6 +287,9 @@ def compile_intelligence(output: Path | str, *, log=None, progress=None, activit
         "snapshot": {"output": str(paths["output"]), "base": str(paths["base"]), "current": str(paths["current"]), "weapons": str(paths["weapons"])},
         "stages": stages,
         "record_counts": {
+            "registry_tables": registry_counts.get("tables", 0),
+            "client_data_tables": census_counts.get("tables", 0),
+            "client_data_distinct_paths": census_counts.get("distinct_paths", 0),
             "weapons": research_counts.get("weapons", 0),
             "ui_consumer_candidates": ui_counts.get("consumer_backed_candidates", 0),
             "prototype_desc_fields_found": ui_counts.get("prototype_desc_fields_found", 0),
@@ -310,7 +324,11 @@ def compile_intelligence(output: Path | str, *, log=None, progress=None, activit
             "description_field_rows": suspicious_fields.get("row_count", 0),
             "publishable_candidates": (gate.get("record_counts") or {}).get("publishable_candidates", 0),
         },
+        "cache_statistics": cache_stats,
         "reports": {
+            "table_registry_summary": str(paths["reports"] / "table-registry-summary.json"),
+            "client_data_census": str(paths["reports"] / "client-data-census.json"),
+            "table_registry_database": str(paths["output"] / "catalogs" / "dead-signal-table-registry.sqlite"),
             "weapon_description_ui_consumer": str(paths["reports"] / "weapon-description-ui-consumer-trace.json"),
             "research_suite": str(paths["reports"] / "dead-signal-research-suite.json"),
             "weapon_description_multihop": str(paths["reports"] / "weapon-description-multihop.json"),
