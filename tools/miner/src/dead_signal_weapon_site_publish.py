@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 from typing import Any, Callable
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 ActivityCallback = Callable[[str], None]
 
 
@@ -41,6 +41,59 @@ def _source_map(weapons_path: Path) -> dict[str, dict[str, Any]]:
         for row in (payload.get("weapons") or [])
         if isinstance(row, dict) and row.get("blueprint_id") not in (None, "")
     }
+
+
+def _prototype_description_map(published_dir: Path) -> dict[str, dict[str, Any]]:
+    report = _read_json(
+        published_dir / "reports" / "weapon-description-prototype-projection.json",
+        {},
+    ) or {}
+    result: dict[str, dict[str, Any]] = {}
+    for row in report.get("weapons") or []:
+        if not isinstance(row, dict) or row.get("blueprint_id") in (None, ""):
+            continue
+        result[str(row.get("blueprint_id"))] = row
+    return result
+
+
+def _promote_description(
+    projection_description: dict[str, Any],
+    prototype_row: dict[str, Any] | None,
+) -> tuple[str | None, str, dict[str, Any] | None]:
+    local_text = projection_description.get("text") if isinstance(projection_description, dict) else None
+    if _has(local_text):
+        return str(local_text), "resolved-installed-game-weapon-local", {
+            "scope": "variant-local",
+            "source": "published/data/weapons.json",
+            "precedence": 2,
+        }
+
+    row = prototype_row if isinstance(prototype_row, dict) else {}
+    status = str(row.get("status") or "")
+    text = row.get("text")
+    if status == "prototype-desc-resolved-consistently" and _has(text):
+        source = row.get("source") if isinstance(row.get("source"), dict) else {}
+        shared = bool(row.get("shared_across_prototypes"))
+        return str(text), "resolved-installed-game-prototype", {
+            "scope": "family-shared" if shared else "prototype-local",
+            "precedence": 1,
+            "prototype_id": row.get("prototype_id"),
+            "shared_across_prototypes": shared,
+            "shared_prototype_ids": row.get("shared_prototype_ids") or [],
+            "table": source.get("relative_path"),
+            "record_id": source.get("record_id"),
+            "field": source.get("field"),
+            "layer": source.get("layer"),
+            "translation_match_count": len(row.get("translation_matches") or []),
+            "translation_state": status,
+        }
+
+    unresolved = {
+        "scope": "unresolved",
+        "prototype_id": row.get("prototype_id"),
+        "translation_state": status or "prototype-description-unavailable",
+    } if row else None
+    return None, "unresolved", unresolved
 
 
 def _lean_family(value: Any) -> Any:
@@ -104,6 +157,7 @@ def publish_weapon_site_payloads(
 ) -> dict[str, Any]:
     activity = activity or (lambda _message: None)
     source = _source_map(weapons_path)
+    prototype_descriptions = _prototype_description_map(published_dir)
     rows = [row for row in (projection.get("weapons") or []) if isinstance(row, dict)]
     lean_rows: list[dict[str, Any]] = []
     evidence_rows: list[dict[str, Any]] = []
@@ -134,9 +188,14 @@ def publish_weapon_site_payloads(
             }
             resolved_counts["rarity"] += 1
 
-        description = row.get("description") if isinstance(row.get("description"), dict) else {}
-        if _has(description.get("text")):
+        projection_description = row.get("description") if isinstance(row.get("description"), dict) else {}
+        description_text, description_state, description_provenance = _promote_description(
+            projection_description,
+            prototype_descriptions.get(bid),
+        )
+        if _has(description_text):
             resolved_counts["description"] += 1
+
         if handling.get("state") == "resolved-installed-game":
             resolved_counts["gun_base"] += 1
 
@@ -190,7 +249,8 @@ def publish_weapon_site_payloads(
                 "melee": melee,
             },
             "firing_mode": firing_mode,
-            "description": description.get("text"),
+            "description": description_text,
+            "description_state": description_state,
             "special_skill": {
                 "text": special.get("text"),
                 "state": ((special.get("resolution") or {}).get("publication_status") if isinstance(special.get("resolution"), dict) else None)
@@ -225,6 +285,12 @@ def publish_weapon_site_payloads(
                 "source": "published/data/weapons.json",
                 "quality_code": original.get("quality_code"),
                 "quality": original.get("quality"),
+            },
+            "description": {
+                "state": description_state,
+                "text": description_text,
+                "provenance": description_provenance,
+                "prototype_projection": prototype_descriptions.get(bid),
             },
             "progression": progression,
             "acquisition": acquisition,
