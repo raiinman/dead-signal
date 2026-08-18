@@ -1,10 +1,10 @@
 """Focused read-only trace for the last high-value Weapons launch gaps.
 
 This pass is intentionally narrow. It statically inspects retained snapshot
-sources for the ShootMode enum, follows Tier-I gun -> bullet_scatter_no into the
-exact bullet_scatter_data record, and inventories Cradle-related structured
-tables. It never executes game bytecode and never promotes a human-facing label
-from a guess.
+sources for the ShootMode enum construction, inventories projectile-related gun
+fields and exact pattern/scatter relations, and builds Cradle entry/reference
+matrices plus static consumer leads. It never executes game bytecode and never
+promotes a human-facing label from a guess.
 """
 from __future__ import annotations
 
@@ -12,16 +12,24 @@ import dis
 import json
 import marshal
 import types
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any, Callable
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 ActivityCallback = Callable[[str], None]
 SHOOT_CONST_PYC = "dcs_extend/const/shoot_const.pyc"
 GUN_BASE_TABLE = "game_common/data/gun_base_params_data.json"
 BULLET_SCATTER_TABLE = "game_common/data/bullet_scatter_data.json"
+BULLET_PATTERN_TABLE = "game_common/data/bullet_pattern_data.json"
+CRADLE_ENTRY_TABLE = "game_common/data/cradle_override_entry_data.json"
+CRADLE_CONFIG_TABLE = "game_common/data/cradle_override_config_new_data.json"
 TARGET_SHOOT_NAMES = {"SINGLE", "BURST", "AUTO"}
+RELATION_TOKENS = ("bullet", "projectile", "pattern", "scatter", "pellet")
+CRADLE_CONSUMER_TOKENS = (
+    b"cradle_override_entry", b"cradle_override", b"weapon_type", b"gun_type",
+    b"weapon_category", b"key_word_no", b"key_word_lst",
+)
 
 
 def _read_json(path: Path, default: Any = None) -> Any:
@@ -90,11 +98,25 @@ def _load_code(path: Path) -> types.CodeType | None:
     return value if isinstance(value, types.CodeType) else None
 
 
-def _walk(code: types.CodeType):
-    yield code
+def _walk(code: types.CodeType, qualname: str = "<module>"):
+    yield qualname, code
     for value in code.co_consts:
         if isinstance(value, types.CodeType):
-            yield from _walk(value)
+            child = value.co_name if qualname == "<module>" else f"{qualname}.{value.co_name}"
+            yield from _walk(value, child)
+
+
+def _instruction_row(instruction: dis.Instruction) -> dict[str, Any]:
+    argval = instruction.argval
+    if not isinstance(argval, (str, int, float, bool, type(None))):
+        argval = repr(argval)[:240]
+    return {
+        "offset": instruction.offset,
+        "opname": instruction.opname,
+        "arg": instruction.arg,
+        "argval": argval,
+        "argrepr": instruction.argrepr,
+    }
 
 
 def _shoot_mode_enum(roots: list[tuple[str, Path]]) -> dict[str, Any]:
@@ -105,7 +127,7 @@ def _shoot_mode_enum(roots: list[tuple[str, Path]]) -> dict[str, Any]:
         code = _load_code(path)
         if code is None:
             continue
-        for child in _walk(code):
+        for qualname, child in _walk(code):
             if child.co_name != "ShootMode":
                 continue
             try:
@@ -125,14 +147,16 @@ def _shoot_mode_enum(roots: list[tuple[str, Path]]) -> dict[str, Any]:
                     continue
                 name = str(instruction.argval)
                 value = None
-                for previous in reversed(instructions[max(0, index - 6):index]):
+                for previous in reversed(instructions[max(0, index - 8):index]):
                     if previous.opname == "LOAD_CONST" and isinstance(previous.argval, int) and not isinstance(previous.argval, bool):
                         value = int(previous.argval)
                         break
+                window = [_instruction_row(row) for row in instructions[max(0, index - 8):min(len(instructions), index + 3)]]
                 evidence.append({
                     "name": name,
                     "value": value,
                     "store_offset": instruction.offset,
+                    "instruction_window": window,
                 })
                 if value is not None:
                     mapping[name] = value
@@ -140,8 +164,11 @@ def _shoot_mode_enum(roots: list[tuple[str, Path]]) -> dict[str, Any]:
                 "state": "resolved-static-enum" if TARGET_SHOOT_NAMES.issubset(mapping) else "partial-static-enum",
                 "layer": layer,
                 "relative_path": SHOOT_CONST_PYC,
+                "qualname": qualname,
                 "mapping": mapping,
                 "evidence": evidence,
+                "co_names": list(map(str, child.co_names)),
+                "co_consts": [value for value in child.co_consts if isinstance(value, (str, int, float, bool, type(None)))][:100],
                 "policy": "Numeric enum values come from static class-body bytecode only; game bytecode is never executed.",
             }
     return {"state": "unresolved", "mapping": {}, "evidence": []}
@@ -172,35 +199,72 @@ def _first_tier_gun(weapon: dict[str, Any]) -> Any:
     return row.get("gun_no")
 
 
+def _relation_fields(record: dict[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(record, dict):
+        return {}
+    return {
+        str(field): value
+        for field, value in record.items()
+        if any(token in str(field).casefold() for token in RELATION_TOKENS)
+    }
+
+
 def _projectile_trace(roots: list[tuple[str, Path]], weapons: list[dict[str, Any]]) -> dict[str, Any]:
     gun_layer, gun_table = _active_table(roots, GUN_BASE_TABLE)
     scatter_layer, scatter_table = _active_table(roots, BULLET_SCATTER_TABLE)
+    pattern_layer, pattern_table = _active_table(roots, BULLET_PATTERN_TABLE)
     rows = []
+    relation_field_counts: Counter[str] = Counter()
+    pattern_field_counts: Counter[str] = Counter()
+    for record in gun_table.values():
+        for field in _relation_fields(record):
+            relation_field_counts[field] += 1
+    for record in pattern_table.values():
+        for field in record:
+            if any(token in str(field).casefold() for token in ("bullet", "projectile", "pellet", "count", "num")):
+                pattern_field_counts[str(field)] += 1
+
     resolved = 0
     for weapon in weapons:
         gun_no = _first_tier_gun(weapon)
         gun_record = gun_table.get(str(gun_no)) if gun_no not in (None, "") else None
-        scatter_no = gun_record.get("bullet_scatter_no") if isinstance(gun_record, dict) else None
+        relations = _relation_fields(gun_record)
+        scatter_no = relations.get("bullet_scatter_no") if relations else None
         scatter_record = scatter_table.get(str(scatter_no)) if scatter_no not in (None, "") else None
+
+        published_ranged = weapon.get("ranged_stats") if isinstance(weapon.get("ranged_stats"), dict) else {}
+        pattern_no = published_ranged.get("bullet_pattern_id")
+        if pattern_no in (None, "") and isinstance(gun_record, dict):
+            for key in ("bullet_pattern_no", "bullet_pattern_id", "bullet_pattern"):
+                if gun_record.get(key) not in (None, ""):
+                    pattern_no = gun_record.get(key)
+                    break
+        pattern_record = pattern_table.get(str(pattern_no)) if pattern_no not in (None, "") else None
         exact_count = None
         exact_field = None
-        if isinstance(scatter_record, dict):
-            for field in ("bullet_num", "projectile_count"):
-                value = scatter_record.get(field)
+        if isinstance(pattern_record, dict):
+            for field in ("bullet_num", "projectile_count", "pellet_num", "pellet_count"):
+                value = pattern_record.get(field)
                 if isinstance(value, (int, float)) and not isinstance(value, bool):
                     exact_count = value
                     exact_field = field
                     break
-        state = "resolved-exact-scatter-record" if exact_count is not None else (
-            "scatter-record-located" if isinstance(scatter_record, dict) else "scatter-record-unresolved"
-        )
         if exact_count is not None:
             resolved += 1
+        state = "resolved-exact-pattern-record" if exact_count is not None else (
+            "pattern-record-located" if isinstance(pattern_record, dict) else (
+                "gun-projectile-relations-located" if relations else "projectile-relation-unresolved"
+            )
+        )
         rows.append({
             "blueprint_id": weapon.get("blueprint_id"),
             "name": weapon.get("name"),
             "tier_one_gun_no": gun_no,
+            "gun_relation_fields": relations,
             "bullet_scatter_no": scatter_no,
+            "scatter_record_found": isinstance(scatter_record, dict),
+            "bullet_pattern_no": pattern_no,
+            "pattern_record_found": isinstance(pattern_record, dict),
             "state": state,
             "projectile_count": exact_count,
             "projectile_count_field": exact_field,
@@ -209,20 +273,103 @@ def _projectile_trace(roots: list[tuple[str, Path]], weapons: list[dict[str, Any
                 "gun_table": GUN_BASE_TABLE,
                 "scatter_layer": scatter_layer,
                 "scatter_table": BULLET_SCATTER_TABLE,
+                "pattern_layer": pattern_layer,
+                "pattern_table": BULLET_PATTERN_TABLE,
             },
         })
     return {
         "record_counts": {
             "weapons": len(rows),
-            "gun_records": sum(row.get("bullet_scatter_no") not in (None, "") for row in rows),
-            "scatter_records": sum(row.get("state") in {"scatter-record-located", "resolved-exact-scatter-record"} for row in rows),
+            "gun_records": sum(bool(row.get("gun_relation_fields")) for row in rows),
+            "scatter_records": sum(bool(row.get("scatter_record_found")) for row in rows),
+            "pattern_records": sum(bool(row.get("pattern_record_found")) for row in rows),
             "projectile_counts_resolved": resolved,
         },
+        "gun_relation_field_inventory": dict(sorted(relation_field_counts.items())),
+        "pattern_projectile_field_inventory": dict(sorted(pattern_field_counts.items())),
         "weapons": rows,
     }
 
 
-def _cradle_inventory(roots: list[tuple[str, Path]]) -> dict[str, Any]:
+def _walk_values(value: Any):
+    if isinstance(value, dict):
+        for child in value.values():
+            yield from _walk_values(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from _walk_values(child)
+    else:
+        yield value
+
+
+def _cradle_reference_matrix(roots: list[tuple[str, Path]]) -> dict[str, Any]:
+    entry_layer, entries = _active_table(roots, CRADLE_ENTRY_TABLE)
+    config_layer, configs = _active_table(roots, CRADLE_CONFIG_TABLE)
+    entry_ids = set(entries)
+    referenced_by: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for config_id, record in configs.items():
+        for field, value in record.items():
+            hits = sorted({str(item) for item in _walk_values(value) if str(item) in entry_ids})
+            for entry_id in hits:
+                referenced_by[entry_id].append({"config_id": config_id, "field": str(field)})
+    rows = []
+    for entry_id, record in entries.items():
+        rows.append({
+            "entry_id": entry_id,
+            "style_no": record.get("style_no"),
+            "key_word_no": record.get("key_word_no"),
+            "buff_id": record.get("buff_id"),
+            "name": record.get("name"),
+            "desc": record.get("desc"),
+            "referenced_by": referenced_by.get(entry_id, []),
+        })
+    return {
+        "state": "exact-entry-config-reference-matrix",
+        "entry_layer": entry_layer,
+        "config_layer": config_layer,
+        "record_counts": {
+            "entries": len(rows),
+            "config_records": len(configs),
+            "entries_referenced_by_config": sum(bool(row["referenced_by"]) for row in rows),
+        },
+        "entries": rows,
+    }
+
+
+def _cradle_consumer_leads(source_roots: list[tuple[str, Path]]) -> dict[str, Any]:
+    rows: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for layer, root in source_roots:
+        for path in root.rglob("*.pyc"):
+            key = str(path.resolve()).casefold()
+            if key in seen:
+                continue
+            seen.add(key)
+            try:
+                raw = path.read_bytes()
+            except OSError:
+                continue
+            matched = [token.decode("ascii") for token in CRADLE_CONSUMER_TOKENS if token in raw]
+            if not matched or not any("cradle" in token for token in matched):
+                continue
+            rows.append({
+                "layer": layer,
+                "relative_path": path.relative_to(root).as_posix(),
+                "matched_tokens": matched,
+            })
+            if len(rows) >= 250:
+                break
+        if len(rows) >= 250:
+            break
+    rows.sort(key=lambda row: (-len(row["matched_tokens"]), row["relative_path"]))
+    return {
+        "state": "static-consumer-leads" if rows else "unresolved",
+        "record_counts": {"pyc_leads": len(rows)},
+        "leads": rows,
+    }
+
+
+def _cradle_inventory(roots: list[tuple[str, Path]], source_roots: list[tuple[str, Path]]) -> dict[str, Any]:
     rows: list[dict[str, Any]] = []
     seen: set[str] = set()
     for layer, root in roots:
@@ -251,10 +398,20 @@ def _cradle_inventory(roots: list[tuple[str, Path]]) -> dict[str, Any]:
                 "samples": samples,
             })
     rows.sort(key=lambda row: (-int(row.get("records") or 0), str(row.get("relative_path"))))
+    matrix = _cradle_reference_matrix(roots)
+    consumers = _cradle_consumer_leads(source_roots)
     return {
-        "record_counts": {"tables": len(rows), "records": sum(int(row.get("records") or 0) for row in rows)},
+        "record_counts": {
+            "tables": len(rows),
+            "records": sum(int(row.get("records") or 0) for row in rows),
+            "override_entries": (matrix.get("record_counts") or {}).get("entries", 0),
+            "entries_referenced_by_config": (matrix.get("record_counts") or {}).get("entries_referenced_by_config", 0),
+            "consumer_pyc_leads": (consumers.get("record_counts") or {}).get("pyc_leads", 0),
+        },
         "tables": rows,
-        "state": "tables-located-needs-typed-relationship-proof" if rows else "unresolved",
+        "entry_reference_matrix": matrix,
+        "consumer_leads": consumers,
+        "state": "typed-consumer-proof-needed" if rows else "unresolved",
     }
 
 
@@ -271,12 +428,12 @@ def run_weapon_launch_gap_trace(
     weapons = [row for row in (payload.get("weapons") or []) if isinstance(row, dict)]
     source_roots = _source_roots(base, current)
     table_roots = _table_roots(base, current)
-    activity("Launch Gap Trace: resolving static ShootMode enum")
+    activity("Launch Gap Trace: resolving static ShootMode construction")
     firing_mode = _shoot_mode_enum(source_roots)
-    activity("Launch Gap Trace: following Tier-I gun -> bullet_scatter_data")
+    activity("Launch Gap Trace: inventorying gun projectile/pattern relations")
     projectiles = _projectile_trace(table_roots, weapons)
-    activity("Launch Gap Trace: inventorying Cradle structured tables")
-    cradle = _cradle_inventory(table_roots)
+    activity("Launch Gap Trace: building Cradle entry/reference and consumer matrices")
+    cradle = _cradle_inventory(table_roots, source_roots)
     report = {
         "schema": "dead-signal-weapon-launch-gap-trace",
         "schema_version": SCHEMA_VERSION,
@@ -288,14 +445,16 @@ def run_weapon_launch_gap_trace(
             "shoot_mode_values": len(firing_mode.get("mapping") or {}),
             "projectile_counts_resolved": (projectiles.get("record_counts") or {}).get("projectile_counts_resolved", 0),
             "cradle_tables": (cradle.get("record_counts") or {}).get("tables", 0),
+            "cradle_entries": (cradle.get("record_counts") or {}).get("override_entries", 0),
+            "cradle_consumer_leads": (cradle.get("record_counts") or {}).get("consumer_pyc_leads", 0),
         },
         "firing_mode": firing_mode,
         "projectiles": projectiles,
         "cradle": cradle,
         "policy": {
             "authority": "Installed-game snapshot only.",
-            "publication": "Only exact numeric enum assignments and exact typed table relationships may be promoted; table-name or token matches remain locators.",
-            "bytecode": "Static marshal/disassembly only; game bytecode is never imported or executed.",
+            "publication": "Only exact numeric enum assignments and exact typed table relationships may be promoted; table-name, text, or token matches remain locators.",
+            "bytecode": "Static marshal/disassembly and raw-token inspection only; game bytecode is never imported or executed.",
         },
     }
     destination = reports_dir / "weapon-launch-gap-trace.json"
@@ -304,6 +463,6 @@ def run_weapon_launch_gap_trace(
         "Launch Gap Trace complete: "
         f"shoot modes {report['record_counts']['shoot_mode_values']}; "
         f"projectiles {report['record_counts']['projectile_counts_resolved']}; "
-        f"Cradle tables {report['record_counts']['cradle_tables']}"
+        f"Cradle entries {report['record_counts']['cradle_entries']}"
     )
     return report
