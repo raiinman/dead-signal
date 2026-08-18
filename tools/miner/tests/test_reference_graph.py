@@ -11,4 +11,7 @@ class ReferenceGraphTests(unittest.TestCase):
   count=seed_weapon_graph(self.g,[{'blueprint_id':10,'item_id':20,'prototype_id':30,'ranged_stats':{'bullet_pattern_id':'Pat1','projectile_count':5},'tiers':[{'tier':1,'item_id':20,'gun_no':40}]}]);self.assertEqual(4,count);self.assertTrue(all(r['proof_state']!='structural-candidate' for r in self.g.query()));self.assertEqual([],self.g.query(target_record_id='5'))
  def test_rejected_edge_never_satisfies_proven_query(self):
   self.g.add_edge(source_table='a',source_record_id='1',source_field='value',source_value=7,source_layer='base',target_table='x',target_record_id='7',relationship_kind='scalar-collision',proof_state='rejected',scope='global',role='reference',provenance={});self.assertEqual([],self.g.query(min_proof='typed-relationship-proven'))
+ def test_exact_cradle_applicability_seeds_positive_and_negative_edges_only(self):
+  weapon={'blueprint_id':10,'compatibility':{'cradle':{'state':'resolved-installed-game','compatible_exact_ids':[4001],'incompatible_exact_ids':[4002],'unresolved_ids':[4003],'not_weapon_selected_count':1}}}
+  self.assertEqual(2,seed_weapon_graph(self.g,[weapon]));rows=self.g.query();self.assertEqual(['weapon-cradle-compatible','weapon-cradle-incompatible'],sorted(r['relationship_kind'] for r in rows));self.assertEqual([],self.g.query(target_record_id='4003'))
 if __name__=='__main__':unittest.main()

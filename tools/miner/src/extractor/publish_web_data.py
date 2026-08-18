@@ -137,6 +137,13 @@ def build_weapon_projection(data_dir: Path) -> dict:
                 } if ranged else None,
                 "ammo_item_id": ranged.get("ammo_item_id") if ranged else None,
                 "effect": weapon.get("effect"),
+                "cradle_applicability": {
+                    "state": ((weapon.get("compatibility") or {}).get("cradle") or {}).get("state", "unresolved"),
+                    "compatible_exact_ids": ((weapon.get("compatibility") or {}).get("cradle") or {}).get("compatible_exact_ids", []),
+                    "incompatible_exact_ids": ((weapon.get("compatibility") or {}).get("cradle") or {}).get("incompatible_exact_ids", []),
+                    "unresolved_ids": ((weapon.get("compatibility") or {}).get("cradle") or {}).get("unresolved_ids", []),
+                    "not_weapon_selected_count": ((weapon.get("compatibility") or {}).get("cradle") or {}).get("not_weapon_selected_count", 0),
+                },
                 "progression": {
                     "gear_tiers": weapon.get("tiers") or [],
                     "blueprint_stars": weapon.get("blueprint_star_progression") or {},

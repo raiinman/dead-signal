@@ -279,7 +279,7 @@ def build_cradles(payload: dict[str, Any]) -> dict[str, Any]:
         "dead-signal-cradles",
         "ds-cradle",
         "ds-cradle-family",
-        ("description", "buff_id", "keyword_id", "style_code", "attribute_codes", "attribute_values", "selected_image_reference", "equipped_image_reference"),
+        ("description", "buff_id", "keyword_id", "style_code", "attribute_codes", "attribute_values", "selected_image_reference", "equipped_image_reference", "active_config_keys", "active_season_ids", "weapon_applicability"),
     )
 
 

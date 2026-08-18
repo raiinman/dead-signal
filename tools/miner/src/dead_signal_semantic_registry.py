@@ -26,6 +26,7 @@ DEFINITIONS=(
  SemanticDefinition('firing_mode','Weapons','tier_one_gun',GUN_BASE_TABLE,'default_shoot_mode',('exact-owner-record','static-enum'),'variant-local',2,'display','installed-ShootMode-map','consumer-confirmed','resolved-installed-game',1,'v1.5.14.61'),
  SemanticDefinition('projectile_count','Weapons','bullet_pattern', 'client_data/bullet_pattern_data.json','bullet_num',('exact-owner-record',),'family-shared',1,'display',None,'semantic-proven','resolved-installed-game',1,'v1.5.14.61'),
  SemanticDefinition('weapon_description','Weapons','weapon_prototype', 'game_common/data/weapon_prototype_data.json','prototype_desc',('exact-owner-record','english-translation'),'family-shared',1,'display','exact-English-translation','semantic-proven','resolved-installed-game',1,'v1.5.14.61'),
+ SemanticDefinition('cradle_applicability','Weapons','weapon_item', 'game_common/data/item_data.json','type/sub_type',('active-cradle-config','exact-cradle-entry-buff','positive-hold-item-check','exact-owner-record'),'variant-local',2,'display','exact-item-selector','consumer-confirmed','resolved-installed-game',1,'v1.5.14.62','Only Cradles with positive hold_item_check selectors are promoted to weapon compatibility. Raw attack/keyword selectors remain unresolved.'),
 )
 BY_NAME={definition.semantic_name:definition for definition in DEFINITIONS}
 def get_semantic(name:str)->SemanticDefinition: return BY_NAME[name]

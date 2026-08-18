@@ -22,6 +22,12 @@ def build_self_diagnostics(output:Path|str,projection:dict[str,Any],reports:Path
   family=weapon.get('ballistic_family') or {};allowed=set(family.get('allowed_inherited_groups') or [])
   disallowed=allowed-{'projectiles','bullet_speed','falloff'}
   if disallowed:findings.append({'severity':'BLOCKER','code':'disallowed-family-leakage','semantic_field':sorted(disallowed)[0],'blueprint_id':weapon.get('blueprint_id'),'message':'Ballistic family declares a disallowed inherited group.'})
+  cradle=((weapon.get('compatibility') or {}).get('cradle') or {})
+  if str(cradle.get('state') or '').startswith('resolved'):
+   groups={name:set(cradle.get(name) or []) for name in ('compatible_exact_ids','incompatible_exact_ids','unresolved_ids')}
+   overlap=(groups['compatible_exact_ids']&groups['incompatible_exact_ids'])|(groups['compatible_exact_ids']&groups['unresolved_ids'])|(groups['incompatible_exact_ids']&groups['unresolved_ids'])
+   if overlap:findings.append({'severity':'BLOCKER','code':'cradle-status-overlap','semantic_field':'cradle_applicability','blueprint_id':weapon.get('blueprint_id'),'message':'A Cradle appears in more than one applicability status.'})
+   if not isinstance(cradle.get('item_selector'),dict):findings.append({'severity':'BLOCKER','code':'cradle-item-selector-missing','semantic_field':'cradle_applicability','blueprint_id':weapon.get('blueprint_id'),'message':'Resolved Cradle applicability lacks an exact item selector.'})
  if not registry.is_file():findings.append({'severity':'INFO','code':'registry-unavailable','message':'Table registry unavailable; locator consistency checks skipped.'})
  blockers=sorted({f.get('semantic_field') for f in findings if f['severity']=='BLOCKER' and f.get('semantic_field')})
  report={'schema':'dead-signal-self-diagnostics','schema_version':1,'record_counts':dict(Counter(f['severity'] for f in findings)),'findings':findings,'publication_blocked_fields':blockers,'policy':'BLOCKER findings suppress only affected semantic fields; unrelated Miner harvest output remains available.'};path=Path(reports)/'dead-signal-self-diagnostics.json';path.parent.mkdir(parents=True,exist_ok=True);tmp=path.with_suffix('.json.tmp');tmp.write_text(json.dumps(report,ensure_ascii=False,indent=2,sort_keys=True)+'\n',encoding='utf-8');os.replace(tmp,path);return report
@@ -31,4 +37,5 @@ def apply_publication_blocks(projection:dict[str,Any],blocked:list[str]):
   handling=weapon.get('handling') or {}
   for field in blocked:(handling.get('semantic') or {}).pop(field,None)
   if 'projectile_count' in blocked and isinstance(weapon.get('ranged_stats'),dict):weapon['ranged_stats']['projectile_count']=None
+  if 'cradle_applicability' in blocked and isinstance(weapon.get('compatibility'),dict):weapon['compatibility']['cradle']={'state':'blocked-by-self-diagnostics'}
  return projection

@@ -57,6 +57,11 @@ def seed_weapon_graph(graph,weapons,snapshot=''):
   ammo=weapon.get('ammo_configuration') or {};source=ammo.get('source') or {}
   if ammo.get('resolution_status')=='proven-table-relationship' and source.get('slot_record_id'):
    add(source_table=source.get('item_to_gun_table','game_common/data/item_to_gun_mapping_data.json'),source_record_id=source.get('item_to_gun_record_id',item),source_field='accessory_slot',source_value=ammo.get('accessory_slot'),target_table=source.get('slot_table','game_common/data/gun_accessory_slot_params_data.json'),target_record_id=source['slot_record_id'],relationship_kind='item-gun-accessory-slot',proof_state='semantic-proven',scope='variant-local',role='consumer')
+  cradle=((weapon.get('compatibility') or {}).get('cradle') or {})
+  if str(cradle.get('state') or '').startswith('resolved'):
+   for field,kind,role in (('compatible_exact_ids','weapon-cradle-compatible','consumer'),('incompatible_exact_ids','weapon-cradle-incompatible','exclusion')):
+    for cradle_id in cradle.get(field) or []:
+     add(source_table='weapon_blueprint',source_record_id=bp,source_field='compatibility.cradle.'+field,source_value=cradle_id,target_table='game_common/data/cradle_override_entry_data.json',target_record_id=cradle_id,relationship_kind=kind,proof_state='semantic-proven',scope='variant-local',role=role)
  return count
 
 def run_reference_graph(weapons_path,output,reports):

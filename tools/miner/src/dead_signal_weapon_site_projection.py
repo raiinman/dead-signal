@@ -206,6 +206,7 @@ def build_weapon_site_projection(
         ranged = weapon.get("ranged_stats") if isinstance(weapon.get("ranged_stats"), dict) else None
         star = weapon.get("blueprint_star_progression") if isinstance(weapon.get("blueprint_star_progression"), dict) else {}
         ammo = weapon.get("ammo_configuration") if isinstance(weapon.get("ammo_configuration"), dict) else {}
+        cradle = ((weapon.get("compatibility") or {}).get("cradle") or {})
         tiers = [row for row in (weapon.get("tiers") or []) if isinstance(row, dict)]
 
         prototype_id = str(weapon.get("prototype_id")) if _has(weapon.get("prototype_id")) else None
@@ -279,7 +280,7 @@ def build_weapon_site_projection(
                     "research": _candidate_summary(enhancements.get("attachment_compatibility")),
                 },
                 "calibration": _candidate_summary(enhancements.get("calibration_compatibility")),
-                "cradle": _candidate_summary(questions.get("cradle_compatibility")),
+                "cradle": cradle if str(cradle.get("state") or "").startswith("resolved") else _candidate_summary(questions.get("cradle_compatibility")),
             },
             "rarity": {
                 "state": "resolved-installed-game" if _has(weapon.get("quality")) and _has(weapon.get("quality_code")) else "unresolved",
@@ -318,6 +319,7 @@ def build_weapon_site_projection(
             "gun_base_unresolved": unresolved_gun_base,
             "variant_family_members": variant_family_members,
             "rarity_promoted": sum(1 for row in output_rows if (row.get("rarity") or {}).get("state") == "resolved-installed-game"),
+            "cradle_applicability_resolved": sum(1 for row in output_rows if str((((row.get("compatibility") or {}).get("cradle") or {}).get("state") or "")).startswith("resolved")),
             "launch_gap_shoot_mode_values": ((launch_gap_trace.get("record_counts") or {}).get("shoot_mode_values", 0) if isinstance(launch_gap_trace, dict) else 0),
             "launch_gap_projectiles_resolved": ((launch_gap_trace.get("record_counts") or {}).get("projectile_counts_resolved", 0) if isinstance(launch_gap_trace, dict) else 0),
             "launch_gap_cradle_tables": ((launch_gap_trace.get("record_counts") or {}).get("cradle_tables", 0) if isinstance(launch_gap_trace, dict) else 0),

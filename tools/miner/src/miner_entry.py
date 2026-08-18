@@ -12,6 +12,7 @@ import mod_frame_enrichment
 import weapon_evidence_enrichment
 import weapon_reference_filter
 import weapon_typed_seed_trace
+import dead_signal_cradle_applicability
 import research_window
 from dead_signal_analytics import DeadSignalAnalytics
 from dead_signal_discovery import DeadSignalDiscovery
@@ -62,6 +63,13 @@ def run_module_main_with_completion(module_name, arguments, log):
             mod_frame_enrichment.enrich_file(
                 argument("--base"), argument("--current"),
                 Path(argument("--output-dir")) / "mods.json", log,
+            )
+            extended_output = Path(argument("--output-dir")).resolve()
+            dead_signal_cradle_applicability.enrich_files(
+                Path(argument("--base")),
+                Path(argument("--current")),
+                extended_output.parent.parent,
+                log,
             )
         elif module_name == "publish_web_data":
             projector = importlib.import_module("project_weapon_evidence")
