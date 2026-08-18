@@ -11,6 +11,7 @@ if str(SRC) not in sys.path:
 
 from dead_signal_compiler_tab import _format_elapsed  # noqa: E402
 from dead_signal_intelligence_window import configure_data_intelligence_styles  # noqa: E402
+from dead_signal_miner import PIPELINE_STAGES  # noqa: E402
 
 
 class FakeStyle:
@@ -59,6 +60,19 @@ class DataIntelligenceUiTests(unittest.TestCase):
         self.assertIn('self._build_coverage(notebook)', source)
         self.assertIn('"Launch Coverage"', source)
         self.assertIn('dead-signal-coverage-dashboard.json', source)
+
+    def test_miner_shell_combines_work_into_three_workspaces(self):
+        source = (SRC / "dead_signal_miner.py").read_text(encoding="utf-8")
+        self.assertIn('self._build_run_workspace()', source)
+        self.assertIn('self._build_explore_workspace()', source)
+        self.assertIn('self._build_publish_workspace()', source)
+        self.assertIn('RUN COMPLETE PIPELINE', source)
+        self.assertIn('compile_intelligence(', source)
+        self.assertIn('self_test()', source)
+        self.assertEqual(
+            ("MINE", "INDEX", "RESOLVE", "COMPILE", "VERIFY"),
+            tuple(stage[0] for stage in PIPELINE_STAGES),
+        )
 
 
 if __name__ == "__main__":
