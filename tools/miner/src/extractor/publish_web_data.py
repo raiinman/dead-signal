@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 
-WEB_SCHEMA_VERSION = 1
+WEB_SCHEMA_VERSION = 2
 QUALITY_SCHEMA_VERSION = 1
 GRAPH_SCHEMA_VERSION = 1
 MANIFEST_SCHEMA_VERSION = 1
@@ -105,8 +105,21 @@ def build_weapon_projection(data_dir: Path) -> dict:
         math = math_by_blueprint.get(str(blueprint_id), {})
         profile = profile_by_blueprint.get(str(blueprint_id), {})
         ranged = weapon.get("ranged_stats") or {}
+        tiers = weapon.get("tiers") or []
+        recipe_model = (weapon.get("craftability") or {}).get("recipe_model")
+        if not recipe_model and tiers and all(tier.get("recipe") for tier in tiers):
+            recipe_model = "per-tier-formulas"
+        if recipe_model in {"per-tier-formulas", "base-formula-plus-tier-selection"}:
+            crafting_presentation = "complete-material-bodies"
+        elif recipe_model == "seasonal-formula-owners-material-bodies-unresolved":
+            crafting_presentation = "exact-owners-material-bodies-unavailable"
+        elif recipe_model == "not-applicable-or-nonstandard":
+            crafting_presentation = "not-applicable-or-nonstandard"
+        else:
+            crafting_presentation = "unresolved"
         records.append(
             {
+                "schema_contract": "weapons-v1",
                 "canonical_id": public_canonical_id,
                 "blueprint_id": blueprint_id,
                 "item_id": weapon.get("item_id"),
@@ -132,6 +145,21 @@ def build_weapon_projection(data_dir: Path) -> dict:
                     "fragments_to_unlock": weapon.get("fragments_to_unlock"),
                     "endowed_blueprint": bool(weapon.get("endowed_blueprint")),
                 },
+                "crafting": {
+                    "state": (weapon.get("craftability") or {}).get("state"),
+                    "recipe_model": recipe_model,
+                    "presentation_status": crafting_presentation,
+                    "tiers": [
+                        {
+                            "tier": tier.get("tier"),
+                            "owner": tier.get("recipe_resolution") or {"state": "unresolved"},
+                            "material_body": tier.get("recipe"),
+                            "material_body_available": bool(tier.get("recipe")),
+                        }
+                        for tier in tiers
+                    ],
+                    "presentation_policy": "An exact formula owner is displayed separately from its material body; absent retained forge bodies are never presented as complete recipes.",
+                },
                 "baseline": {
                     "durability": weapon.get("durability"),
                     "weight": weapon.get("weight"),
@@ -154,6 +182,9 @@ def build_weapon_projection(data_dir: Path) -> dict:
                     "unresolved_ids": ((weapon.get("compatibility") or {}).get("cradle") or {}).get("unresolved_ids", []),
                     "not_weapon_selected_count": ((weapon.get("compatibility") or {}).get("cradle") or {}).get("not_weapon_selected_count", 0),
                 },
+                "attachment_compatibility": (weapon.get("compatibility") or {}).get("attachment") or {"state": "unresolved"},
+                "calibration_compatibility": (weapon.get("compatibility") or {}).get("calibration") or {"state": "unresolved"},
+                "ammo_configuration": weapon.get("ammo_configuration") or {"state": "not-applicable" if weapon.get("category") == "Melee" else "unresolved", "selectable_ammo_item_ids": []},
                 "progression": {
                     "gear_tiers": weapon.get("tiers") or [],
                     "blueprint_stars": weapon.get("blueprint_star_progression") or {},
@@ -178,6 +209,13 @@ def build_weapon_projection(data_dir: Path) -> dict:
     return {
         "schema": "dead-signal-weapons",
         "schema_version": WEB_SCHEMA_VERSION,
+        "schema_contract": {
+            "name": "Weapons v1",
+            "status": "locked",
+            "identity_model": "installed item/equipment identity with conditional blueprint enrichment",
+            "compatibility_states": ["compatible", "incompatible", "unresolved", "not-applicable"],
+            "change_policy": "Core identity and relationship fields change only when new installed-game evidence requires a schema revision.",
+        },
         "generated_utc": utc_now(),
         "record_counts": {
             "weapons": len(records),

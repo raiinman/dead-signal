@@ -1006,6 +1006,12 @@ def normalize_site_data(base: Path, current: Path, published: Path, log: LogCall
         ["--base", base, "--current", current, "--published", published],
         log,
     )
+    log("Projecting exact Attachment, Calibration, and selectable Ammo relationships for Weapons Build Lab...")
+    run_module_main(
+        "weapon_build_compatibility",
+        ["--base", base, "--current", current, "--published", published],
+        log,
+    )
     log("Exporting validated static weapon math for every Tier and Blueprint Star combination...")
     weapon_math_output = data_dir / "weapon-math.json"
     run_module_main(
@@ -1337,6 +1343,7 @@ def self_test() -> dict:
         EXTRACTOR_ROOT / "normalize_extended.py",
         EXTRACTOR_ROOT / "link_published_images.py",
         EXTRACTOR_ROOT / "combat_resolver.py",
+        EXTRACTOR_ROOT / "weapon_build_compatibility.py",
         EXTRACTOR_ROOT / "weapon_progression.py",
         EXTRACTOR_ROOT / "export_weapon_math.py",
         EXTRACTOR_ROOT / "export_weapon_configuration.py",
@@ -1356,6 +1363,7 @@ def self_test() -> dict:
         "normalize_extended",
         "link_published_images",
         "combat_resolver",
+        "weapon_build_compatibility",
         "weapon_progression",
         "export_weapon_math",
         "export_weapon_configuration",

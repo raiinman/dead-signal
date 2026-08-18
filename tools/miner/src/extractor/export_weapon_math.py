@@ -55,6 +55,15 @@ def build_weapon_math(weapons_payload: dict) -> dict:
     total_combinations = 0
 
     for weapon in weapons_payload.get("weapons", []):
+        classification = (weapon.get("identity") or {}).get("classification") or "standard-blueprint"
+        math_required = classification == "standard-blueprint"
+        math_applicability = (
+            "required-standard-blueprint"
+            if math_required
+            else "not-applicable-special-equipped"
+            if classification == "special-equipped"
+            else "conditional-nonstandard-blueprint"
+        )
         tiers = _tier_rows(weapon)
         stars = _star_rows(weapon)
         matrix = []
@@ -98,7 +107,7 @@ def build_weapon_math(weapons_payload: dict) -> dict:
             issues.append("no Blueprint Star rows")
         if any(len(row["blueprint_star_values"]) != len(stars) for row in matrix):
             issues.append("incomplete Tier × Blueprint Star matrix")
-        if issues:
+        if issues and math_required:
             invalid.append({"blueprint_id": weapon.get("blueprint_id"), "name": weapon.get("name"), "issues": issues})
 
         records.append(
@@ -109,7 +118,14 @@ def build_weapon_math(weapons_payload: dict) -> dict:
                 "category": weapon.get("category"),
                 "rarity": weapon.get("quality"),
                 "progression_effect_mode": (weapon.get("blueprint_star_progression") or {}).get("progression_effect_mode"),
-                "formula_status": "proven-static-base-attack",
+                "math_applicability": math_applicability,
+                "formula_status": (
+                    "proven-static-base-attack"
+                    if not issues
+                    else "not-applicable-special-equipped"
+                    if classification == "special-equipped"
+                    else "partial-nonstandard-progression"
+                ),
                 "tier_star_matrix": matrix,
                 "static_inputs": {
                     "ranged_stats": weapon.get("ranged_stats"),
@@ -117,6 +133,7 @@ def build_weapon_math(weapons_payload: dict) -> dict:
                     "weapon_effect": weapon.get("effect"),
                 },
                 "validation_issues": issues,
+                "validation_blocking": bool(issues and math_required),
             }
         )
 
@@ -141,8 +158,9 @@ def build_weapon_math(weapons_payload: dict) -> dict:
         "record_counts": {
             "weapons": len(records),
             "tier_star_combinations": total_combinations,
-            "weapons_with_complete_math": len(records) - len(invalid),
+            "weapons_with_complete_math": sum(not row["validation_issues"] for row in records),
             "weapons_with_validation_issues": len(invalid),
+            "nonblocking_partial_or_not_applicable": sum(bool(row["validation_issues"]) and not row["validation_blocking"] for row in records),
         },
         "validation": {"passed": passed, "issues": invalid},
         "weapons": records,

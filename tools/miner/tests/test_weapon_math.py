@@ -42,6 +42,16 @@ class WeaponMathTests(unittest.TestCase):
         self.assertFalse(result["validation"]["passed"])
         self.assertEqual(1, result["record_counts"]["weapons_with_validation_issues"])
 
+    def test_nonstandard_and_special_progression_gaps_are_nonblocking(self) -> None:
+        weapons = [
+            {"name": "Morgan", "identity": {"classification": "nonstandard-blueprint"}, "tiers": [], "blueprint_attribute_progression": {"levels": [{"level": 1, "preset_attack_ratio": 1.0}]}},
+            {"name": "Special", "identity": {"classification": "special-equipped"}, "tiers": [{"tier": 1, "damage": 10}], "blueprint_attribute_progression": {"levels": []}},
+        ]
+        result = build_weapon_math({"weapons": weapons})
+        self.assertTrue(result["validation"]["passed"])
+        self.assertEqual(0, result["record_counts"]["weapons_with_validation_issues"])
+        self.assertEqual(2, result["record_counts"]["nonblocking_partial_or_not_applicable"])
+
 
 if __name__ == "__main__":
     unittest.main()

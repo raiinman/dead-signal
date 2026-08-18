@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dead-signal.local/schemas/weapons-v1.schema.json",
+  "title": "Dead Signal Weapons v1",
+  "type": "object",
+  "required": ["schema", "schema_version", "schema_contract", "record_counts", "weapons"],
+  "properties": {
+    "schema": {"const": "dead-signal-weapons"},
+    "schema_version": {"const": 2},
+    "schema_contract": {
+      "type": "object",
+      "required": ["name", "status", "identity_model", "compatibility_states", "change_policy"],
+      "properties": {
+        "name": {"const": "Weapons v1"},
+        "status": {"const": "locked"},
+        "compatibility_states": {
+          "const": ["compatible", "incompatible", "unresolved", "not-applicable"]
+        }
+      }
+    },
+    "weapons": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "schema_contract", "canonical_id", "item_id", "identity", "availability",
+          "craftability", "crafting", "progression_state", "name", "category",
+          "attachment_compatibility", "calibration_compatibility", "ammo_configuration",
+          "cradle_applicability", "progression", "verification"
+        ],
+        "properties": {
+          "schema_contract": {"const": "weapons-v1"},
+          "canonical_id": {"type": "string", "minLength": 1},
+          "item_id": {"type": "integer"},
+          "blueprint_id": {"type": ["integer", "null"]},
+          "crafting": {
+            "type": "object",
+            "required": ["recipe_model", "presentation_status", "tiers", "presentation_policy"]
+          },
+          "attachment_compatibility": {"type": "object", "required": ["state"]},
+          "calibration_compatibility": {"type": "object", "required": ["state"]},
+          "ammo_configuration": {
+            "type": "object",
+            "required": ["state", "selectable_ammo_item_ids"]
+          },
+          "cradle_applicability": {"type": "object", "required": ["state"]}
+        }
+      }
+    }
+  }
+}

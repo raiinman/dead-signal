@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any, Callable
 from dead_signal_site_delta import build_site_delta
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 ActivityCallback = Callable[[str], None]
 SHOOT_DISPLAY = {
     "NONE": "None",
@@ -318,6 +318,8 @@ def publish_weapon_site_payloads(
                 "states": acquisition.get("states"),
                 "hint": acquisition.get("hint"),
                 "recipe_tiers": [entry.get("tier") for entry in (acquisition.get("recipes_by_tier") or []) if isinstance(entry, dict)],
+                "recipe_owners_by_tier": acquisition.get("recipe_owners_by_tier") or [],
+                "presentation_policy": acquisition.get("presentation_policy"),
             },
             "ammo": ammo,
             "compatibility": {
@@ -326,6 +328,7 @@ def publish_weapon_site_payloads(
                     "value": ((compatibility.get("attachment") or {}).get("value") if isinstance(compatibility.get("attachment"), dict) else None),
                 },
                 "calibration_state": ((compatibility.get("calibration") or {}).get("state") if isinstance(compatibility.get("calibration"), dict) else "unresolved"),
+                "calibration": compatibility.get("calibration") if isinstance(compatibility.get("calibration"), dict) else None,
                 "cradle_state": ((compatibility.get("cradle") or {}).get("state") if isinstance(compatibility.get("cradle"), dict) else "unresolved"),
             },
             "image": row.get("image"),

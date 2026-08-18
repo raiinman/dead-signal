@@ -2,7 +2,7 @@
 
 Current operational handoff:
 
-- `HANDOFF-2026-08-18-WEAPON-LAUNCH-WARNINGS-AND-ATTACHMENTS.md`
+- `HANDOFF-2026-08-18-WEAPONS-V1-SCHEMA-LOCK.md`
 
 Read order for a new engineering/research session:
 
@@ -16,8 +16,9 @@ Read order for a new engineering/research session:
 8. `HANDOFF-2026-08-18-CODEX-WEAPON-IDENTITY-SPINE-IMPLEMENTATION.md`
 9. `HANDOFF-2026-08-18-WEAPON-IDENTITY-SPINE-COMPLETE.md`
 10. `HANDOFF-2026-08-18-WEAPON-LAUNCH-WARNINGS-AND-ATTACHMENTS.md`
+11. `HANDOFF-2026-08-18-WEAPONS-V1-SCHEMA-LOCK.md`
 
-For current operational state, the Weapon launch-warning and attachment handoff supersedes older Miner/Weapons handoffs where they conflict. Older handoffs remain evidence history and design rationale.
+For current operational state, the Weapons v1 Schema Lock handoff supersedes older Miner/Weapons handoffs where they conflict. Older handoffs remain evidence history and design rationale.
 
 Key current transition:
 
@@ -32,5 +33,7 @@ Key current transition:
 - ten melee recipes now have exact seasonal formula owners while their material bodies remain unresolved;
 - Morgan has an exact one-level Blueprint Star owner while its gear-tier owner remains unresolved;
 - attachment compatibility publishes only direct installed-game text plus explicit generic category claims; named-model wording is not guessed into IDs;
+- Calibration compatibility and selectable Ammo are projected from exact typed owners;
+- Weapons v1 is schema-locked; change its core identity/relationship contract only when new installed-game evidence requires a revision;
 - stable Miner release boundary remains `v1.5.14.62`; no new release was cut;
 - `tools/miner.zip` remains protected and untouched.

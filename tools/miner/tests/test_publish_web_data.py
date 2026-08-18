@@ -202,6 +202,9 @@ class PublishWebDataTests(unittest.TestCase):
             self.assertEqual(5, len(weapon["progression"]["tier_star_matrix"]))
             self.assertEqual(123, weapon["gun_profile"]["gun_no"])
             self.assertEqual(1, result["configuration_catalog"]["record_counts"]["ammo_bindings"])
+            self.assertEqual("Weapons v1", result["schema_contract"]["name"])
+            self.assertEqual("locked", result["schema_contract"]["status"])
+            self.assertEqual("complete-material-bodies", weapon["crafting"]["presentation_status"])
 
     def test_relationship_graph_records_direct_links_without_claiming_runtime_semantics(self) -> None:
         with tempfile.TemporaryDirectory() as folder:

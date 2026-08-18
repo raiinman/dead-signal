@@ -17,7 +17,7 @@ from dead_signal_promotion_engine import promote
 from dead_signal_semantic_registry import DEFINITIONS, GUN_BASE_TABLE
 from dead_signal_self_diagnostics import apply_publication_blocks, build_self_diagnostics
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 ActivityCallback = Callable[[str], None]
 
 GUN_BASE_SEMANTIC_FIELDS = {
@@ -238,6 +238,8 @@ def build_weapon_site_projection(
         acquisition_states = []
         if any(row.get("recipe") for row in tiers):
             acquisition_states.append("recipe-proven")
+        elif (weapon.get("craftability") or {}).get("recipe_model") == "seasonal-formula-owners-material-bodies-unresolved":
+            acquisition_states.append("exact-seasonal-recipe-owner-material-body-unavailable")
         if _has(weapon.get("acquisition_hint") or weapon.get("item_gain_path")):
             acquisition_states.append("acquisition-evidence-present")
         if not acquisition_states:
@@ -273,15 +275,20 @@ def build_weapon_site_projection(
                 "states": acquisition_states,
                 "hint": weapon.get("acquisition_hint") or weapon.get("item_gain_path"),
                 "recipes_by_tier": [{"tier": row.get("tier"), "recipe": row.get("recipe")} for row in tiers if row.get("recipe")],
+                "recipe_owners_by_tier": [
+                    {"tier": row.get("tier"), "owner": row.get("recipe_resolution")}
+                    for row in tiers if row.get("recipe_resolution")
+                ],
+                "presentation_policy": "Exact recipe ownership and material-body availability are separate states.",
             },
             "ammo": ammo or None,
             "compatibility": {
                 "attachment": {
-                    "state": "resolved-partial" if ammo else "unresolved",
-                    "value": {"accessory_slot": ammo.get("accessory_slot"), "default_accessory_code": ammo.get("default_accessory_code")} if ammo else None,
+                    "state": (((weapon.get("compatibility") or {}).get("attachment") or {}).get("state") or "unresolved"),
+                    "value": ((weapon.get("compatibility") or {}).get("attachment")),
                     "research": _candidate_summary(enhancements.get("attachment_compatibility")),
                 },
-                "calibration": _candidate_summary(enhancements.get("calibration_compatibility")),
+                "calibration": ((weapon.get("compatibility") or {}).get("calibration")) or _candidate_summary(enhancements.get("calibration_compatibility")),
                 "cradle": cradle if str(cradle.get("state") or "").startswith("resolved") else _candidate_summary(questions.get("cradle_compatibility")),
             },
             "rarity": {

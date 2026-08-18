@@ -261,6 +261,7 @@ def self_test_with_extended_publisher():
         miner_core.EXTRACTOR_ROOT / "weapon_evidence_enrichment.py",
         miner_core.EXTRACTOR_ROOT / "weapon_reference_filter.py",
         miner_core.EXTRACTOR_ROOT / "weapon_typed_seed_trace.py",
+        miner_core.EXTRACTOR_ROOT / "weapon_build_compatibility.py",
         miner_core.EXTRACTOR_ROOT / "project_weapon_evidence.py",
         miner_core.EXTRACTOR_ROOT / "investigate_weapon_descriptions.py",
         miner_core.EXTRACTOR_ROOT / "investigate_weapon_description_sources.py",
@@ -270,7 +271,7 @@ def self_test_with_extended_publisher():
     for module_name in (
         "publish_extended_web_data", "publish_current_calibrations", "armor_tier_normalization",
         "armor_tier_completion", "mod_frame_enrichment", "project_mod_frame_evidence",
-        "weapon_evidence_enrichment", "weapon_reference_filter", "weapon_typed_seed_trace",
+        "weapon_evidence_enrichment", "weapon_reference_filter", "weapon_typed_seed_trace", "weapon_build_compatibility",
         "project_weapon_evidence", "research_console", "research_window",
         "dead_signal_research_suite", "dead_signal_source_finder", "dead_signal_table_profiler",
         "dead_signal_intelligence_window", "dead_signal_intelligence_advanced", "dead_signal_intelligence_hub",

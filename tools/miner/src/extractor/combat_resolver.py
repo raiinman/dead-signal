@@ -24,6 +24,15 @@ from weapon_progression import run_weapon_progression_investigation
 
 
 GAME_DATA = "game_common/data"
+
+
+def ammo_accessory_code(pack_code, index, item_id, accessory_params, item_accessory_map):
+    """Resolve the exact slot-8 accessory, retaining legacy derived owners when present."""
+    stem = str(pack_code)[:-5] if str(pack_code).endswith("_pack") else str(pack_code)
+    derived = f"810_{stem}_lv{index}"
+    if derived in accessory_params:
+        return derived
+    return str((item_accessory_map.get(str(item_id)) or {}).get("accessory_no") or derived)
 ID_FIELD = re.compile(
     r"(?:^|_)(?:id|ids|no|code|ref|buff|skill|status|keyword|stat|ammo|mod|"
     r"calibration|affix)(?:$|_)", re.IGNORECASE
@@ -1556,6 +1565,8 @@ class CombatPipeline:
         accessory_attrs = self.corpus.merged(f"{GAME_DATA}/gun_accessory_attr_data.json")
         ammo_packs = self.corpus.merged(f"{GAME_DATA}/gun_accessory_bullet_map_data.json")
         slot_params = self.corpus.merged(f"{GAME_DATA}/gun_accessory_slot_params_data.json")
+        gun_base_params = self.corpus.merged(f"{GAME_DATA}/gun_base_params_data.json")
+        item_accessory_map = self.corpus.merged(f"{GAME_DATA}/gun_accessory_item_to_accessory_map_data.json")
         item_to_gun = self.corpus.merged(f"{GAME_DATA}/item_to_gun_mapping_data.json")
         ammo_by_id = {as_int(row.get("item_id")): row for row in ammo.get("ammo", [])}
         pack_bindings = defaultdict(list)
@@ -1569,7 +1580,9 @@ class CombatPipeline:
                 continue
             stem = stem[:-5]
             for index, item_id in enumerate(pack.get("item_no_lst") or [], start=1):
-                accessory_code = f"810_{stem}_lv{index}"
+                accessory_code = ammo_accessory_code(
+                    pack_code, index, item_id, accessory_params, item_accessory_map
+                )
                 param = accessory_params.get(accessory_code)
                 row = ammo_by_id.get(as_int(item_id))
                 if not isinstance(param, dict) or not row:
@@ -1624,7 +1637,8 @@ class CombatPipeline:
         for weapon in weapons.get("weapons", []):
             item_id = as_int(weapon.get("item_id"))
             gun_no = as_int((item_to_gun.get(str(item_id)) or {}).get("gun_no"))
-            default_code = slot_eight_by_gun.get(gun_no, "")
+            accessory_owner_no = as_int((gun_base_params.get(str(gun_no)) or {}).get("accessory_seq_no")) or gun_no
+            default_code = slot_eight_by_gun.get(accessory_owner_no, "")
             matched = packs_by_default.get(default_code)
             if matched:
                 pack_code, bindings = matched
@@ -1638,14 +1652,24 @@ class CombatPipeline:
                         "item_to_gun_table": f"{GAME_DATA}/item_to_gun_mapping_data.json",
                         "item_to_gun_record_id": str(item_id),
                         "slot_table": f"{GAME_DATA}/gun_accessory_slot_params_data.json",
-                        "slot_record_id": f"({gun_no}, 8)",
+                        "slot_record_id": f"({accessory_owner_no}, 8)",
+                        "accessory_owner_table": f"{GAME_DATA}/gun_base_params_data.json",
+                        "accessory_owner_record_id": str(gun_no),
                     },
                 }
                 configured_weapons += 1
             elif weapon.get("category") != "Melee":
                 weapon["ammo_configuration"] = {
                     "accessory_slot": 8, "default_accessory_code": default_code,
-                    "selectable_ammo_item_ids": [], "resolution_status": "unresolved",
+                    "selectable_ammo_item_ids": [],
+                    "resolution_status": (
+                        "unresolved-bullet-pack-owner" if default_code else "unresolved-slot-owner"
+                    ),
+                    "unresolved_reason": (
+                        "Exact slot-8 default accessory exists, but no exact bullet-pack owner selects one ordered ammo family."
+                        if default_code
+                        else "No exact slot-8 accessory owner was found."
+                    ),
                 }
         write_json(self.data_dir / "weapons.json", weapons)
         write_json(self.data_dir / "ammo.json", ammo)

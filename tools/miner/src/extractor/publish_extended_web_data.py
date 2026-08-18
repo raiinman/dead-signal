@@ -169,7 +169,7 @@ def build_attachments(payload: dict[str, Any]) -> dict[str, Any]:
                 "attribute_codes": row.get("attribute_codes") or [],
                 "passive_buff_id": row.get("passive_buff_id"),
                 "compatible_weapon_types": row.get("compatible_weapon_types") or [],
-                "compatibility_evidence": direct_compatibility_evidence(normalized.get("description")),
+                "compatibility_evidence": row.get("compatibility_evidence") or direct_compatibility_evidence(normalized.get("description")),
             }
         )
         if normalized["attachment_type"] in PLAYER_ATTACHMENT_TYPES:
