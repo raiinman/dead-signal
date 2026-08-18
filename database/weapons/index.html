@@ -4,18 +4,18 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#08090b">
-  <meta name="description" content="Browse and compare 120 player-facing Once Human weapons using Dead Signal's mined database.">
+  <meta name="description" content="Browse and compare 130 installed-game Once Human weapon identities using Dead Signal's locked Weapons v1 database.">
   <title>Weapons Database — Dead Signal</title>
   <link rel="stylesheet" href="../../shared/readability.css">
   <link rel="stylesheet" href="../../shared/workstation-shell.css">
   <link rel="stylesheet" href="catalogue.css">
-  <style>.catalogue-controls{grid-template-columns:minmax(240px,2fr) repeat(4,minmax(135px,1fr)) auto}.acquisition-preview{display:grid;gap:.2rem;margin:.75rem 0 0;padding:.65rem .75rem;border-left:3px solid var(--cyan);background:rgba(90,200,216,.06);font-size:.76rem}.acquisition-preview b{color:var(--text)}.acquisition-preview span{color:var(--muted)}.acquisition-preview.direct{border-left-color:var(--rare)}.acquisition-preview.unresolved{border-left-color:var(--rose)}@media(max-width:1100px){.catalogue-controls{grid-template-columns:repeat(2,1fr)}}@media(max-width:760px){.catalogue-controls{grid-template-columns:1fr}}</style>
+  <style>.catalogue-controls{grid-template-columns:minmax(240px,2fr) repeat(4,minmax(135px,1fr)) auto}.acquisition-preview,.build-evidence{display:grid;gap:.2rem;margin:.75rem 0 0;padding:.65rem .75rem;border-left:3px solid var(--cyan);background:rgba(90,200,216,.06);font-size:.76rem}.acquisition-preview b,.build-evidence b{color:var(--text)}.acquisition-preview span,.build-evidence span{color:var(--muted)}.acquisition-preview.direct{border-left-color:var(--rare)}.acquisition-preview.partial,.build-evidence.partial{border-left-color:var(--legendary)}.acquisition-preview.unresolved,.build-evidence.unresolved{border-left-color:var(--rose)}.build-evidence{grid-template-columns:repeat(3,1fr);border-left:0;border-top:2px solid var(--cyan)}.build-evidence span{display:grid;gap:.15rem}.build-evidence strong{color:var(--text)}@media(max-width:1100px){.catalogue-controls{grid-template-columns:repeat(2,1fr)}}@media(max-width:760px){.catalogue-controls{grid-template-columns:1fr}.build-evidence{grid-template-columns:1fr}}</style>
   <script src="../../shared/readability.js" defer></script>
   <script src="../../shared/workstation-shell.js" defer></script>
   <script src="weapons-data.js?v=20260818-weapons-v1"></script>
   <script src="weapon-math-data.js"></script>
   <script src="weapon-public-adapter.js?v=20260818-weapons-v1"></script>
-  <script src="catalogue.js?v=20260814b" defer></script>
+  <script src="catalogue.js?v=20260818-weapons-v1" defer></script>
   <script src="weapon-mechanic-status.js?v=20260814a" defer></script>
 </head>
 <body data-catalogue-view="browse">
@@ -28,26 +28,26 @@
   <main id="catalogue">
     <section class="catalogue-hero">
       <div><p class="eyebrow"><span></span> Database // Weapons</p><h1>Find your next <em>signal.</em></h1><p>Search mined, player-facing weapon records. Compare raw indexed stats, inspect progression, then continue configuration in the Build Planner.</p><a class="hero-text-link" href="#weapon-data-map">See what the Miner has connected <span aria-hidden="true">↓</span></a></div>
-      <div class="hero-stat"><strong id="weaponTotal">120</strong><span>current records</span><small>Installed-game snapshot</small></div>
+      <div class="hero-stat"><strong id="weaponTotal">130</strong><span>current identities</span><small>Locked Weapons v1 contract</small></div>
     </section>
 
     <section id="weapon-data-map" class="weapon-data-map" aria-labelledby="weapon-data-map-title">
       <div class="data-map-intro"><p class="section-code">Miner verified // Weapon system map</p><h2 id="weapon-data-map-title">One identity now connects the weapon system.</h2><p>The installed client maps every catalogue weapon to its internal configuration. Firearm parameters are complete; runtime effects remain separated until their trigger math is proven.</p></div>
-      <div class="data-map-summary" aria-label="Weapon profile coverage"><div><strong>120</strong><span>weapon identities mapped</span></div><div><strong>95 / 95</strong><span>firearm profiles resolved</span></div><div><strong>0</strong><span>unresolved firearm profiles</span></div></div>
+      <div class="data-map-summary" aria-label="Weapon profile coverage"><div><strong id="mappedWeaponTotal">130</strong><span>weapon identities mapped</span></div><div><strong id="rangedWeaponTotal">107</strong><span>ranged identities</span></div><div><strong id="meleeWeaponTotal">23</strong><span>melee identities</span></div></div>
       <div class="signal-flow" role="img" aria-label="Weapon item maps through gun number to firing, projectile, reload, handling, accessory, and skill data">
-        <div class="flow-origin"><span>Weapon item</span><strong>item_id</strong><small>120 catalogue records</small></div>
+        <div class="flow-origin"><span>Weapon item</span><strong>item_id</strong><small id="flowWeaponTotal">130 catalogue identities</small></div>
         <div class="flow-bridge"><span>Canonical bridge</span><strong>gun_no</strong><small>Item-to-gun mapping</small></div>
         <div class="flow-branches"><article><span>01</span><h3>Firing</h3><p>RPM, fire intervals, magazine and bullet cost</p></article><article><span>02</span><h3>Projectile</h3><p>Bullet identity, velocity, gravity and distance behavior</p></article><article><span>03</span><h3>Reload</h3><p>Loop, empty and staged reload timing templates</p></article><article><span>04</span><h3>Handling</h3><p>Accuracy, scatter, stability, recoil and ADS references</p></article><article><span>05</span><h3>Configuration</h3><p>Accessory slots, ammunition bindings and static modifiers</p></article><article><span>06</span><h3>Effects</h3><p>Weapon skill IDs and runtime logic queued for resolution</p></article></div>
       </div>
       <div class="coverage-track" aria-label="Current mining progress"><div class="coverage-proven"><strong>Proven and connected</strong><span>Identity → static firearm profile → configuration inputs</span></div><div class="coverage-next"><strong>Next vein</strong><span>Skill triggers → stacks → duration → resulting stat change</span></div></div>
-      <p class="data-map-note"><b>25 melee weapons</b> are mapped separately and correctly excluded from firearm-only parameter coverage. Raw fields are preserved as evidence—not treated as formulas without proof.</p>
+      <p class="data-map-note"><b>Weapons v1 is identity-complete for the current installed snapshot.</b> Compatibility, calibration, selectable ammunition, crafting ownership, and partial progression states remain evidence-typed rather than guessed.</p>
     </section>
 
     <section class="catalogue-controls" aria-label="Weapon catalogue controls">
       <label class="search-control"><span>Search weapons</span><input id="weaponSearch" type="search" placeholder="Name, type, effect…" autocomplete="off"></label>
       <label><span>Weapon type</span><select id="typeFilter"><option value="">All types</option></select></label>
       <label><span>Rarity</span><select id="rarityFilter"><option value="">All rarities</option></select></label>
-      <label><span>Acquisition</span><select id="acquisitionFilter"><option value="">All evidence</option><option value="craftable">Recipes proven</option><option value="direct">Direct acquisition</option><option value="unresolved">Unresolved</option></select></label>
+      <label><span>Acquisition</span><select id="acquisitionFilter"><option value="">All evidence</option><option value="craftable">Recipes complete</option><option value="partial">Recipe owner only</option><option value="direct">Direct acquisition</option><option value="unresolved">Unresolved</option></select></label>
       <label><span>Sort</span><select id="weaponSort"><option value="name">Name</option><option value="rarity">Rarity</option><option value="damage-desc">Tier I · 1★ DMG: high to low</option><option value="rpm-desc">Fire Rate: high to low</option></select></label>
       <div class="view-toggle" role="group" aria-label="View style"><button type="button" data-view="grid" class="active" aria-pressed="true">Grid</button><button type="button" data-view="list" aria-pressed="false">List</button></div>
     </section>

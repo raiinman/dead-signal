@@ -25,18 +25,29 @@
 
   const acquisitionEvidence = (math) => {
     const contract = math?.public_contract || {};
-    const tiers = contract.progression?.gear_tiers || [];
-    const recipeCount = tiers.filter((tier) => tier?.recipe).length;
+    const crafting = contract.crafting || {};
+    const tiers = crafting.tiers || [];
+    const ownerCount = tiers.filter((tier) => tier?.owner).length;
+    const materialCount = tiers.filter((tier) => tier?.material_body_available).length;
     const gainPath = String(contract.acquisition?.gain_path || math?.item_gain_path || '').trim();
     const blueprintSource = String(contract.acquisition?.hint || math?.acquisition_hint || '').trim();
-    if (tiers.length && recipeCount === tiers.length) {
-      return { status: 'craftable', label: 'Recipes proven', detail: `${recipeCount}/${tiers.length} Gear Tier recipes found`, gainPath, blueprintSource };
+    if (tiers.length && materialCount === tiers.length) {
+      return { status: 'craftable', label: 'Recipes complete', detail: `${materialCount}/${tiers.length} material bodies published`, gainPath, blueprintSource };
+    }
+    if (ownerCount) {
+      return { status: 'partial', label: 'Recipe owners proven', detail: `${ownerCount}/${tiers.length} owners · ${materialCount}/${tiers.length} material bodies`, gainPath, blueprintSource };
     }
     if (/stronghold exploration/i.test(gainPath)) {
       return { status: 'direct', label: 'Direct acquisition', detail: gainPath, gainPath, blueprintSource };
     }
-    return { status: 'unresolved', label: 'Acquisition unresolved', detail: recipeCount ? `${recipeCount}/${tiers.length} Gear Tier recipes found` : 'No exact forge recipe found', gainPath, blueprintSource };
+    return { status: 'unresolved', label: 'Acquisition unresolved', detail: 'No exact recipe owner or direct path proven', gainPath, blueprintSource };
   };
+
+  const relationshipSummary = (relationship) => ({
+    compatible: relationship?.compatible_ids?.length || 0,
+    unresolved: relationship?.unresolved_ids?.length || 0,
+    state: relationship?.state || 'unresolved',
+  });
 
   const attributeRow = (cell, patterns) => {
     const rows = cell?.base_attributes || [];
@@ -76,6 +87,9 @@
         minimumDamageMultiplier: ranged.minimum_damage_multiplier,
       },
       ammoItemId: ranged.ammo_item_id,
+      attachments: relationshipSummary(math.attachment_compatibility),
+      calibrations: relationshipSummary(math.calibration_compatibility),
+      ammoConfiguration: math.ammo_configuration || { state: 'unresolved' },
       stats: {
         damage: cell?.base_attack,
         projectileCount: ranged.projectile_count,
@@ -123,6 +137,7 @@
       <div class="weapon-card-body"><p class="weapon-type">${esc(item.type || 'Type unverified')}</p><h2><a href="${detailUrl(item)}">${esc(item.name)}</a></h2>
       <dl><div><dt>Tier I · 1★ DMG</dt><dd>${damage(stats.damage, stats.projectileCount)}</dd></div><div><dt>Fire Rate</dt><dd>${number(stats.rpm)}</dd></div><div><dt>Acquisition</dt><dd>${esc(item.acquisitionEvidence.label)}</dd></div></dl>
       <p class="acquisition-preview ${esc(item.acquisitionEvidence.status)}"><b>${esc(item.acquisitionEvidence.label)}</b><span>${esc(item.acquisitionEvidence.detail)}</span></p>
+      <p class="build-evidence"><span><b>Attachments</b><strong>${esc(item.attachments.compatible)} compatible</strong><small>${esc(item.attachments.unresolved)} unresolved</small></span><span><b>Calibrations</b><strong>${esc(item.calibrations.compatible)} compatible</strong><small>${esc(item.calibrations.unresolved)} unresolved</small></span><span><b>Ammo</b><strong>${esc(item.ammoConfiguration.state === 'resolved-selectable-options' ? `${item.ammoConfiguration.selectable_ammo_item_ids?.length || 0} selectable` : item.ammoConfiguration.state)}</strong></span></p>
       <p class="effect-preview">${esc(effect(item) || 'Weapon mechanic unresolved or absent in the current Miner projection.')}</p>
       <p class="source-line">Source: ${esc(source)}</p>
       <div class="card-actions"><a href="${detailUrl(item)}">Inspect</a><button type="button" data-compare-id="${esc(item.id)}">Compare</button><a class="configure" href="${plannerUrl(item)}">Add to Build</a></div></div>
@@ -139,6 +154,11 @@
       return;
     }
     document.getElementById('weaponTotal').textContent = weapons.length;
+    const counts = mathData.record_counts || {};
+    document.getElementById('mappedWeaponTotal').textContent = weapons.length;
+    document.getElementById('rangedWeaponTotal').textContent = counts.ranged_weapons ?? '—';
+    document.getElementById('meleeWeaponTotal').textContent = counts.melee_weapons ?? '—';
+    document.getElementById('flowWeaponTotal').textContent = `${weapons.length} catalogue identities`;
     const search = document.getElementById('weaponSearch');
     const type = document.getElementById('typeFilter');
     const rarity = document.getElementById('rarityFilter');
@@ -376,7 +396,8 @@
       <article><p class="section-code">03 // Damage profile</p><h2>${ranged ? 'Distance behavior' : 'Melee profile'}</h2><dl class="detail-stats">${damageProfileRows || '<div><dt>Profile data</dt><dd>—</dd></div>'}</dl></article>
       <article><p class="section-code">04 // Weapon mechanic</p><h2>${esc(item.mechanicName || 'Indexed effect')}</h2><p class="full-effect">${esc(effect(item) || 'No player-facing weapon mechanic is resolved for this record in the current Miner projection. Dead Signal does not substitute flavor text or guessed mechanics.')}</p></article></section>
       <section class="progression-panel"><p class="section-code">05 // Proven static math</p><h2>Gear Tier and Blueprint Stars</h2><p>Choose a legal configuration. DMG is calculated from installed-game Tier, Blueprint Star, and projectile-pattern data; it is not configured DPS.</p>${tiers.length ? `<div class="math-config"><label><span>Gear Tier</span><select id="gearTier">${tiers.map((tier) => `<option value="${tier.gear_tier}"${tier === tiers[0] ? ' selected' : ''}>Tier ${romanTier(tier.gear_tier)}</option>`).join('')}</select></label><label><span>Blueprint Stars</span><select id="blueprintStars"></select></label><div class="math-result"><span>Verified DMG</span><strong id="calculatedAttack">—</strong><small id="calculationTrace"></small></div></div><div class="tier-grid">${tiers.map((tier) => `<div><span>Tier ${romanTier(tier.gear_tier)}</span><strong>${damage(tier.tier_base_attack_at_1_star, stats.projectileCount)}</strong><small>DMG at 1★</small></div>`).join('')}</div>` : '<p class="pending">Tier progression is not available for this record.</p>'}</section>
-      <section class="provenance-panel"><p class="section-code">06 // Verification</p><h2>Source and limits</h2><div><p><b>Coverage</b><span>${esc(item.coverage)}</span></p><p><b>Source</b><span>Installed game snapshot</span></p><p><b>Blueprint ID</b><span>${esc(item.blueprintId)}</span></p></div><p class="limits">Snapshot generated: ${esc(generatedLabel)}. Formula: <code>${esc(mathData.formula_contract?.base_attack || 'Not recorded')}</code>. Calibration, attachments, conditional effects, enemy defenses, and configured DPS are not applied. Known-bad flavor descriptions are intentionally excluded.</p></section>`;
+      <section class="provenance-panel"><p class="section-code">06 // Build compatibility</p><h2>Exact selectable relationships</h2><div><p><b>Attachments</b><span>${esc(item.attachments.compatible)} compatible · ${esc(item.attachments.unresolved)} unresolved</span></p><p><b>Calibrations</b><span>${esc(item.calibrations.compatible)} compatible · ${esc(item.calibrations.unresolved)} unresolved</span></p><p><b>Ammunition</b><span>${esc(item.ammoConfiguration.state === 'resolved-selectable-options' ? `${item.ammoConfiguration.selectable_ammo_item_ids?.length || 0} selectable options` : item.ammoConfiguration.state)}</span></p></div><p class="limits">These are installed-table relationships from the locked Weapons v1 contract. Unresolved and not-applicable states remain distinct.</p></section>
+      <section class="provenance-panel"><p class="section-code">07 // Verification</p><h2>Source and limits</h2><div><p><b>Coverage</b><span>${esc(item.coverage)}</span></p><p><b>Source</b><span>Installed game snapshot</span></p><p><b>Identity</b><span>${esc(item.id)}</span></p></div><p class="limits">Snapshot generated: ${esc(generatedLabel)}. Formula: <code>${esc(mathData.formula_contract?.base_attack || 'Not recorded')}</code>. Conditional effects, enemy defenses, and configured DPS are not applied.</p></section>`;
 
     const tierControl = document.getElementById('gearTier');
     const starControl = document.getElementById('blueprintStars');
