@@ -4,6 +4,10 @@ Current operational handoff:
 
 - `HANDOFF-2026-08-18-NORMAL-GPT-EVIDENCE-FIRST-MINER.md`
 
+Approved implementation plan:
+
+- `EVIDENCE-GRAPH-EXPANSION-WORK-PLAN.md`
+
 Read order for a new engineering/research session:
 
 1. `PROJECT-RULES.md`
