@@ -90,6 +90,13 @@ class DataIntelligenceUiTests(unittest.TestCase):
             tuple(stage[0] for stage in PIPELINE_STAGES),
         )
 
+    def test_evidence_graph_is_the_primary_miner_workspace(self):
+        source = (SRC / "dead_signal_miner.py").read_text(encoding="utf-8")
+        self.assertIn('self.workspace_var = tk.StringVar(value="Evidence Graph")', source)
+        self.assertIn('self._build_evidence_graph_workspace()', source)
+        self.assertIn('self._show_workspace("Evidence Graph")', source)
+        self.assertIn('(("Evidence Graph", "⌁")', source)
+
     def test_intelligence_tools_are_grouped_into_task_hubs(self):
         self.assertEqual(
             ("Explore", "Trace & Resolve", "Review & Publish", "Build"),

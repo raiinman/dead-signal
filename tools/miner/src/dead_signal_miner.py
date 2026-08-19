@@ -107,7 +107,7 @@ class DeadSignalMinerApp:
         self.output_var = tk.StringVar(value=str(default_output()))
         self.status_var = tk.StringVar(value="Ready for a local snapshot")
         self.progress_var = tk.IntVar(value=0)
-        self.workspace_var = tk.StringVar(value="Run Pipeline")
+        self.workspace_var = tk.StringVar(value="Evidence Graph")
         self.activity_count = 0
         self.stage_widgets: list[dict[str, tk.Widget]] = []
         self.coverage_widgets: dict[str, tuple[tk.Label, ttk.Progressbar]] = {}
@@ -191,7 +191,8 @@ class DeadSignalMinerApp:
         self.nav.pack(side="left", fill="y")
         self.nav.pack_propagate(False)
         self.nav_buttons: dict[str, tk.Button] = {}
-        for label, glyph in (("Run Pipeline", "▶"), ("Explore Data", "⌕"), ("Publish & Verify", "✓")):
+        for label, glyph in (("Evidence Graph", "⌁"), ("Run Pipeline", "▶"),
+                             ("Explore Data", "⌕"), ("Publish & Verify", "✓")):
             button = tk.Button(
                 self.nav, text=f"  {glyph}   {label}", anchor="w", command=lambda name=label: self._show_workspace(name),
                 bg="#0d1013", activebackground=PANEL_2, fg="#c9ced3", activeforeground="white",
@@ -210,10 +211,11 @@ class DeadSignalMinerApp:
         self.workspace_host = tk.Frame(shell, bg=BG, padx=12, pady=12)
         self.workspace_host.pack(side="left", fill="both", expand=True)
         self.workspaces: dict[str, tk.Frame] = {}
+        self._build_evidence_graph_workspace()
         self._build_run_workspace()
         self._build_explore_workspace()
         self._build_publish_workspace()
-        self._show_workspace("Run Pipeline")
+        self._show_workspace("Evidence Graph")
         self._append_log("Ready. Game files are read-only; nothing in the installation will be changed.")
         self._refresh_coverage()
 
@@ -242,6 +244,25 @@ class DeadSignalMinerApp:
             button.configure(bg=PANEL_2 if label == name else "#0d1013", fg="white" if label == name else "#c9ced3")
         if name == "Publish & Verify":
             self._refresh_coverage()
+
+    def _build_evidence_graph_workspace(self) -> None:
+        """Make exact evidence analysis the Miner's primary product surface."""
+        page = self._workspace("Evidence Graph")
+        output = Path(self.output_var.get().strip() or default_output()).expanduser().resolve()
+        try:
+            from dead_signal_trace_workspace import install_weapon_identity_trace  # pylint: disable=import-outside-toplevel
+            self.identity_trace = install_weapon_identity_trace(page, output, self)
+        except Exception as error:
+            fallback = self._panel(page, padx=28, pady=26)
+            fallback.pack(fill="both", expand=True)
+            tk.Label(fallback, text="EVIDENCE GRAPH", bg=PANEL, fg=TEXT,
+                     font=("Segoe UI", 22, "bold")).pack(anchor="w")
+            tk.Label(fallback, text="Complete one local snapshot before tracing player-facing claims.",
+                     bg=PANEL, fg=MUTED, font=("Segoe UI", 11)).pack(anchor="w", pady=(5, 18))
+            tk.Label(fallback, text=str(error), bg=PANEL, fg=AMBER, justify="left",
+                     wraplength=800, font=("Cascadia Mono", 9)).pack(anchor="w")
+            self._button(fallback, "OPEN RUN PIPELINE", lambda: self._show_workspace("Run Pipeline"),
+                         primary=True).pack(anchor="w", pady=(22, 0))
 
     def _build_run_workspace(self) -> None:
         page = self._workspace("Run Pipeline")

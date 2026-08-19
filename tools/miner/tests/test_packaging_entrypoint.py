@@ -23,6 +23,7 @@ class PackagingEntrypointTests(unittest.TestCase):
             "dead_signal_verification",
             "dead_signal_verification_tab",
             "dead_signal_evidence_graph",
+            "dead_signal_trace_workspace",
             "dead_signal_workflow_lab",
             "dead_signal_pipeline_inspector",
             "dead_signal_publication_gate",

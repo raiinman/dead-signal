@@ -6,6 +6,14 @@ Completed 2026-08-18 (America/Phoenix).
 
 The Data Intelligence **Evidence Graph** tool is now the complete visual Weapon Identity Trace workspace approved in the design render. It replaces the former basic graph canvas and raw-JSON panel.
 
+In `v1.5.14.64`, that evidence engine is promoted into the primary Miner shell:
+
+- the application opens directly on **Evidence Graph**;
+- **Evidence Graph** is a first-class sidebar destination;
+- **Run Pipeline** remains available as a supporting operation rather than the landing screen;
+- the primary workspace automatically loads the local 130-weapon corpus and traces a real subject;
+- installations without a completed snapshot fail closed into a clear Run Pipeline call to action.
+
 The workspace includes:
 
 - installed-snapshot, Miner-version, and scan-status telemetry;
@@ -47,4 +55,4 @@ No fuzzy joins, spelling guesses, external catalog values, or hard-coded weapon 
 
 ## Release boundary
 
-Miner source is versioned `v1.5.14.63`. Pushing the version commit triggers the protected Windows release workflow, which builds and self-tests the package, publishes and re-verifies the GitHub asset, then updates `release/latest.json` last so installed Miners can discover the update safely.
+Miner source is versioned `v1.5.14.64`. Pushing the version commit triggers the protected Windows release workflow, which builds and self-tests the package, publishes and re-verifies the GitHub asset, then updates `release/latest.json` last so installed Miners can discover the update safely.

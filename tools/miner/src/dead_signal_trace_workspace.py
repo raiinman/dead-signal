@@ -184,7 +184,7 @@ class WeaponIdentityTraceWorkspace:
             return
         identity = _identity(self.subject_var.get())
         if not identity:
-            messagebox.showinfo("Dead Signal Trace", "Choose a weapon first.", parent=self.host.window)
+            messagebox.showinfo("Dead Signal Trace", "Choose a weapon first.", parent=self._window())
             return
         self.running = True
         self.status_var.set("TRACING…")
@@ -196,9 +196,9 @@ class WeaponIdentityTraceWorkspace:
                 trace = self.schema.trace(identity)
                 weapon = self.console.find_weapon(identity)
             except Exception as error:
-                self.host.window.after(0, lambda exc=error: self._trace_failed(exc))
+                self._window().after(0, lambda exc=error: self._trace_failed(exc))
                 return
-            self.host.window.after(0, lambda: self._trace_complete(graph, trace, weapon))
+            self._window().after(0, lambda: self._trace_complete(graph, trace, weapon))
 
         threading.Thread(target=worker, name="DeadSignalIdentityTrace", daemon=True).start()
 
@@ -206,7 +206,10 @@ class WeaponIdentityTraceWorkspace:
         self.running = False
         self.status_var.set("TRACE FAILED")
         self.run_button.configure(state="normal")
-        messagebox.showerror("Dead Signal Trace", str(error), parent=self.host.window)
+        messagebox.showerror("Dead Signal Trace", str(error), parent=self._window())
+
+    def _window(self):
+        return getattr(self.host, "window", getattr(self.host, "root", self.parent))
 
     def _trace_complete(self, graph, trace, weapon):
         self.running = False
