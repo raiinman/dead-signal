@@ -13,21 +13,25 @@ class ExtendedRouteWiringTests(unittest.TestCase):
         "deviations": "DS_DEVIATIONS_WEB",
         "cradles": "DS_CRADLES_WEB",
     }
-    DEDICATED_CATEGORIES = ("calibrations", "mods")
-    SHARED_CATEGORIES = ("attachments", "deviations", "cradles")
+    DEDICATED_CATEGORIES = ("calibrations", "mods", "attachments")
+    SHARED_CATEGORIES = ("deviations", "cradles")
     BUILD_LAB_CATEGORIES = ("calibrations", "mods", "attachments", "deviations", "cradles")
 
     def test_routes_load_own_contract_and_expected_renderer(self):
         for category, variable in self.CATEGORIES.items():
             with self.subTest(category=category):
                 route = (ROOT / "database" / category / "index.html").read_text(encoding="utf-8")
-                self.assertIn("../extended-catalogue.css", route)
                 self.assertIn(f"{category}-data.js", route)
                 if category in self.SHARED_CATEGORIES:
+                    self.assertIn("../extended-catalogue.css", route)
                     self.assertIn('src="../extended-catalogue.js', route)
                 else:
                     self.assertNotIn('src="../extended-catalogue.js', route)
-                    self.assertIn(variable, route)
+                    renderer = route
+                    dedicated = ROOT / "database" / category / f"{category}-catalogue.js"
+                    if dedicated.is_file():
+                        renderer += dedicated.read_text(encoding="utf-8")
+                    self.assertIn(variable, renderer)
                 placeholder = (ROOT / "database" / category / f"{category}-data.js").read_text(encoding="utf-8")
                 self.assertIn(variable, placeholder)
 

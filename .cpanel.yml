@@ -78,6 +78,7 @@ deployment:
     - /bin/cp -f database/attachments/index.html $ROOTPATH/database/attachments/index.html
     - /bin/cp -f database/attachments/attachments-data.js $ROOTPATH/database/attachments/attachments-data.js
     - /bin/cp -f database/attachments/attachments-catalogue.css $ROOTPATH/database/attachments/attachments-catalogue.css
+    - /bin/cp -f database/attachments/attachments-catalogue.js $ROOTPATH/database/attachments/attachments-catalogue.js
     - /bin/cp -f database/deviations/index.html $ROOTPATH/database/deviations/index.html
     - /bin/cp -f database/deviations/deviations-data.js $ROOTPATH/database/deviations/deviations-data.js
     - /bin/cp -f database/cradles/index.html $ROOTPATH/database/cradles/index.html
