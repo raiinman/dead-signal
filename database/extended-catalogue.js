@@ -112,7 +112,7 @@
         : 'Compatibility unresolved in the installed-game snapshot';
       return [
         text(row.attachment_type) || 'Weapon attachment',
-        text(row.effects || row.description),
+        text(row.description),
         compatibility,
       ];
     }
@@ -153,6 +153,20 @@
     const article = document.createElement('article');
     article.className = 'db-card';
     if (rs.length === 1) article.classList.add(`rarity-${rs[0]}`);
+    if (category === 'attachments') {
+      const imagePath = text(row.image_reference).replace(/\\/g, '/');
+      const art = document.createElement('div');
+      art.className = 'attachment-art';
+      if (imagePath) {
+        const image = document.createElement('img');
+        image.src = imagePath.startsWith('/') ? imagePath : `/build-planner/${imagePath.replace(/^\.\//, '')}`;
+        image.alt = name(row);
+        image.loading = 'lazy';
+        image.decoding = 'async';
+        art.append(image);
+      } else appendText(art, 'span', 'IMAGE UNRESOLVED');
+      article.append(art);
+    }
     appendText(article, 'small', primaryText);
     appendText(article, 'h2', name(row));
     appendText(article, 'p', description || 'No player-facing description is resolved in the current compact contract.');
@@ -173,6 +187,20 @@
     );
     meta.append(evidence, variantCount);
     article.append(meta);
+
+    if (category === 'attachments') {
+      const evidenceList = document.createElement('div');
+      evidenceList.className = 'attachment-evidence';
+      const attributes = Array.isArray(row.attribute_codes) ? row.attribute_codes : [];
+      const stats = document.createElement('div');
+      appendText(stats, 'span', 'Mined stat evidence');
+      appendText(stats, 'b', attributes.length ? attributes.map(([code, value]) => `${code} ${Number(value) >= 0 ? '+' : ''}${value}`).join(' · ') : 'No attribute-code rows published');
+      const acquisition = document.createElement('div');
+      appendText(acquisition, 'span', 'Acquisition');
+      appendText(acquisition, 'b', text(row.gain_path) || 'Acquisition path unresolved');
+      evidenceList.append(stats, acquisition);
+      article.append(evidenceList);
+    }
 
     if (list.length > 1) {
       const variantList = document.createElement('div');
