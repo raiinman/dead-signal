@@ -62,6 +62,21 @@ class DataIntelligenceUiTests(unittest.TestCase):
         self.assertIn('"Launch Coverage"', source)
         self.assertIn('dead-signal-coverage-dashboard.json', source)
 
+    def test_evidence_graph_uses_complete_identity_trace_workspace(self):
+        advanced = (SRC / "dead_signal_intelligence_advanced.py").read_text(encoding="utf-8")
+        workspace = (SRC / "dead_signal_trace_workspace.py").read_text(encoding="utf-8")
+        self.assertIn("install_weapon_identity_trace(frame, self.output, self.host)", advanced)
+        for label in (
+            "WEAPON IDENTITY TRACE",
+            "EVIDENCE INSPECTOR",
+            "AUTOMATED RECOMPUTATION",
+            "HUMAN REVIEW QUEUE",
+            "RUN TRACE",
+        ):
+            self.assertIn(label, workspace)
+        for relationship in ("EFFECT", "ATTACHMENTS", "CALIBRATION", "AMMO", "CRAFTING", "PROGRESSION"):
+            self.assertIn(f'"{relationship}"', workspace)
+
     def test_miner_shell_combines_work_into_three_workspaces(self):
         source = (SRC / "dead_signal_miner.py").read_text(encoding="utf-8")
         self.assertIn('self._build_run_workspace()', source)

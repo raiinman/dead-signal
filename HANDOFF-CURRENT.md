@@ -2,7 +2,7 @@
 
 Current operational handoff:
 
-- `HANDOFF-2026-08-18-WEAPONS-V1-SCHEMA-LOCK.md`
+- `HANDOFF-2026-08-18-MINER-IDENTITY-TRACE-WORKSPACE.md`
 
 Read order for a new engineering/research session:
 
@@ -17,8 +17,9 @@ Read order for a new engineering/research session:
 9. `HANDOFF-2026-08-18-WEAPON-IDENTITY-SPINE-COMPLETE.md`
 10. `HANDOFF-2026-08-18-WEAPON-LAUNCH-WARNINGS-AND-ATTACHMENTS.md`
 11. `HANDOFF-2026-08-18-WEAPONS-V1-SCHEMA-LOCK.md`
+12. `HANDOFF-2026-08-18-MINER-IDENTITY-TRACE-WORKSPACE.md`
 
-For current operational state, the Weapons v1 Schema Lock handoff supersedes older Miner/Weapons handoffs where they conflict. Older handoffs remain evidence history and design rationale.
+For current operational state, the Miner Identity Trace Workspace handoff is the UI continuation of the Weapons v1 Schema Lock. The schema lock remains authoritative for evidence semantics; older handoffs remain evidence history and design rationale.
 
 Key current transition:
 

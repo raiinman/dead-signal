@@ -12,6 +12,7 @@ from dead_signal_evidence_graph import DeadSignalEvidenceGraph
 from dead_signal_pipeline_inspector import inspect_existing_run
 from dead_signal_publication_gate import build_gate_report
 from dead_signal_workflow_lab import DeadSignalWorkflowLab, default_description_workflow
+from dead_signal_trace_workspace import install_weapon_identity_trace
 from research_console import ResearchConsole
 
 
@@ -74,18 +75,7 @@ class AdvancedIntelligenceTabs:
 
     def _build_evidence_graph(self):
         frame = self._tab("Evidence Graph")
-        self.graph_weapon = self._weapon_bar(frame, self._load_graph, "BUILD EXACT GRAPH")
-        split = tk.PanedWindow(frame, orient="horizontal", bg=BORDER, sashwidth=5)
-        split.pack(fill="both", expand=True)
-        canvas_panel = tk.Frame(split, bg=BG)
-        detail_panel = tk.Frame(split, bg=PANEL_2)
-        split.add(canvas_panel, minsize=700, stretch="always")
-        split.add(detail_panel, minsize=390, stretch="always")
-        self.graph_canvas = tk.Canvas(canvas_panel, bg=BG, highlightthickness=0)
-        self.graph_canvas.pack(fill="both", expand=True)
-        self.graph_detail = self._text(detail_panel)
-        self.graph_detail.pack(fill="both", expand=True, padx=7, pady=7)
-        self.graph_canvas.create_text(30, 30, anchor="nw", text="Choose a Weapon to build its exact evidence graph.", fill=MUTED, font=("Segoe UI", 11, "bold"))
+        self.trace_workspace = install_weapon_identity_trace(frame, self.output, self.host)
 
     def _load_graph(self, identity):
         if not identity:
