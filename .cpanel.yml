@@ -41,6 +41,10 @@ deployment:
     - /bin/cp -f assets/database-icons/cradle-overrides-512.avif $ROOTPATH/assets/database-icons/cradle-overrides-512.avif
     - /bin/cp -f assets/database-icons/cradle-overrides-256.webp $ROOTPATH/assets/database-icons/cradle-overrides-256.webp
     - /bin/cp -f assets/database-icons/cradle-overrides-512.webp $ROOTPATH/assets/database-icons/cradle-overrides-512.webp
+    - /bin/cp -f assets/database-icons/attachments-256.avif $ROOTPATH/assets/database-icons/attachments-256.avif
+    - /bin/cp -f assets/database-icons/attachments-512.avif $ROOTPATH/assets/database-icons/attachments-512.avif
+    - /bin/cp -f assets/database-icons/attachments-256.webp $ROOTPATH/assets/database-icons/attachments-256.webp
+    - /bin/cp -f assets/database-icons/attachments-512.webp $ROOTPATH/assets/database-icons/attachments-512.webp
     - /bin/cp -f site.js $ROOTPATH/site.js
     - /bin/mkdir -p $ROOTPATH/api/twitter/cache
     - /bin/cp -f api/twitter/cache/index.php $ROOTPATH/api/twitter/cache/index.php
