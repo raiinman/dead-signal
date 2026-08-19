@@ -2,18 +2,18 @@
 
 > Read this file and `PROJECT-RULES.md` first. Canonical current-state continuity for `raiinman/dead-signal` on `main`.
 >
-> Updated **2026-08-17 America/Phoenix / 2026-08-18 UTC** after completion of the Miner architecture upgrade, unified Miner shell, Data Intelligence task-hub redesign, Windows packaging verification, and installation into the user's active Desktop Miner.
+> Updated **2026-08-18 America/Phoenix / 2026-08-19 UTC** after release of the evidence-first Miner shell. Read `HANDOFF-2026-08-18-NORMAL-GPT-EVIDENCE-FIRST-MINER.md` for the current operational state before following historical research below.
 
 ## Current implementation state — read before older research sections
 
-Miner source remains version **v1.5.14.61**. The architecture upgrade is complete through Phase 7; do not restart at Phase 0.
+Miner stable release is **v1.5.14.64**. The architecture upgrade is complete through Phase 7; do not restart at Phase 0. The Miner now opens directly on the first-class Evidence Graph workspace.
 
 Current source state:
 
 - canonical repository: `raiinman/dead-signal`
 - canonical branch: `main`
-- GitHub `origin/main`: `302d6d7` — unified Miner pipeline console
-- local `main`: `ca958f2` — Data Intelligence task hubs (**one commit ahead of origin; not pushed yet**)
+- GitHub `origin/main`: `350ec1b` — verified `v1.5.14.64` updater manifest
+- local `main`: `350ec1b` before this documentation handoff
 - unrelated `tools/miner.zip` remains untracked and must not be touched
 
 Canonical editable checkout used for this work:
@@ -32,23 +32,22 @@ Recoverable pre-redesign package backup:
 
 `C:\Users\mikea\OneDrive\Desktop\Dead Signal Miner.backup-20260817-211543`
 
-The active Desktop package contains the `ca958f2` Data Intelligence redesign and passes the packaged self-test. Installed executable SHA-256 at handoff:
-
-`E1E44952F48775FCC165ADC561617546274B754D9D162DEB9D479028CB263914`
-
 Latest validation:
 
-- 183 Miner source tests PASS
-- source window construction PASS
-- Data Intelligence 20-page construction PASS: 5 task hubs + 15 preserved specialist tools
-- live Windows visual QA PASS for Overview, Explore hub, NeoX Explorer, and contextual navigation
+- 208 Miner source tests PASS
+- evidence-first full application construction PASS against the real local snapshot
+- 130 weapon choices load without a hard-coded count
+- default SOCR - The Last Valor trace reaches `SCAN COMPLETE` with 27 interactive graph objects
 - Windows build PASS
-- built package self-test PASS
-- installed Desktop package self-test PASS
+- packaged self-test PASS
+- public release asset size and SHA-256 verification PASS
+- updater manifest published last PASS
 
 The previous `.47` release notes and ownerless fixed-skill research below remain useful historical evidence, but they are no longer the current implementation or immediate action.
 
-## Current objective
+## Historical research objective — superseded for session routing
+
+The active engineering handoff is `HANDOFF-2026-08-18-NORMAL-GPT-EVIDENCE-FIRST-MINER.md`. Confirm `.64` visual acceptance before beginning new research. The ownerless fixed-skill material below is retained research history, not the current automatic task.
 
 Use the completed persistent architecture and consolidated UI to finish unresolved player-facing Once Human evidence lanes without repeating full-tree discovery work.
 

@@ -2,7 +2,7 @@
 
 Current operational handoff:
 
-- `HANDOFF-2026-08-18-MINER-IDENTITY-TRACE-WORKSPACE.md`
+- `HANDOFF-2026-08-18-NORMAL-GPT-EVIDENCE-FIRST-MINER.md`
 
 Read order for a new engineering/research session:
 
@@ -18,8 +18,9 @@ Read order for a new engineering/research session:
 10. `HANDOFF-2026-08-18-WEAPON-LAUNCH-WARNINGS-AND-ATTACHMENTS.md`
 11. `HANDOFF-2026-08-18-WEAPONS-V1-SCHEMA-LOCK.md`
 12. `HANDOFF-2026-08-18-MINER-IDENTITY-TRACE-WORKSPACE.md`
+13. `HANDOFF-2026-08-18-NORMAL-GPT-EVIDENCE-FIRST-MINER.md`
 
-For current operational state, the Miner Identity Trace Workspace handoff is the UI continuation of the Weapons v1 Schema Lock. The schema lock remains authoritative for evidence semantics; older handoffs remain evidence history and design rationale.
+For current operational state, the Normal GPT Evidence-First Miner handoff supersedes the older UI/release status. The Weapons v1 Schema Lock remains authoritative for evidence semantics; older handoffs remain evidence history and design rationale.
 
 Key current transition:
 
@@ -36,5 +37,6 @@ Key current transition:
 - attachment compatibility publishes only direct installed-game text plus explicit generic category claims; named-model wording is not guessed into IDs;
 - Calibration compatibility and selectable Ammo are projected from exact typed owners;
 - Weapons v1 is schema-locked; change its core identity/relationship contract only when new installed-game evidence requires a revision;
-- stable Miner release boundary remains `v1.5.14.62`; no new release was cut;
+- stable Miner release is `v1.5.14.64`; it opens directly on the first-class Evidence Graph workspace;
+- `.63` nested the new workspace too deeply; `.64` corrected that and passed the complete manifest-last release workflow;
 - `tools/miner.zip` remains protected and untouched.
