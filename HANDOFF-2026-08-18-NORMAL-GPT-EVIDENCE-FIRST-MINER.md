@@ -24,7 +24,7 @@ The user's packaged Miner is updated through the stable GitHub updater. Do not e
 - release source commit: `a5ba1ec` — evidence-first Miner shell
 - manifest-last commit: `350ec1b` — verified `.64` updater publication
 - release workflow `32223541598`: success
-- 208 source tests: pass
+- 213 source tests: pass after Evidence Graph Expansion Phase 0
 - Windows build: pass
 - packaged self-test: pass
 - public ZIP checksum and byte size: verified
@@ -99,7 +99,9 @@ Do not reopen the old 120-count architecture problem or ownerless fixed-skill br
 
 ## Immediate next boundary
 
-First confirm the user has updated from `.63` to `.64` and that Evidence Graph appears immediately at launch. If the visual layout or behavior differs from the approved render, inspect the packaged `.64` application and correct the canonical UI source; do not tell the user the feature is merely nested elsewhere.
+Evidence Graph Expansion Phase 0 is complete. Read `HANDOFF-2026-08-18-EVIDENCE-GRAPH-EXPANSION-PHASE-0.md` and begin Phase 1 generalized contracts next. Preserve the committed Weapons v1 compatibility baseline.
+
+Also confirm the user has updated from `.63` to `.64` and that Evidence Graph appears immediately at launch. If the visual layout or behavior differs from the approved render, inspect the packaged `.64` application and correct the canonical UI source; do not tell the user the feature is merely nested elsewhere.
 
 After visual acceptance, the next safe Miner enhancement is generalized entity tracing beyond weapons, using the same deterministic evidence contract. Do not broaden the schema merely for visual completeness.
 

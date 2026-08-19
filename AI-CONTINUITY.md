@@ -2,7 +2,7 @@
 
 > Read this file and `PROJECT-RULES.md` first. Canonical current-state continuity for `raiinman/dead-signal` on `main`.
 >
-> Updated **2026-08-18 America/Phoenix / 2026-08-19 UTC** after release of the evidence-first Miner shell. Read `HANDOFF-2026-08-18-NORMAL-GPT-EVIDENCE-FIRST-MINER.md` for the current operational state before following historical research below.
+> Updated **2026-08-18 America/Phoenix / 2026-08-19 UTC** after Evidence Graph Expansion Phase 0. Read `HANDOFF-2026-08-18-EVIDENCE-GRAPH-EXPANSION-PHASE-0.md` for the current operational state before following historical research below.
 
 ## Current implementation state — read before older research sections
 
@@ -34,7 +34,7 @@ Recoverable pre-redesign package backup:
 
 Latest validation:
 
-- 208 Miner source tests PASS
+- 213 Miner source tests PASS
 - evidence-first full application construction PASS against the real local snapshot
 - 130 weapon choices load without a hard-coded count
 - default SOCR - The Last Valor trace reaches `SCAN COMPLETE` with 27 interactive graph objects

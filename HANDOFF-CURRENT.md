@@ -2,7 +2,7 @@
 
 Current operational handoff:
 
-- `HANDOFF-2026-08-18-NORMAL-GPT-EVIDENCE-FIRST-MINER.md`
+- `HANDOFF-2026-08-18-EVIDENCE-GRAPH-EXPANSION-PHASE-0.md`
 
 Approved implementation plan:
 
@@ -23,8 +23,10 @@ Read order for a new engineering/research session:
 11. `HANDOFF-2026-08-18-WEAPONS-V1-SCHEMA-LOCK.md`
 12. `HANDOFF-2026-08-18-MINER-IDENTITY-TRACE-WORKSPACE.md`
 13. `HANDOFF-2026-08-18-NORMAL-GPT-EVIDENCE-FIRST-MINER.md`
+14. `EVIDENCE-GRAPH-EXPANSION-WORK-PLAN.md`
+15. `HANDOFF-2026-08-18-EVIDENCE-GRAPH-EXPANSION-PHASE-0.md`
 
-For current operational state, the Normal GPT Evidence-First Miner handoff supersedes the older UI/release status. The Weapons v1 Schema Lock remains authoritative for evidence semantics; older handoffs remain evidence history and design rationale.
+For current operational state, the Evidence Graph Expansion Phase 0 handoff is authoritative. Phase 0 is complete and Phase 1 is next. The Weapons v1 Schema Lock remains authoritative for evidence semantics; older handoffs remain evidence history and design rationale.
 
 Key current transition:
 

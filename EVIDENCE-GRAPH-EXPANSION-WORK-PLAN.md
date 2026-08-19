@@ -18,6 +18,8 @@ Phases are verification boundaries, not stopping points. Continue through the co
 
 ## Phase 0 — Freeze the current graph baseline
 
+Status: **COMPLETE** on 2026-08-18. See `HANDOFF-2026-08-18-EVIDENCE-GRAPH-EXPANSION-PHASE-0.md` and `tools/miner/docs/EVIDENCE-GRAPH-COMPATIBILITY.md`.
+
 Tasks:
 
 - Preserve Weapons v1 as the reference implementation.

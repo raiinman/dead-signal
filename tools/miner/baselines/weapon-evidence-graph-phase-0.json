@@ -1,0 +1,24 @@
+{
+  "schema": "dead-signal-evidence-graph-phase-0-baseline",
+  "schema_version": 1,
+  "captured_at": "2026-08-18 America/Phoenix",
+  "source": "completed-local-miner-snapshot",
+  "miner_version": "1.5.14.64",
+  "published_weapon_count_observed": 130,
+  "fixtures": [
+    {"cohort": "standard-ranged", "canonical_id": "ds-w-13411301", "observed_name": "SOCR - The Last Valor", "elapsed_ms_observed": 229.95, "record_counts": {"nodes": 942, "edges": 1585, "exact_occurrences": 1521}, "canonical_graph_sha256_prefix": "1c827e46eef069fa"},
+    {"cohort": "melee", "canonical_id": "ds-w-13930101", "observed_name": "Baseball Bat", "elapsed_ms_observed": 235.62, "record_counts": {"nodes": 787, "edges": 1443, "exact_occurrences": 1395}, "canonical_graph_sha256_prefix": "cfd6d4ed0528af4f"},
+    {"cohort": "nonstandard-blueprint", "canonical_id": "ds-w-13219901", "observed_name": "Morgan", "elapsed_ms_observed": 386.48, "record_counts": {"nodes": 3881, "edges": 5355, "exact_occurrences": 5214}, "canonical_graph_sha256_prefix": "4db0d77f6965db26"},
+    {"cohort": "special-equipped", "canonical_id": "ds-w-item-12411401", "observed_name": "Ultra Force", "elapsed_ms_observed": 374.62, "record_counts": {"nodes": 3766, "edges": 5206, "exact_occurrences": 5070}, "canonical_graph_sha256_prefix": "34d454b61d32dc72"},
+    {"cohort": "no-fixed-skill-reference", "canonical_id": "ds-w-13421101", "observed_name": "AKM", "elapsed_ms_observed": 419.34, "record_counts": {"nodes": 4439, "edges": 6484, "exact_occurrences": 6312}, "canonical_graph_sha256_prefix": "6f1f6f2d9f0c984e"}
+  ],
+  "artifact_bytes": {"weapons_json": 20361695, "relationship_graph_json": 332132, "reference_tracer_sqlite": 227663872},
+  "compatibility": {
+    "required_graph_keys": ["schema", "schema_version", "brand", "subject", "record_counts", "nodes", "edges", "policy"],
+    "required_record_counts": ["nodes", "edges", "exact_occurrences"],
+    "required_policy_keys": ["edges", "discovery", "publication"],
+    "authoritative_edges_only": true,
+    "performance_values_are_release_information_not_test_thresholds": true,
+    "counts_and_hashes_are_snapshot_observations_not_universal_constants": true
+  }
+}
