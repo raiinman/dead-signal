@@ -47,4 +47,4 @@ No fuzzy joins, spelling guesses, external catalog values, or hard-coded weapon 
 
 ## Release boundary
 
-This is a canonical source/UI update. Stable packaged release remains `v1.5.14.62`; no release package or updater manifest was changed.
+Miner source is versioned `v1.5.14.63`. Pushing the version commit triggers the protected Windows release workflow, which builds and self-tests the package, publishes and re-verifies the GitHub asset, then updates `release/latest.json` last so installed Miners can discover the update safely.
