@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from dead_signal_attachment_adapter import AttachmentAdapter
+from dead_signal_calibration_adapter import CalibrationAdapter
 from dead_signal_domain_adapters import EvidenceAdapterRegistry, EvidenceDomainAdapter
 from dead_signal_entity_registry import DeadSignalEntityRegistry
 from dead_signal_weapon_adapter import WeaponAdapter
@@ -19,7 +20,11 @@ class DeadSignalGeneralizedGraph:
 
     def __init__(self, output: Path | str):
         self.output = Path(output)
-        self.registry = EvidenceAdapterRegistry((WeaponAdapter(output), AttachmentAdapter(output)))
+        self.registry = EvidenceAdapterRegistry((
+            WeaponAdapter(output),
+            AttachmentAdapter(output),
+            CalibrationAdapter(output),
+        ))
         self.entities = DeadSignalEntityRegistry(output, self.registry)
 
     def register_adapter(self, adapter: EvidenceDomainAdapter) -> None:
@@ -73,3 +78,7 @@ class DeadSignalGeneralizedGraph:
     def attachment_entity_graph(self, identity: object) -> dict[str, Any]:
         """Phase-4 typed Attachment graph entry point."""
         return self.entity_graph("attachment", identity)
+
+    def calibration_entity_graph(self, identity: object) -> dict[str, Any]:
+        """Phase-5 typed Calibration Blueprint graph entry point."""
+        return self.entity_graph("calibration", identity)

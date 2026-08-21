@@ -10,6 +10,10 @@ from typing import Any
 
 from attachment_compatibility import direct_compatibility_evidence
 from dead_signal_attachment_relations import attachment_weapon_relation
+from dead_signal_calibration_relations import (
+    calibration_weapon_relation,
+    is_current_calibration_blueprint,
+)
 from normalize_extended import merged_table
 
 
@@ -33,6 +37,11 @@ def _write(path: Path, payload: dict[str, Any]) -> None:
 def _attachment_relation(weapon: dict, attachment: dict) -> str:
     """Backward-compatible wrapper around the shared Phase-4 policy."""
     return attachment_weapon_relation(weapon, attachment)
+
+
+def _calibration_relation(weapon: dict, calibration: dict) -> str:
+    """Backward-compatible wrapper around the shared Phase-5 policy."""
+    return calibration_weapon_relation(weapon, calibration)
 
 
 def enrich(base: Path, current: Path, published: Path) -> dict[str, Any]:
@@ -73,8 +82,13 @@ def enrich(base: Path, current: Path, published: Path) -> dict[str, Any]:
         attachment_owner_states[owner_state] += 1
         player_attachments.append(attachment)
 
+    # Historical code filtered on a `status == current` field that the normalizer
+    # never emitted. Phase 5 instead requires an exact gun_correct_print_data
+    # owner and a valid record. Empty subtype-39 items remain unresolved and are
+    # not silently called current or legacy.
     current_calibrations = [
-        row for row in calibrations.get("calibrations", []) if row.get("status") == "current"
+        row for row in calibrations.get("calibrations", [])
+        if isinstance(row, dict) and is_current_calibration_blueprint(row)
     ]
     relationship_counts = Counter()
     for weapon in weapons.get("weapons", []):
@@ -83,19 +97,14 @@ def enrich(base: Path, current: Path, published: Path) -> dict[str, Any]:
             state = _attachment_relation(weapon, attachment)
             attachment_states[state].append(attachment.get("accessory_code") or attachment.get("id"))
             relationship_counts[f"attachment_{state}"] += 1
-        weapon_code = int(weapon.get("weapon_type_code") or 0)
+
         calibration_states: dict[str, list[Any]] = {state: [] for state in ("compatible", "incompatible", "unresolved", "not-applicable")}
         for calibration in current_calibrations:
-            calibration_id = calibration.get("id")
-            codes = {int(value) for value in calibration.get("weapon_type_codes") or [] if int(value)}
-            if weapon.get("category") == "Melee":
-                state = "not-applicable"
-            elif not weapon_code or not codes:
-                state = "unresolved"
-            else:
-                state = "compatible" if weapon_code in codes else "incompatible"
+            calibration_id = calibration.get("calibration_id") or calibration.get("id") or calibration.get("item_id")
+            state = _calibration_relation(weapon, calibration)
             calibration_states[state].append(calibration_id)
             relationship_counts[f"calibration_{state}"] += 1
+
         ammo = weapon.get("ammo_configuration") or {}
         if weapon.get("category") == "Melee":
             ammo_state = "not-applicable"
@@ -113,11 +122,13 @@ def enrich(base: Path, current: Path, published: Path) -> dict[str, Any]:
             **{f"{state.replace('-', '_')}_ids": values for state, values in attachment_states.items()},
             "evidence_report": "published/reports/weapon-build-compatibility.json",
         }
+        weapon_code = weapon.get("weapon_type_code")
         compatibility["calibration"] = {
-            "state": "resolved-four-state-relationship" if weapon_code or weapon.get("category") == "Melee" else "unresolved",
+            "state": "resolved-four-state-relationship" if current_calibrations and (weapon_code or weapon.get("category") == "Melee") else "unresolved",
             **{f"{state.replace('-', '_')}_ids": values for state, values in calibration_states.items()},
             "source_table": f"{GAME_DATA}/gun_correct_print_data.json",
-            "selector_field": "weapon_type",
+            "selector_field": "weapon_type_lst",
+            "system_policy": "Only exact current Calibration Blueprint owners are included; unresolved subtype-39 items and legacy gear calibration are not mixed into this relation.",
             "evidence_report": "published/reports/weapon-build-compatibility.json",
         }
 
@@ -135,7 +146,7 @@ def enrich(base: Path, current: Path, published: Path) -> dict[str, Any]:
         "policy": {
             "four_state": ["compatible", "incompatible", "unresolved", "not-applicable"],
             "attachment": "Direct installed wording and typed selectors only; named-model spelling never establishes identity.",
-            "calibration": "Exact gun_correct_print_data weapon_type selector compared with the weapon's exact prototype weapon_type.",
+            "calibration": "Exact current gun_correct_print_data weapon_type_lst selector compared with the weapon's exact prototype weapon_type. Legacy gear calibration is excluded from this lane.",
             "ammo": "Exact slot-8 bullet-pack relationships only.",
         },
     }
