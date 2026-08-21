@@ -15,6 +15,7 @@ from dead_signal_calibration_relations import (
     is_current_calibration_blueprint,
 )
 from dead_signal_cradle_applicability import enrich_files as enrich_cradle_files
+from normalize_crafting import write_outputs as write_crafting_outputs
 from normalize_extended import merged_table
 
 
@@ -46,8 +47,8 @@ def _calibration_relation(weapon: dict, calibration: dict) -> str:
 def enrich(base: Path, current: Path, published: Path) -> dict[str, Any]:
     """Enrich Attachment, Calibration, and Ammo relations only.
 
-    Cradle projection is chained by ``main`` so callers of this helper retain the
-    pre-Phase-8 side-effect boundary.
+    Cradle and Crafting/Material projection are chained by ``main`` so callers of
+    this helper retain the pre-Phase-8 side-effect boundary.
     """
     data = published / "data"
     reports = published / "reports"
@@ -175,6 +176,18 @@ def main() -> int:
         args.published.parent,
     )
     report["cradle_record_counts"] = cradle_report.get("record_counts", {})
+
+    # Phase 9 pipeline seam: build first-class Crafting and Material datasets
+    # from the same already-exported Base/Current table corpus. This is a pure
+    # data normalizer; recipe/group/item namespaces are typed before any relation
+    # is emitted and no game bytecode is executed.
+    crafting_outputs = write_crafting_outputs(
+        args.base,
+        args.current,
+        args.published / "data",
+    )
+    report["crafting_record_counts"] = crafting_outputs["crafting"]["record_counts"]
+    report["material_record_counts"] = crafting_outputs["materials"]["record_counts"]
     print(json.dumps(report, indent=2))
     return 0
 
