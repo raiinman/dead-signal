@@ -140,6 +140,21 @@ class EvidenceGraphPhaseTwoAdapterTests(unittest.TestCase):
             contract.validate(),
         )
 
+    def test_collision_prone_identity_seed_uses_canonical_owner_not_destination(self):
+        contract = AdapterContract(
+            entity_type="recipe-like",
+            identity_seeds=("forge_no", "server_no"),
+            canonical_owner_tables=("game_common/data/forge_data.json",),
+            allowed_outbound_fields=("output_item_id",),
+            typed_destination_tables=(("output_item_id", ("game_common/data/item_data.json",)),),
+            collision_prone_fields=("forge_no", "server_no", "output_item_id"),
+            blocked_generic_fields=("id", "no", "code"),
+            terminal_presentation_fields=(),
+            supported_claims=("recipe-like.identity",),
+            applicability_rules=("exact compound identity owner required",),
+        )
+        self.assertEqual([], contract.validate())
+
     def test_bare_generic_outbound_field_is_forbidden(self):
         contract = AdapterContract(
             entity_type="bad",
