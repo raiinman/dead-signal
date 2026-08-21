@@ -13,6 +13,7 @@ sys.path.insert(0, str(SRC))
 
 from miner_updater import (  # noqa: E402
     EXPECTED_EXECUTABLE,
+    EXPECTED_UPDATER,
     apply_update,
     locate_payload_root,
     safe_members,
@@ -49,21 +50,23 @@ class UpdaterTests(unittest.TestCase):
             target = root / "installed" / "Dead Signal Miner"
             target.mkdir(parents=True)
             (target / EXPECTED_EXECUTABLE).write_bytes(b"old-executable")
-            (target / "old-only.txt").write_text("preserved", encoding="utf-8")
+            (target / EXPECTED_UPDATER).write_bytes(b"old-updater")
+            (target / "old-only.txt").write_text("obsolete", encoding="utf-8")
             package = root / "update.zip"
             with zipfile.ZipFile(package, "w") as archive:
                 archive.writestr(f"Dead Signal Miner/{EXPECTED_EXECUTABLE}", b"new-executable")
-                archive.writestr("Dead Signal Miner/_internal/VERSION", "1.5.9.0")
+                archive.writestr(f"Dead Signal Miner/{EXPECTED_UPDATER}", b"new-updater")
+                archive.writestr("Dead Signal Miner/_internal/VERSION", "1.5.14.67")
             digest = hashlib.sha256(package.read_bytes()).hexdigest()
 
             copied = apply_update(package, target, digest)
 
-            self.assertEqual(copied, 2)
+            self.assertEqual(copied, 3)
             self.assertEqual((target / EXPECTED_EXECUTABLE).read_bytes(), b"new-executable")
-            self.assertEqual((target / "_internal" / "VERSION").read_text(encoding="utf-8"), "1.5.9.0")
-            self.assertEqual((target / "old-only.txt").read_text(encoding="utf-8"), "preserved")
+            self.assertEqual((target / EXPECTED_UPDATER).read_bytes(), b"new-updater")
+            self.assertEqual((target / "_internal" / "VERSION").read_text(encoding="utf-8"), "1.5.14.67")
+            self.assertFalse((target / "old-only.txt").exists())
 
 
 if __name__ == "__main__":
     unittest.main()
-
