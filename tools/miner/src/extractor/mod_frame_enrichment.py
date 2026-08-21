@@ -1,10 +1,12 @@
 """Enrich normalized Mod 2.0 records with proven frame/sub-entry identities.
 
 Evidence boundary:
-- ``frame_code`` selects one exact ``new_mod_frame_lib_data`` row.
-- That row preserves four ordered ``sub_entry_item_no`` IDs.
-- Each ID resolves to one ``mod_entry_data`` family.
-- Regular Levels 1-5 must preserve one stable attribute-code OR buff identity.
+- normalized rows originate from ``new_mod_item_data`` and are explicitly stamped
+  as current Mod 2.0 item owners;
+- ``frame_code`` selects one exact ``new_mod_frame_lib_data`` row;
+- that row preserves four ordered ``sub_entry_item_no`` IDs;
+- each ID resolves to one ``mod_entry_data`` family;
+- regular Levels 1-5 must preserve one stable attribute-code OR buff identity.
 
 The source order is preserved, but this module deliberately does NOT map list
 position 0..3 to ``frame_lv_1..4``. Runtime consumer evidence is still required
@@ -25,6 +27,8 @@ from normalize_extended import GAME_DATA, as_int, key_parts, merged_table
 REGULAR_LEVELS = {1, 2, 3, 4, 5}
 FRAME_TABLE = f"{GAME_DATA}/new_mod_frame_lib_data.json"
 ENTRY_TABLE = f"{GAME_DATA}/mod_entry_data.json"
+CURRENT_MOD_SYSTEM = "current-mod-2.0"
+CURRENT_ITEM_OWNER_STATE = "exact-new-mod-item-owner"
 
 
 def _entry_rows(entries: dict) -> dict[int, list[tuple[int, dict]]]:
@@ -136,6 +140,13 @@ def enrich(payload: dict, frames: dict, entries: dict) -> dict:
     for row in mods:
         if not isinstance(row, dict):
             continue
+        # ``build_mods`` iterates exact new_mod_item_data owners. Stamp that
+        # source-system identity so downstream adapters can reject legacy rows
+        # rather than inferring the system from similar fields.
+        row["mod_system"] = CURRENT_MOD_SYSTEM
+        row["owner_state"] = CURRENT_ITEM_OWNER_STATE
+        row["owner_source_table"] = f"{GAME_DATA}/new_mod_item_data.json"
+
         frame_code = as_int(row.get("frame_code"))
         evidence = frame_evidence(frame_code, frames, entries_by_number)
         row["frame_sub_entry_evidence"] = evidence
@@ -153,6 +164,8 @@ def enrich(payload: dict, frames: dict, entries: dict) -> dict:
     counts["frame_evidence_unresolved"] = unresolved
     counts["used_frame_codes"] = len(used_frames)
     counts["used_sub_entry_families"] = len(used_entries)
+    payload["mod_system"] = CURRENT_MOD_SYSTEM
+    payload["legacy_random_roll_records_included"] = False
     payload["mod_frame_evidence_policy"] = (
         "frame_code -> new_mod_frame_lib_data -> four ordered sub-entry IDs -> stable mod_entry_data identity is proven; "
         "source order is preserved but no position is assigned to frame_lv_1..4 without runtime consumer evidence"
