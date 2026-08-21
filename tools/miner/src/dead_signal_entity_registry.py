@@ -1,8 +1,7 @@
 """Searchable entity registry for the generalized Dead Signal Evidence Graph.
 
 The registry indexes only source-derived entities whose entity type has a
-registered typed adapter. It never treats name similarity as evidence; names are
-search aliases only and graph proof remains adapter-owned.
+registered typed adapter. Names are search aliases only; they never create proof.
 """
 from __future__ import annotations
 
@@ -60,15 +59,27 @@ def _mod_variants(payload: dict[str, Any]) -> list[dict[str, Any]]:
     return _family_variants(payload, canonical_prefix="ds-mod-var", identity_field="item_id")
 
 
-def _cradle_variants(payload: dict[str, Any]) -> list[dict[str, Any]]:
-    """Index only installed active Cradles; inactive legacy variants are excluded."""
-    rows = _family_variants(payload, canonical_prefix="ds-cradle", identity_field="id")
-    result = []
-    for row in rows:
-        if not row.get("active_config_keys"):
+def _cradle_rows(data: dict[str, Any], report: dict[str, Any]) -> list[dict[str, Any]]:
+    """Join normalized Cradles to active selector rows; no compact web dependency."""
+    by_id = {
+        str(row.get("id")): row
+        for row in data.get("cradles", [])
+        if isinstance(row, dict) and row.get("id") not in (None, "")
+    }
+    result: list[dict[str, Any]] = []
+    for selector in report.get("selectors", []):
+        if not isinstance(selector, dict):
             continue
-        row["cradle_id"] = row.get("id")
+        entry_id = selector.get("entry_id")
+        source = by_id.get(str(entry_id))
+        if source is None:
+            continue
+        row = dict(source)
+        row["cradle_id"] = entry_id
+        row["canonical_id"] = f"ds-cradle-{entry_id}"
         row["classification"] = "Active Cradle"
+        row["active_config_keys"] = list(selector.get("config_keys") or row.get("active_config_keys") or [])
+        row["active_season_ids"] = list(selector.get("season_ids") or row.get("active_season_ids") or [])
         result.append(row)
     return result
 
@@ -120,7 +131,17 @@ def _normalize_identity_state(value: object) -> str:
     return "UNRESOLVED"
 
 
+def _load(path: Path) -> dict[str, Any] | None:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
 class DeadSignalEntityRegistry:
+    """Read-only searchable registry over adapter-backed published entities."""
+
     def __init__(self, output: Path | str, adapters: EvidenceAdapterRegistry):
         self.output = Path(output).expanduser().resolve()
         self.adapters = adapters
@@ -157,32 +178,38 @@ class DeadSignalEntityRegistry:
             "armor": web / "armor.json",
             "armor_set": web / "armor.json",
             "mod": web / "mods.json",
-            "cradle": web / "cradles.json",
             "deviation": web / "deviations.json",
         }
         indexed_by_type: dict[str, int] = {}
         for entity_type in self.adapters.entity_types():
-            path = source_map.get(entity_type)
-            if path is None or not path.is_file():
-                indexed_by_type[entity_type] = 0
-                continue
-            try:
-                payload = json.loads(path.read_text(encoding="utf-8"))
-            except (OSError, ValueError):
-                indexed_by_type[entity_type] = 0
-                continue
-            if entity_type == "calibration":
-                rows = _calibration_variants(payload)
-            elif entity_type == "mod":
-                rows = _mod_variants(payload)
-            elif entity_type == "cradle":
-                rows = _cradle_variants(payload)
-            elif entity_type == "armor":
-                rows = _armor_pieces(payload)
-            elif entity_type == "armor_set":
-                rows = _armor_sets(payload)
+            if entity_type == "cradle":
+                path = web.parent / "data" / "cradles.json"
+                report_path = web.parent / "reports" / "weapon-cradle-applicability.json"
+                payload = _load(path)
+                report = _load(report_path)
+                if payload is None or report is None:
+                    indexed_by_type[entity_type] = 0
+                    continue
+                rows = _cradle_rows(payload, report)
             else:
-                rows = _records(payload)
+                path = source_map.get(entity_type)
+                if path is None or not path.is_file():
+                    indexed_by_type[entity_type] = 0
+                    continue
+                payload = _load(path)
+                if payload is None:
+                    indexed_by_type[entity_type] = 0
+                    continue
+                if entity_type == "calibration":
+                    rows = _calibration_variants(payload)
+                elif entity_type == "mod":
+                    rows = _mod_variants(payload)
+                elif entity_type == "armor":
+                    rows = _armor_pieces(payload)
+                elif entity_type == "armor_set":
+                    rows = _armor_sets(payload)
+                else:
+                    rows = _records(payload)
             count = 0
             for row in rows:
                 entity = self._entity_from_row(entity_type, row, path)
