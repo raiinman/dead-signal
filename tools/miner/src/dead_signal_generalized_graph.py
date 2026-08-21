@@ -6,7 +6,7 @@ while routing generalized entity traces through registered typed domain adapters
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, Iterable
 
 from dead_signal_armor_adapters import ArmorAdapter
 from dead_signal_armor_set_adapter import ArmorSetAdapter
@@ -14,6 +14,7 @@ from dead_signal_attachment_adapter import AttachmentAdapter
 from dead_signal_calibration_adapter import CalibrationAdapter
 from dead_signal_crafting_adapters import MaterialAdapter, RecipeAdapter
 from dead_signal_cradle_adapter import CradleAdapter
+from dead_signal_dependency_invalidation import DependencyInvalidationStore
 from dead_signal_deviation_adapter import DeviationAdapter
 from dead_signal_domain_adapters import EvidenceAdapterRegistry, EvidenceDomainAdapter
 from dead_signal_entity_registry import DeadSignalEntityRegistry
@@ -39,6 +40,7 @@ class DeadSignalGeneralizedGraph:
             DeviationAdapter(output),
         ))
         self.entities = DeadSignalEntityRegistry(output, self.registry)
+        self.invalidation = DependencyInvalidationStore(output)
 
     def register_adapter(self, adapter: EvidenceDomainAdapter) -> None:
         """Register a new typed domain without changing core routing code."""
@@ -47,6 +49,29 @@ class DeadSignalGeneralizedGraph:
     def entity_graph(self, entity_type: str, identity: object, **kwargs: Any) -> dict[str, Any]:
         """Route a generalized trace to the exact registered domain adapter."""
         return self.registry.graph(entity_type, identity, **kwargs)
+
+    def dependency_invalidation_plan(self) -> dict[str, Any]:
+        """Return persisted claims whose exact source dependencies changed."""
+        return self.invalidation.invalidation_plan()
+
+    def evaluate_dependency_invalidation(
+        self,
+        graphs: Iterable[dict[str, Any]],
+        *,
+        page_resolver: Callable[[str, str, str], Iterable[str]] | None = None,
+        full_snapshot: bool = True,
+        removed_claim_keys: Iterable[str] = (),
+        persist: bool = True,
+    ) -> dict[str, Any]:
+        """Persist recomputed claims and queue stale/removed proof for review."""
+        kwargs: dict[str, Any] = {
+            "full_snapshot": full_snapshot,
+            "removed_claim_keys": removed_claim_keys,
+            "persist": persist,
+        }
+        if page_resolver is not None:
+            kwargs["page_resolver"] = page_resolver
+        return self.invalidation.evaluate(graphs, **kwargs)
 
     def rebuild_entity_registry(self) -> dict[str, Any]:
         """Reindex source-derived entities for all currently registered adapters."""
