@@ -81,8 +81,13 @@ class EvidenceGraphPhaseThreeUIRegistryTests(unittest.TestCase):
         self.assertEqual("SOCR - The Last Valor  [ds-w-last-valor]", label)
         self.assertEqual("ds-w-last-valor", identity_from_choice(label))
 
-    def test_model_exposes_registered_entity_types(self):
+    def test_model_exposes_registered_entity_types_after_deferred_browse(self):
         model = RegistrySelectorModel(FakeGeneralizedGraph())
+        # Test doubles without the production lightweight adapter registry must not
+        # force a full entity-registry rebuild during construction. Types become
+        # available after the first explicit browse/search performs that rebuild.
+        self.assertEqual((), model.entity_types())
+        model.search("", entity_type="weapon")
         self.assertEqual(("weapon",), model.entity_types())
 
     def test_name_search_routes_to_exact_graph_target(self):
