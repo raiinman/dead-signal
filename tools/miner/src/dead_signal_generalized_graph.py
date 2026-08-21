@@ -6,6 +6,7 @@ while routing generalized entity traces through registered typed domain adapters
 from __future__ import annotations
 
 from pathlib import Path
+from threading import Event
 from typing import Any, Callable, Iterable
 
 from dead_signal_armor_adapters import ArmorAdapter
@@ -19,6 +20,7 @@ from dead_signal_deviation_adapter import DeviationAdapter
 from dead_signal_domain_adapters import EvidenceAdapterRegistry, EvidenceDomainAdapter
 from dead_signal_entity_registry import DeadSignalEntityRegistry
 from dead_signal_evidence_review import ManualReviewStore, assess_claim, build_review_queue, export_evidence_bundle
+from dead_signal_graph_runtime import DEFAULT_TIMEOUT_SECONDS, TraceRuntime
 from dead_signal_mod_adapter import ModAdapter
 from dead_signal_weapon_adapter import WeaponAdapter
 
@@ -43,14 +45,47 @@ class DeadSignalGeneralizedGraph:
         self.entities = DeadSignalEntityRegistry(output, self.registry)
         self.invalidation = DependencyInvalidationStore(output)
         self.manual_reviews = ManualReviewStore(output)
+        self.runtime = TraceRuntime(output)
+        self.last_trace_meta: dict[str, Any] = {}
 
     def register_adapter(self, adapter: EvidenceDomainAdapter) -> None:
         """Register a new typed domain without changing core routing code."""
         self.registry.register(adapter)
 
-    def entity_graph(self, entity_type: str, identity: object, **kwargs: Any) -> dict[str, Any]:
-        """Route a generalized trace to the exact registered domain adapter."""
-        return self.registry.graph(entity_type, identity, **kwargs)
+    def entity_graph(
+        self,
+        entity_type: str,
+        identity: object,
+        *,
+        use_cache: bool = True,
+        cancel_event: Event | None = None,
+        progress: Callable[[int, str], None] | None = None,
+        timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        """Route one bounded generalized trace to the exact registered adapter."""
+        clean_kwargs = dict(kwargs)
+        result = self.runtime.run(
+            lambda: self.registry.graph(entity_type, identity, **clean_kwargs),
+            entity_type=entity_type,
+            identity=identity,
+            kwargs=clean_kwargs,
+            use_cache=use_cache,
+            cancel_event=cancel_event,
+            progress=progress,
+            timeout_seconds=timeout_seconds,
+        )
+        self.last_trace_meta = {
+            "entity_type": str(entity_type),
+            "identity": str(identity),
+            "cache_status": result.cache_status,
+            "elapsed_seconds": result.elapsed_seconds,
+        }
+        return result.graph
+
+    def clear_trace_cache(self) -> None:
+        """Delete research-only cached adapter results."""
+        self.runtime.cache.clear()
 
     def dependency_invalidation_plan(self) -> dict[str, Any]:
         """Return persisted claims whose exact source dependencies changed."""
@@ -66,14 +101,14 @@ class DeadSignalGeneralizedGraph:
         persist: bool = True,
     ) -> dict[str, Any]:
         """Persist recomputed claims and queue stale/removed proof for review."""
-        kwargs: dict[str, Any] = {
+        options: dict[str, Any] = {
             "full_snapshot": full_snapshot,
             "removed_claim_keys": removed_claim_keys,
             "persist": persist,
         }
         if page_resolver is not None:
-            kwargs["page_resolver"] = page_resolver
-        return self.invalidation.evaluate(graphs, **kwargs)
+            options["page_resolver"] = page_resolver
+        return self.invalidation.evaluate(graphs, **options)
 
     def assess_claim(self, graph: dict[str, Any], claim: dict[str, Any]) -> dict[str, Any]:
         """Return requirement-by-requirement assessment without changing proof."""
@@ -115,12 +150,8 @@ class DeadSignalGeneralizedGraph:
         limit: int = 100,
     ) -> list[dict[str, Any]]:
         """Search exact IDs and source-proven names without creating evidence edges."""
-        return self.entities.search(
-            query,
-            entity_type=entity_type,
-            unresolved_only=unresolved_only,
-            limit=limit,
-        )
+        bounded_limit = max(1, min(int(limit), 1000))
+        return self.entities.search(query, entity_type=entity_type, unresolved_only=unresolved_only, limit=bounded_limit)
 
     def registered_entity(self, entity_type: str, canonical_id: object) -> dict[str, Any]:
         """Return one registry entity and record it in the recent-trace list."""
@@ -129,51 +160,32 @@ class DeadSignalGeneralizedGraph:
     def recent_entities(self) -> list[dict[str, Any]]:
         return self.entities.recent()
 
-    def weapon_entity_graph(
-        self,
-        identity: object,
-        *,
-        max_occurrences_per_id: int = 80,
-    ) -> dict[str, Any]:
-        """Backward-compatible Phase-1 weapon generalized entry point."""
-        return self.entity_graph(
-            "weapon",
-            identity,
-            max_occurrences_per_id=max_occurrences_per_id,
-        )
+    def weapon_entity_graph(self, identity: object, *, max_occurrences_per_id: int = 80, **runtime: Any) -> dict[str, Any]:
+        return self.entity_graph("weapon", identity, max_occurrences_per_id=max_occurrences_per_id, **runtime)
 
-    def attachment_entity_graph(self, identity: object) -> dict[str, Any]:
-        """Phase-4 typed Attachment graph entry point."""
-        return self.entity_graph("attachment", identity)
+    def attachment_entity_graph(self, identity: object, **runtime: Any) -> dict[str, Any]:
+        return self.entity_graph("attachment", identity, **runtime)
 
-    def calibration_entity_graph(self, identity: object) -> dict[str, Any]:
-        """Phase-5 typed Calibration Blueprint graph entry point."""
-        return self.entity_graph("calibration", identity)
+    def calibration_entity_graph(self, identity: object, **runtime: Any) -> dict[str, Any]:
+        return self.entity_graph("calibration", identity, **runtime)
 
-    def armor_entity_graph(self, identity: object) -> dict[str, Any]:
-        """Phase-6 typed Armor Piece graph entry point."""
-        return self.entity_graph("armor", identity)
+    def armor_entity_graph(self, identity: object, **runtime: Any) -> dict[str, Any]:
+        return self.entity_graph("armor", identity, **runtime)
 
-    def armor_set_entity_graph(self, identity: object) -> dict[str, Any]:
-        """Phase-6 typed Armor Set graph entry point."""
-        return self.entity_graph("armor_set", identity)
+    def armor_set_entity_graph(self, identity: object, **runtime: Any) -> dict[str, Any]:
+        return self.entity_graph("armor_set", identity, **runtime)
 
-    def mod_entity_graph(self, identity: object) -> dict[str, Any]:
-        """Phase-7 typed current Mod 2.0 graph entry point."""
-        return self.entity_graph("mod", identity)
+    def mod_entity_graph(self, identity: object, **runtime: Any) -> dict[str, Any]:
+        return self.entity_graph("mod", identity, **runtime)
 
-    def cradle_entity_graph(self, identity: object) -> dict[str, Any]:
-        """Phase-8 typed active Cradle graph entry point."""
-        return self.entity_graph("cradle", identity)
+    def cradle_entity_graph(self, identity: object, **runtime: Any) -> dict[str, Any]:
+        return self.entity_graph("cradle", identity, **runtime)
 
-    def recipe_entity_graph(self, identity: object) -> dict[str, Any]:
-        """Phase-9 typed Crafting Recipe graph entry point."""
-        return self.entity_graph("recipe", identity)
+    def recipe_entity_graph(self, identity: object, **runtime: Any) -> dict[str, Any]:
+        return self.entity_graph("recipe", identity, **runtime)
 
-    def material_entity_graph(self, identity: object) -> dict[str, Any]:
-        """Phase-9 typed Crafting Material graph entry point."""
-        return self.entity_graph("material", identity)
+    def material_entity_graph(self, identity: object, **runtime: Any) -> dict[str, Any]:
+        return self.entity_graph("material", identity, **runtime)
 
-    def deviation_entity_graph(self, identity: object) -> dict[str, Any]:
-        """Phase-10 typed Deviation source-variant graph entry point."""
-        return self.entity_graph("deviation", identity)
+    def deviation_entity_graph(self, identity: object, **runtime: Any) -> dict[str, Any]:
+        return self.entity_graph("deviation", identity, **runtime)

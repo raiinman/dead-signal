@@ -2,7 +2,7 @@
 
 Current operational handoff:
 
-- `HANDOFF-2026-08-18-EVIDENCE-GRAPH-EXPANSION-PHASE-0.md`
+- `HANDOFF-2026-08-21-EVIDENCE-GRAPH-PHASE-16.md`
 
 Approved implementation plan:
 
@@ -12,37 +12,45 @@ Read order for a new engineering/research session:
 
 1. `PROJECT-RULES.md`
 2. `AI-CONTINUITY.md`
-3. `HANDOFF-2026-08-17-MINER-ARCHITECTURE-UPGRADE.md`
-4. `HANDOFF-2026-08-18-CODEX-LOCAL-TAKEOVER.md`
-5. `HANDOFF-2026-08-18-CODEX-WEAPON-CRADLE-APPLICABILITY.md`
-6. `HANDOFF-2026-08-18-CODEX-WEAPON-CRADLE-APPLICABILITY-COMPLETE.md`
-7. `HANDOFF-2026-08-18-WEAPON-IDENTITY-SPINE-TRACE.md`
-8. `HANDOFF-2026-08-18-CODEX-WEAPON-IDENTITY-SPINE-IMPLEMENTATION.md`
-9. `HANDOFF-2026-08-18-WEAPON-IDENTITY-SPINE-COMPLETE.md`
-10. `HANDOFF-2026-08-18-WEAPON-LAUNCH-WARNINGS-AND-ATTACHMENTS.md`
-11. `HANDOFF-2026-08-18-WEAPONS-V1-SCHEMA-LOCK.md`
-12. `HANDOFF-2026-08-18-MINER-IDENTITY-TRACE-WORKSPACE.md`
-13. `HANDOFF-2026-08-18-NORMAL-GPT-EVIDENCE-FIRST-MINER.md`
-14. `EVIDENCE-GRAPH-EXPANSION-WORK-PLAN.md`
-15. `HANDOFF-2026-08-18-EVIDENCE-GRAPH-EXPANSION-PHASE-0.md`
+3. `EVIDENCE-GRAPH-EXPANSION-WORK-PLAN.md`
+4. `HANDOFF-2026-08-21-EVIDENCE-GRAPH-PHASE-16.md`
+5. `HANDOFF-2026-08-18-NORMAL-GPT-EVIDENCE-FIRST-MINER.md`
+6. `HANDOFF-2026-08-17-MINER-ARCHITECTURE-UPGRADE.md`
+7. Historical phase/domain handoffs as needed for evidence rationale.
 
-For current operational state, the Evidence Graph Expansion Phase 0 handoff is authoritative. Phase 0 is complete and Phase 1 is next. The Weapons v1 Schema Lock remains authoritative for evidence semantics; older handoffs remain evidence history and design rationale.
+## Current state
 
-Key current transition:
+The generalized Evidence Graph expansion has progressed through Phases 0–16 at the implementation level. Phase 16 is the current authority for runtime/release work.
 
-- local Codex now has direct access to the user's completed Miner output and persistent architecture databases;
-- use local files/indexes rather than asking the user to upload multi-gigabyte Intelligence bundles;
-- the Weapon Identity Spine is implemented from current `item_data + equip_data` identity with blueprint/progression as conditional enrichment;
-- the current source-derived `.62` result is 130 identities: 117 standard-blueprint, 7 nonstandard-blueprint, and 6 special-equipped; this is observed output, not a hard-coded or universal active count;
-- all 130 identities carry gated exact/unresolved/not-applicable relationships for 87 active Cradles and reach downstream site publication;
-- scenario activation remains unresolved for the six special-equipped identities;
-- use the persistent indexes and the exact consumer trace in the new handoff before running any new scan;
-- do not reopen the ownerless fixed-skill branch unless new typed installed-game evidence changes its state.
-- ten melee recipes now have exact seasonal formula owners while their material bodies remain unresolved;
-- Morgan has an exact one-level Blueprint Star owner while its gear-tier owner remains unresolved;
-- attachment compatibility publishes only direct installed-game text plus explicit generic category claims; named-model wording is not guessed into IDs;
-- Calibration compatibility and selectable Ammo are projected from exact typed owners;
-- Weapons v1 is schema-locked; change its core identity/relationship contract only when new installed-game evidence requires a revision;
-- stable Miner release is `v1.5.14.64`; it opens directly on the first-class Evidence Graph workspace;
-- `.63` nested the new workspace too deeply; `.64` corrected that and passed the complete manifest-last release workflow;
-- `tools/miner.zip` remains protected and untouched.
+Supported generalized domains are weapon, attachment, calibration, armor, armor_set, mod, cradle, recipe, material, and deviation.
+
+Core boundaries remain unchanged:
+
+- installed-game/Miner evidence is authoritative for mechanics and numbers;
+- discovery, fuzzy/name similarity, scalar collisions, and external catalog wording never create proof;
+- allowed states are PROVEN, PARTIAL, UNRESOLVED, NOT APPLICABLE, and CONFLICT;
+- `PROVEN` is not automatic publication;
+- Phase 14 publication contracts are fail-closed;
+- Phase 15 release metric is zero false PROVEN results;
+- cache/history/manual review have no deterministic proof or publication authority;
+- never execute game bytecode;
+- never publish raw research/full NeoX exports;
+- never touch `tools/miner.zip`.
+
+## Phase 16 release boundary
+
+Do not call the expansion release-complete merely because Phase 16 code is merged. The final gates must be observed in order:
+
+1. complete source suite;
+2. real-snapshot smoke tests;
+3. false-proof benchmark;
+4. cold/warm trace and memory diagnostics;
+5. Windows build;
+6. packaged self-test;
+7. public ZIP hash/size verification;
+8. release asset verification;
+9. updater manifest publication last.
+
+The existing stable manifest remains `tools/miner/release/latest.json` until a newer ZIP has already passed all asset checks. Never publish a manifest ahead of its release asset.
+
+For the detailed runtime cache, performance diagnostic, release audit, and closeout rules, use `HANDOFF-2026-08-21-EVIDENCE-GRAPH-PHASE-16.md`.
