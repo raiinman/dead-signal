@@ -7,6 +7,7 @@ import sys
 import tempfile
 import time
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from threading import Event
 
@@ -98,6 +99,23 @@ class Phase16PerformanceReleaseTests(unittest.TestCase):
         owner = output / "base" / "game_common" / "data" / "item_data.json"
         owner.write_text('{"1":{"name":"B"}}', encoding="utf-8")
         self.assertIsNone(cache.get("test", "test-1", {}))
+
+    def test_concurrent_cache_writes_are_serialized_without_lost_entries(self):
+        output = snapshot(self.tmp_path)
+        cache = AdapterResultCache(output, max_entries=64)
+        payload = graph()
+        identities = [f"entity-{index}" for index in range(24)]
+
+        def write(identity: str) -> None:
+            cache.put("test", identity, {}, payload)
+
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            list(pool.map(write, identities))
+
+        persisted = cache.load()
+        self.assertEqual(len(persisted.get("entries") or {}), len(identities))
+        leftovers = list(cache.path.parent.glob(f".{cache.path.name}.*.tmp"))
+        self.assertEqual(leftovers, [])
 
     def test_trace_runtime_reports_miss_then_hit_and_can_cancel(self):
         output = snapshot(self.tmp_path)
