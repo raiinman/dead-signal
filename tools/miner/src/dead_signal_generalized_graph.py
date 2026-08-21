@@ -8,6 +8,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from dead_signal_armor_adapters import ArmorAdapter
+from dead_signal_armor_set_adapter import ArmorSetAdapter
 from dead_signal_attachment_adapter import AttachmentAdapter
 from dead_signal_calibration_adapter import CalibrationAdapter
 from dead_signal_domain_adapters import EvidenceAdapterRegistry, EvidenceDomainAdapter
@@ -24,6 +26,8 @@ class DeadSignalGeneralizedGraph:
             WeaponAdapter(output),
             AttachmentAdapter(output),
             CalibrationAdapter(output),
+            ArmorAdapter(output),
+            ArmorSetAdapter(output),
         ))
         self.entities = DeadSignalEntityRegistry(output, self.registry)
 
@@ -82,3 +86,11 @@ class DeadSignalGeneralizedGraph:
     def calibration_entity_graph(self, identity: object) -> dict[str, Any]:
         """Phase-5 typed Calibration Blueprint graph entry point."""
         return self.entity_graph("calibration", identity)
+
+    def armor_entity_graph(self, identity: object) -> dict[str, Any]:
+        """Phase-6 typed Armor Piece graph entry point."""
+        return self.entity_graph("armor", identity)
+
+    def armor_set_entity_graph(self, identity: object) -> dict[str, Any]:
+        """Phase-6 typed Armor Set graph entry point."""
+        return self.entity_graph("armor_set", identity)
