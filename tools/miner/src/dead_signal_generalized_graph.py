@@ -8,7 +8,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from dead_signal_armor_adapters import ArmorAdapter, ArmorSetAdapter
+from dead_signal_armor_adapters import ArmorAdapter
+from dead_signal_armor_set_adapter import ArmorSetAdapter
 from dead_signal_attachment_adapter import AttachmentAdapter
 from dead_signal_calibration_adapter import CalibrationAdapter
 from dead_signal_domain_adapters import EvidenceAdapterRegistry, EvidenceDomainAdapter
