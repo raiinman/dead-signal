@@ -1,0 +1,186 @@
+"""Searchable entity registry for the generalized Dead Signal Evidence Graph.
+
+The registry indexes only source-derived entities whose entity type has a
+registered typed adapter. It never treats name similarity as evidence; names are
+search aliases only and graph proof remains adapter-owned.
+"""
+from __future__ import annotations
+
+import json
+from collections import deque
+from pathlib import Path
+from typing import Any, Iterable
+
+from dead_signal_domain_adapters import EvidenceAdapterRegistry
+
+
+REGISTRY_SCHEMA = "dead-signal-entity-registry"
+REGISTRY_SCHEMA_VERSION = 1
+
+
+def _records(payload: Any) -> list[dict[str, Any]]:
+    if isinstance(payload, list):
+        return [row for row in payload if isinstance(row, dict)]
+    if isinstance(payload, dict):
+        for key in ("weapons", "attachments", "calibrations", "armor", "mods", "cradles", "materials", "recipes", "deviations", "records"):
+            value = payload.get(key)
+            if isinstance(value, list):
+                return [row for row in value if isinstance(row, dict)]
+    return []
+
+
+def _first(row: dict[str, Any], keys: Iterable[str]) -> Any:
+    for key in keys:
+        value = row.get(key)
+        if value not in (None, ""):
+            return value
+    return None
+
+
+def _normalize_identity_state(value: object) -> str:
+    text = str(value or "").strip().upper().replace("_", " ").replace("-", " ")
+    if text in {"PROVEN", "VERIFIED"}:
+        return "PROVEN"
+    if text == "PARTIAL":
+        return "PARTIAL"
+    if text in {"NOT APPLICABLE", "NA", "N/A"}:
+        return "NOT APPLICABLE"
+    if text == "CONFLICT":
+        return "CONFLICT"
+    return "UNRESOLVED"
+
+
+class DeadSignalEntityRegistry:
+    """Read-only searchable registry over adapter-backed published entities."""
+
+    def __init__(self, output: Path | str, adapters: EvidenceAdapterRegistry):
+        self.output = Path(output).expanduser().resolve()
+        self.adapters = adapters
+        self._entities: dict[tuple[str, str], dict[str, Any]] = {}
+        self._aliases: dict[str, set[tuple[str, str]]] = {}
+        self._recent: deque[tuple[str, str]] = deque(maxlen=20)
+
+    def _published_web(self) -> Path:
+        last_run = self.output / "last-run.json"
+        if not last_run.is_file():
+            raise ValueError("Entity registry requires a completed Miner output with last-run.json")
+        try:
+            state = json.loads(last_run.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            raise ValueError("Entity registry could not read last-run.json") from exc
+        published = Path(state.get("published") or self.output / "published")
+        if not published.is_absolute():
+            published = self.output / published
+        published = published.resolve()
+        try:
+            published.relative_to(self.output)
+        except ValueError as exc:
+            raise ValueError("Published registry source must stay inside the Miner output folder") from exc
+        return published / "web"
+
+    def rebuild(self) -> dict[str, Any]:
+        """Rebuild from source-derived datasets for currently registered adapters."""
+        self._entities.clear()
+        self._aliases.clear()
+        web = self._published_web()
+        source_map = {
+            "weapon": web / "weapons.json",
+            "attachment": web / "attachments.json",
+            "armor": web / "armor.json",
+            "mod": web / "mods.json",
+            "cradle": web / "cradles.json",
+            "deviation": web / "deviations.json",
+        }
+        indexed_by_type: dict[str, int] = {}
+        for entity_type in self.adapters.entity_types():
+            path = source_map.get(entity_type)
+            if path is None or not path.is_file():
+                indexed_by_type[entity_type] = 0
+                continue
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                indexed_by_type[entity_type] = 0
+                continue
+            count = 0
+            for row in _records(payload):
+                entity = self._entity_from_row(entity_type, row, path)
+                if entity is None:
+                    continue
+                key = (entity_type, entity["canonical_id"])
+                if key in self._entities:
+                    raise ValueError(f"Duplicate canonical entity identity: {entity_type}:{entity['canonical_id']}")
+                self._entities[key] = entity
+                for alias in entity["aliases"]:
+                    self._aliases.setdefault(alias.casefold(), set()).add(key)
+                count += 1
+            indexed_by_type[entity_type] = count
+        return {
+            "schema": REGISTRY_SCHEMA,
+            "schema_version": REGISTRY_SCHEMA_VERSION,
+            "total": len(self._entities),
+            "by_entity_type": indexed_by_type,
+            "adapter_types": list(self.adapters.entity_types()),
+        }
+
+    def _entity_from_row(self, entity_type: str, row: dict[str, Any], path: Path) -> dict[str, Any] | None:
+        canonical = _first(row, ("canonical_id", "blueprint_id", "item_id", "attachment_id", "mod_id", "cradle_id", "deviation_id"))
+        name = _first(row, ("name", "display_name", "title"))
+        if canonical in (None, "") or name in (None, ""):
+            return None
+        canonical_text = str(canonical)
+        aliases: list[str] = [canonical_text, str(name)]
+        for key in ("blueprint_id", "item_id", "prototype_id", "attachment_id", "accessory_id", "mod_id", "cradle_id", "deviation_id"):
+            value = row.get(key)
+            if value not in (None, ""):
+                aliases.append(str(value))
+        aliases = sorted(set(aliases), key=lambda item: (item.casefold(), item))
+        identity_state = _normalize_identity_state(_first(row, ("identity_state", "state", "evidence_state")) or "PROVEN")
+        source_owner = path.relative_to(self.output).as_posix()
+        return {
+            "entity_type": entity_type,
+            "canonical_id": canonical_text,
+            "aliases": aliases,
+            "display_name": str(name),
+            "category": str(_first(row, ("category", "classification", "slot", "type")) or ""),
+            "source_owner": source_owner,
+            "identity_state": identity_state,
+            "artwork_reference": _first(row, ("artwork", "artwork_reference", "icon", "icon_path", "image")),
+            "availability_state": str(_first(row, ("availability_state", "availability", "status")) or "UNRESOLVED"),
+            "graph_target": {"entity_type": entity_type, "canonical_id": canonical_text},
+        }
+
+    def get(self, entity_type: str, canonical_id: object) -> dict[str, Any]:
+        key = (str(entity_type).casefold(), str(canonical_id))
+        entity = self._entities.get(key)
+        if entity is None:
+            raise KeyError(f"Unknown registered entity: {entity_type}:{canonical_id}")
+        self._recent.appendleft(key)
+        return dict(entity)
+
+    def search(self, query: object, *, entity_type: str | None = None, unresolved_only: bool = False, limit: int = 100) -> list[dict[str, Any]]:
+        if limit < 1 or limit > 1000:
+            raise ValueError("Registry search limit must be between 1 and 1000")
+        needle = str(query or "").strip().casefold()
+        type_filter = str(entity_type or "").strip().casefold()
+        matches: list[dict[str, Any]] = []
+        for key, entity in self._entities.items():
+            if type_filter and key[0] != type_filter:
+                continue
+            if unresolved_only and entity["identity_state"] not in {"PARTIAL", "UNRESOLVED", "CONFLICT"}:
+                continue
+            if needle and not any(needle in alias.casefold() for alias in entity["aliases"]):
+                continue
+            matches.append(entity)
+        matches.sort(key=lambda row: (row["entity_type"], row["display_name"].casefold(), row["canonical_id"]))
+        return [dict(row) for row in matches[:limit]]
+
+    def recent(self) -> list[dict[str, Any]]:
+        seen: set[tuple[str, str]] = set()
+        result: list[dict[str, Any]] = []
+        for key in self._recent:
+            if key in seen or key not in self._entities:
+                continue
+            seen.add(key)
+            result.append(dict(self._entities[key]))
+        return result
