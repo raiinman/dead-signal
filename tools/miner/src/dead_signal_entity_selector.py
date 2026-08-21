@@ -35,15 +35,30 @@ def identity_from_choice(value: object) -> str:
 
 
 class RegistrySelectorModel:
-    """Testable selection model over the adapter-backed entity registry."""
+    """Testable selection model over the adapter-backed entity registry.
+
+    Registry construction is deliberately lazy. Building the complete cross-domain
+    registry may touch large snapshot products, so doing it from a Tk constructor
+    can prevent the application window from ever reaching ``mainloop()``.
+    """
 
     def __init__(self, graph: DeadSignalGeneralizedGraph):
         self.graph = graph
-        self.summary = self.graph.rebuild_entity_registry()
+        self.summary: dict[str, Any] = {
+            "adapter_types": list(self.graph.registry.entity_types()),
+            "deferred": True,
+        }
         self._choices: dict[str, dict[str, Any]] = {}
+        self._registry_ready = False
+
+    def _ensure_registry(self) -> None:
+        if self._registry_ready:
+            return
+        self.summary = self.graph.rebuild_entity_registry()
+        self._registry_ready = True
 
     def entity_types(self) -> tuple[str, ...]:
-        return tuple(self.summary.get("adapter_types") or ())
+        return tuple(self.summary.get("adapter_types") or self.graph.registry.entity_types())
 
     def search(
         self,
@@ -53,6 +68,7 @@ class RegistrySelectorModel:
         unresolved_only: bool = False,
         limit: int = 250,
     ) -> list[dict[str, Any]]:
+        self._ensure_registry()
         rows = self.graph.search_entities(
             query,
             entity_type=entity_type,
@@ -69,10 +85,18 @@ class RegistrySelectorModel:
         resolved_type = str((row or {}).get("entity_type") or entity_type or "").strip().casefold()
         if not resolved_type or not canonical_id:
             raise KeyError("Entity selection is incomplete")
+        if row is None:
+            # Navigation by an already-known canonical ID does not need the browse
+            # registry. The typed adapter remains the identity/proof boundary and
+            # will reject an invalid target during the trace itself.
+            return {"entity_type": resolved_type, "canonical_id": str(canonical_id)}
+        self._ensure_registry()
         entity = self.graph.registered_entity(resolved_type, canonical_id)
         return dict(entity["graph_target"])
 
     def recent(self) -> list[dict[str, Any]]:
+        if not self._registry_ready:
+            return []
         return self.graph.recent_entities()
 
 
@@ -96,10 +120,9 @@ class EntityRegistrySelector(tk.Frame):
         self.search_var = tk.StringVar()
         self.unresolved_var = tk.BooleanVar(value=False)
         self.recent_var = tk.StringVar()
-        self.status_var = tk.StringVar(value="REGISTRY READY")
+        self.status_var = tk.StringVar(value="REGISTRY DEFERRED")
         self._recent_choices: dict[str, dict[str, Any]] = {}
         self._build(types)
-        self.refresh()
 
     def _build(self, types: tuple[str, ...]) -> None:
         filters = tk.Frame(self, bg=BG)
@@ -180,6 +203,7 @@ class EntityRegistrySelector(tk.Frame):
         self.recent_combo.bind("<<ComboboxSelected>>", self._recent_selected)
 
     def refresh(self) -> None:
+        self.status_var.set("INDEXING…")
         entity_type = self.entity_type_var.get().strip() or None
         rows = self.model.search(
             self.search_var.get(),
@@ -196,17 +220,14 @@ class EntityRegistrySelector(tk.Frame):
         self._refresh_recent()
 
     def set_initial(self, name_fragment: str = "last valor") -> bool:
-        rows = self.model.search("", entity_type=self.entity_type_var.get() or None, limit=1000)
-        preferred = next(
-            (row for row in rows if name_fragment.casefold() in str(row.get("display_name") or "").casefold()),
-            rows[0] if rows else None,
-        )
-        if preferred is None:
-            return False
-        label = entity_choice_label(preferred)
-        self.subject_var.set(label)
-        self.subject_combo.configure(values=[entity_choice_label(row) for row in rows])
-        return True
+        """Record a preferred initial search without forcing registry construction.
+
+        Legacy callers use the boolean result to fall back to their already-loaded
+        weapon list. The actual registry is built only after Tk is interactive.
+        """
+        self.search_var.set(str(name_fragment or ""))
+        self.status_var.set("REGISTRY DEFERRED")
+        return False
 
     def selected_target(self) -> dict[str, Any]:
         target = self.model.target_for_choice(
