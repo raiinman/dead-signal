@@ -14,6 +14,7 @@ from dead_signal_attachment_adapter import AttachmentAdapter
 from dead_signal_calibration_adapter import CalibrationAdapter
 from dead_signal_crafting_adapters import MaterialAdapter, RecipeAdapter
 from dead_signal_cradle_adapter import CradleAdapter
+from dead_signal_deviation_adapter import DeviationAdapter
 from dead_signal_domain_adapters import EvidenceAdapterRegistry, EvidenceDomainAdapter
 from dead_signal_entity_registry import DeadSignalEntityRegistry
 from dead_signal_mod_adapter import ModAdapter
@@ -35,6 +36,7 @@ class DeadSignalGeneralizedGraph:
             CradleAdapter(output),
             RecipeAdapter(output),
             MaterialAdapter(output),
+            DeviationAdapter(output),
         ))
         self.entities = DeadSignalEntityRegistry(output, self.registry)
 
@@ -117,3 +119,7 @@ class DeadSignalGeneralizedGraph:
     def material_entity_graph(self, identity: object) -> dict[str, Any]:
         """Phase-9 typed Crafting Material graph entry point."""
         return self.entity_graph("material", identity)
+
+    def deviation_entity_graph(self, identity: object) -> dict[str, Any]:
+        """Phase-10 typed Deviation source-variant graph entry point."""
+        return self.entity_graph("deviation", identity)
