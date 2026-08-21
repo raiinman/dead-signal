@@ -14,7 +14,6 @@ if str(SRC) not in sys.path:
 
 from dead_signal_attachment_adapter import ATTACHMENT_CONTRACT, AttachmentAdapter  # noqa: E402
 from dead_signal_attachment_relations import attachment_weapon_relation  # noqa: E402
-from dead_signal_domain_adapters import validate_adapter_contract  # noqa: E402
 from dead_signal_evidence_contracts import validate_generalized_graph  # noqa: E402
 from dead_signal_generalized_graph import DeadSignalGeneralizedGraph  # noqa: E402
 
@@ -129,7 +128,7 @@ class EvidenceGraphPhaseFourAttachmentTests(unittest.TestCase):
         self.fixture.close()
 
     def test_attachment_contract_is_typed_and_valid(self):
-        self.assertEqual([], validate_adapter_contract(ATTACHMENT_CONTRACT))
+        self.assertEqual([], ATTACHMENT_CONTRACT.validate())
         self.assertNotIn("id", ATTACHMENT_CONTRACT.identity_seeds)
         self.assertNotIn("code", ATTACHMENT_CONTRACT.allowed_outbound_fields)
         self.assertIn("attachment.weapon_relationship", ATTACHMENT_CONTRACT.supported_claims)
