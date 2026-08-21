@@ -1,16 +1,14 @@
 """Phase 11 dependency invalidation for generalized Evidence Graph claims.
 
-This module compares persisted claim snapshots against current dependency
-fingerprints and produces a bounded review/site-delta report. Historical proof is
-retained as history only; any changed, removed, or conflicting dependency makes
-the prior claim non-current until recomputed.
+Claims are persisted with exact dependency fingerprints. A changed/removed source
+invalidates only claims that named that dependency. Historical proof is retained
+for audit, but never treated as current proof after invalidation.
 """
 from __future__ import annotations
 
 import hashlib
 import json
 import os
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable
@@ -25,9 +23,7 @@ def _now() -> str:
 
 
 def _hash(value: object) -> str:
-    return hashlib.sha256(
-        json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
-    ).hexdigest()
+    return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")).hexdigest()
 
 
 def _atomic(path: Path, payload: dict[str, Any]) -> None:
@@ -41,12 +37,90 @@ def _claim_key(entity_type: str, canonical_id: str, claim_type: str) -> str:
     return f"{entity_type}:{canonical_id}:{claim_type}"
 
 
-def _normalized_dependencies(claim: dict[str, Any]) -> list[str]:
+def _entity_prefix(entity_type: str, canonical_id: str) -> str:
+    return f"{entity_type}:{canonical_id}:"
+
+
+def _dependencies(claim: dict[str, Any]) -> list[str]:
     return sorted({str(value).strip() for value in claim.get("dependencies", []) if str(value or "").strip()})
 
 
+def _file_sha(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _roots(output: Path) -> tuple[Path | None, Path | None, Path | None]:
+    state: dict[str, Any] = {}
+    try:
+        state = json.loads((output / "last-run.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        pass
+
+    def resolve(key: str, fallback: str) -> Path | None:
+        raw = state.get(key)
+        path = Path(raw) if raw else output / fallback
+        if not path.is_absolute():
+            path = output / path
+        path = path.resolve()
+        try:
+            path.relative_to(output)
+        except ValueError:
+            return None
+        return path
+
+    return resolve("current", "current"), resolve("base", "base"), resolve("published", "published")
+
+
+def _dependency_files(output: Path, dependency: str) -> list[Path]:
+    """Resolve a dependency using effective Current-over-Base patch semantics."""
+    current, base, published = _roots(output)
+    dep = dependency.replace("\\", "/").lstrip("/")
+
+    # Explicit published dependencies resolve only in the publication tree.
+    if dep.startswith("published/"):
+        if published is None:
+            return []
+        rel = dep[len("published/"):]
+        pattern = published / rel
+        return sorted(path for path in pattern.parent.glob(pattern.name) if path.is_file()) if "*" in pattern.name else ([pattern] if pattern.is_file() else [])
+
+    # Installed-game tables use Current as a patch layer and fall back to Base.
+    for root in (current, base):
+        if root is None:
+            continue
+        pattern = root / dep
+        matches = sorted(path for path in pattern.parent.glob(pattern.name) if path.is_file()) if "*" in pattern.name else ([pattern] if pattern.is_file() else [])
+        if matches:
+            return matches
+
+    # Normalized reports/data may be relative to published or the output root.
+    for root in (published, output):
+        if root is None:
+            continue
+        pattern = root / dep
+        matches = sorted(path for path in pattern.parent.glob(pattern.name) if path.is_file()) if "*" in pattern.name else ([pattern] if pattern.is_file() else [])
+        if matches:
+            return matches
+    return []
+
+
+def current_dependency_fingerprints(output: Path | str, dependencies: Iterable[str]) -> dict[str, str]:
+    root = Path(output).expanduser().resolve()
+    result: dict[str, str] = {}
+    for dependency in sorted({str(value).strip() for value in dependencies if str(value or "").strip()}):
+        files = _dependency_files(root, dependency)
+        if not files:
+            result[dependency] = "MISSING"
+            continue
+        result[dependency] = _hash([(path.as_posix(), _file_sha(path)) for path in files])
+    return result
+
+
 def _claim_fingerprint(claim: dict[str, Any], dependency_fingerprints: dict[str, str]) -> str:
-    dependencies = _normalized_dependencies(claim)
     return _hash({
         "claim_type": claim.get("claim_type"),
         "result": claim.get("result"),
@@ -54,93 +128,17 @@ def _claim_fingerprint(claim: dict[str, Any], dependency_fingerprints: dict[str,
         "evidence": claim.get("evidence", []),
         "missing": claim.get("missing", []),
         "conflicts": claim.get("conflicts", []),
-        "dependencies": {name: dependency_fingerprints.get(name) for name in dependencies},
+        "dependencies": {name: dependency_fingerprints.get(name, "MISSING") for name in _dependencies(claim)},
     })
 
 
-def current_dependency_fingerprints(output: Path | str, dependencies: Iterable[str]) -> dict[str, str]:
-    """Hash exact dependency files from the current Miner output/snapshot.
-
-    Dependencies that do not resolve to files remain explicitly missing. This
-    function never substitutes Base evidence for a missing Current dependency.
-    """
-    root = Path(output).expanduser().resolve()
-    result: dict[str, str] = {}
-    candidates: list[Path] = []
-    last_run = root / "last-run.json"
-    if last_run.is_file():
-        try:
-            state = json.loads(last_run.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            state = {}
-        for key in ("current", "published"):
-            value = state.get(key)
-            if value:
-                path = Path(value)
-                if not path.is_absolute():
-                    path = root / path
-                candidates.append(path.resolve())
-    candidates.extend((root / "current", root / "published", root))
-
-    for dependency in sorted(set(str(value) for value in dependencies if str(value or "").strip())):
-        found: Path | None = None
-        for base in candidates:
-            path = base / dependency
-            if path.is_file():
-                found = path
-                break
-        if found is None:
-            result[dependency] = "MISSING"
-            continue
-        digest = hashlib.sha256()
-        with found.open("rb") as handle:
-            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-                digest.update(chunk)
-        result[dependency] = digest.hexdigest()
-    return result
-
-
-@dataclass(frozen=True)
-class ClaimSnapshot:
-    key: str
-    entity_type: str
-    canonical_id: str
-    claim_type: str
-    result: str
-    dependencies: tuple[str, ...]
-    dependency_fingerprints: dict[str, str]
-    claim_fingerprint: str
-    affected_pages: tuple[str, ...]
-
-
-def snapshot_claim(
-    graph: dict[str, Any],
-    claim: dict[str, Any],
-    dependency_fingerprints: dict[str, str],
-    *,
-    affected_pages: Iterable[str] = (),
-) -> ClaimSnapshot:
-    entity = graph.get("entity") or {}
-    entity_type = str(entity.get("entity_type") or "")
-    canonical_id = str(entity.get("canonical_id") or "")
-    claim_type = str(claim.get("claim_type") or "")
-    dependencies = tuple(_normalized_dependencies(claim))
-    scoped = {name: dependency_fingerprints.get(name, "MISSING") for name in dependencies}
-    return ClaimSnapshot(
-        key=_claim_key(entity_type, canonical_id, claim_type),
-        entity_type=entity_type,
-        canonical_id=canonical_id,
-        claim_type=claim_type,
-        result=str(claim.get("result") or "UNRESOLVED"),
-        dependencies=dependencies,
-        dependency_fingerprints=scoped,
-        claim_fingerprint=_claim_fingerprint(claim, scoped),
-        affected_pages=tuple(sorted({str(value) for value in affected_pages if str(value or "").strip()})),
-    )
+def default_page_resolver(entity_type: str, canonical_id: str, _claim_type: str) -> tuple[str, ...]:
+    """Return stable affected-page keys, not assumed production URLs."""
+    return (f"{entity_type}:{canonical_id}",)
 
 
 class DependencyInvalidationStore:
-    """Persistent, deterministic claim snapshot and invalidation store."""
+    """Persistent dependency state, dirty-claim planner, and review diagnostics."""
 
     def __init__(self, output: Path | str):
         self.output = Path(output).expanduser().resolve()
@@ -152,36 +150,82 @@ class DependencyInvalidationStore:
             payload = json.loads(self.path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             return {"schema": SCHEMA, "schema_version": SCHEMA_VERSION, "claims": {}, "history": []}
-        if not isinstance(payload, dict) or payload.get("schema") != SCHEMA:
+        if not isinstance(payload, dict) or payload.get("schema") != SCHEMA or payload.get("schema_version") != SCHEMA_VERSION:
             raise ValueError("Invalid claim dependency store")
         return payload
+
+    def invalidation_plan(self) -> dict[str, Any]:
+        """Identify dirty persisted claims before recomputation."""
+        claims = self.load().get("claims") or {}
+        dependency_names = {dep for row in claims.values() if isinstance(row, dict) for dep in (row.get("dependencies") or [])}
+        current = current_dependency_fingerprints(self.output, dependency_names)
+        dirty: list[dict[str, Any]] = []
+        unchanged: list[str] = []
+        for key, row in sorted(claims.items()):
+            old = row.get("dependency_fingerprints") or {}
+            changed = sorted(dep for dep in set(old) | set(row.get("dependencies") or []) if old.get(dep) != current.get(dep, "MISSING"))
+            if changed:
+                dirty.append({
+                    "claim_key": key,
+                    "entity_type": row.get("entity_type"),
+                    "canonical_id": row.get("canonical_id"),
+                    "claim_type": row.get("claim_type"),
+                    "previous_result": row.get("result"),
+                    "changed_dependencies": changed,
+                    "affected_pages": list(row.get("affected_pages") or []),
+                })
+            else:
+                unchanged.append(key)
+        return {
+            "schema": "dead-signal-claim-invalidation-plan",
+            "schema_version": 1,
+            "generated_at": _now(),
+            "dirty_claims": dirty,
+            "dirty_claim_keys": [row["claim_key"] for row in dirty],
+            "dirty_entities": sorted({f"{row['entity_type']}:{row['canonical_id']}" for row in dirty}),
+            "unchanged_claim_keys": unchanged,
+            "affected_website_pages": sorted({page for row in dirty for page in row["affected_pages"]}),
+        }
 
     def evaluate(
         self,
         graphs: Iterable[dict[str, Any]],
         *,
-        page_resolver: Callable[[str, str, str], Iterable[str]] | None = None,
+        page_resolver: Callable[[str, str, str], Iterable[str]] = default_page_resolver,
+        full_snapshot: bool = True,
         persist: bool = True,
     ) -> dict[str, Any]:
+        """Persist recomputed claims and invalidate stale/removed proof.
+
+        With ``full_snapshot=False`` only supplied entities are replaced, allowing
+        callers to recompute exactly the dirty entities returned by
+        :meth:`invalidation_plan` while untouched claims remain byte-for-byte
+        current.
+        """
         previous = self.load()
         old_claims = previous.get("claims") or {}
         if not isinstance(old_claims, dict):
             raise ValueError("Claim dependency store claims must be an object")
-
         graph_list = [graph for graph in graphs if isinstance(graph, dict)]
-        dependency_names = {
-            str(dep)
+        target_entities = {
+            (str((graph.get("entity") or {}).get("entity_type") or ""), str((graph.get("entity") or {}).get("canonical_id") or ""))
             for graph in graph_list
-            for claim in graph.get("claims", [])
-            if isinstance(claim, dict)
-            for dep in claim.get("dependencies", [])
-            if str(dep or "").strip()
+        }
+        dependency_names = {
+            dep for graph in graph_list for claim in graph.get("claims", []) if isinstance(claim, dict) for dep in _dependencies(claim)
         }
         fingerprints = current_dependency_fingerprints(self.output, dependency_names)
-        current: dict[str, dict[str, Any]] = {}
+        current = {} if full_snapshot else dict(old_claims)
         invalidated: list[dict[str, Any]] = []
-        unchanged: list[str] = []
-        recomputed: list[str] = []
+        recomputed: set[str] = set()
+
+        # Selective mode replaces all claims for each recomputed entity so a claim
+        # that disappeared cannot remain stale PROVEN.
+        if not full_snapshot:
+            for entity_type, canonical_id in target_entities:
+                prefix = _entity_prefix(entity_type, canonical_id)
+                for key in [key for key in current if key.startswith(prefix)]:
+                    current.pop(key)
 
         for graph in graph_list:
             entity = graph.get("entity") or {}
@@ -191,52 +235,45 @@ class DependencyInvalidationStore:
                 if not isinstance(claim, dict):
                     continue
                 claim_type = str(claim.get("claim_type") or "")
-                pages = tuple(page_resolver(entity_type, canonical_id, claim_type)) if page_resolver else ()
-                snap = snapshot_claim(graph, claim, fingerprints, affected_pages=pages)
+                key = _claim_key(entity_type, canonical_id, claim_type)
+                deps = _dependencies(claim)
+                dep_fingerprints = {name: fingerprints.get(name, "MISSING") for name in deps}
+                pages = sorted({str(value) for value in page_resolver(entity_type, canonical_id, claim_type) if str(value or "").strip()})
                 row = {
-                    "entity_type": snap.entity_type,
-                    "canonical_id": snap.canonical_id,
-                    "claim_type": snap.claim_type,
-                    "result": snap.result,
-                    "dependencies": list(snap.dependencies),
-                    "dependency_fingerprints": snap.dependency_fingerprints,
-                    "claim_fingerprint": snap.claim_fingerprint,
-                    "affected_pages": list(snap.affected_pages),
+                    "entity_type": entity_type,
+                    "canonical_id": canonical_id,
+                    "claim_type": claim_type,
+                    "result": str(claim.get("result") or "UNRESOLVED"),
+                    "dependencies": deps,
+                    "dependency_fingerprints": dep_fingerprints,
+                    "claim_fingerprint": _claim_fingerprint(claim, dep_fingerprints),
+                    "affected_pages": pages,
                     "current": True,
                 }
-                current[snap.key] = row
-                old = old_claims.get(snap.key)
+                current[key] = row
+                recomputed.add(key)
+                old = old_claims.get(key)
                 if not isinstance(old, dict):
-                    recomputed.append(snap.key)
                     continue
-                changed_dependencies = sorted(
-                    name for name in set(old.get("dependency_fingerprints", {})) | set(row["dependency_fingerprints"])
-                    if (old.get("dependency_fingerprints") or {}).get(name) != row["dependency_fingerprints"].get(name)
-                )
-                if changed_dependencies:
+                changed_dependencies = sorted(dep for dep in set(old.get("dependency_fingerprints", {})) | set(dep_fingerprints) if (old.get("dependency_fingerprints") or {}).get(dep) != dep_fingerprints.get(dep))
+                if changed_dependencies or old.get("claim_fingerprint") != row["claim_fingerprint"]:
                     invalidated.append({
-                        "claim_key": snap.key,
-                        "reason": "dependency-changed-or-removed",
+                        "claim_key": key,
+                        "reason": "dependency-changed-or-removed" if changed_dependencies else "claim-evidence-changed",
                         "changed_dependencies": changed_dependencies,
                         "previous_result": old.get("result"),
-                        "current_result": row.get("result"),
-                        "affected_pages": row["affected_pages"],
+                        "current_result": row["result"],
+                        "affected_pages": pages,
                     })
-                    recomputed.append(snap.key)
-                elif old.get("claim_fingerprint") != row["claim_fingerprint"]:
-                    invalidated.append({
-                        "claim_key": snap.key,
-                        "reason": "claim-evidence-changed",
-                        "changed_dependencies": [],
-                        "previous_result": old.get("result"),
-                        "current_result": row.get("result"),
-                        "affected_pages": row["affected_pages"],
-                    })
-                    recomputed.append(snap.key)
-                else:
-                    unchanged.append(snap.key)
 
-        removed_keys = sorted(set(old_claims) - set(current))
+        if full_snapshot:
+            removed_keys = sorted(set(old_claims) - set(current))
+        else:
+            removed_keys = sorted(
+                key for key in old_claims
+                if any(key.startswith(_entity_prefix(entity_type, canonical_id)) for entity_type, canonical_id in target_entities)
+                and key not in current
+            )
         for key in removed_keys:
             old = old_claims[key]
             invalidated.append({
@@ -252,14 +289,7 @@ class DependencyInvalidationStore:
         if old_claims:
             history.append({"captured_at": _now(), "claims": old_claims})
         history = history[-HISTORY_LIMIT:]
-
-        store = {
-            "schema": SCHEMA,
-            "schema_version": SCHEMA_VERSION,
-            "generated_at": _now(),
-            "claims": current,
-            "history": history,
-        }
+        store = {"schema": SCHEMA, "schema_version": SCHEMA_VERSION, "generated_at": _now(), "claims": current, "history": history}
         affected_pages = sorted({page for row in invalidated for page in row.get("affected_pages", [])})
         report = {
             "schema": "dead-signal-claim-invalidation-report",
@@ -267,15 +297,15 @@ class DependencyInvalidationStore:
             "generated_at": _now(),
             "claim_counts": {
                 "current": len(current),
-                "unchanged": len(unchanged),
-                "recomputed": len(set(recomputed)),
+                "recomputed": len(recomputed),
                 "invalidated": len(invalidated),
                 "removed": len(removed_keys),
+                "untouched": max(0, len(current) - len(recomputed)),
             },
             "invalidated_claims": sorted(invalidated, key=lambda row: row["claim_key"]),
             "review_queue": sorted({row["claim_key"] for row in invalidated}),
             "affected_website_pages": affected_pages,
-            "policy": "Historical PROVEN results are retained only in history. Changed or removed dependencies require current recomputation and review; stale proof never remains current.",
+            "policy": "Historical PROVEN results are audit history only. Changed or removed dependencies require current recomputation; removed claims cannot remain current PROVEN.",
         }
         if persist:
             _atomic(self.path, store)
