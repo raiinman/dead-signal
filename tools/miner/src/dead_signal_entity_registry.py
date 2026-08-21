@@ -59,6 +59,26 @@ def _mod_variants(payload: dict[str, Any]) -> list[dict[str, Any]]:
     return _family_variants(payload, canonical_prefix="ds-mod-var", identity_field="item_id")
 
 
+def _deviation_rows(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """Index exact normalized source variants; display-name families are browse-only."""
+    rows: list[dict[str, Any]] = []
+    for source in payload.get("deviations", []):
+        if not isinstance(source, dict):
+            continue
+        deviation_id = source.get("deviation_id") or source.get("id")
+        if deviation_id in (None, "", 0, "0"):
+            continue
+        row = dict(source)
+        row["deviation_id"] = deviation_id
+        row["canonical_id"] = f"ds-dev-{deviation_id}"
+        row.setdefault("classification", "Deviation")
+        name = str(row.get("name") or "").strip()
+        family_key = name.casefold() if name else f"id-{deviation_id}"
+        row["family_canonical_id"] = f"ds-dev-family-{family_key}"
+        rows.append(row)
+    return rows
+
+
 def _cradle_rows(data: dict[str, Any], report: dict[str, Any]) -> list[dict[str, Any]]:
     """Join normalized Cradles to active selector rows; no compact web dependency."""
     by_id = {
@@ -178,7 +198,7 @@ class DeadSignalEntityRegistry:
             "armor": web / "armor.json",
             "armor_set": web / "armor.json",
             "mod": web / "mods.json",
-            "deviation": web / "deviations.json",
+            "deviation": web.parent / "data" / "deviations.json",
             "recipe": web.parent / "data" / "crafting.json",
             "material": web.parent / "data" / "materials.json",
         }
@@ -206,6 +226,8 @@ class DeadSignalEntityRegistry:
                     rows = _calibration_variants(payload)
                 elif entity_type == "mod":
                     rows = _mod_variants(payload)
+                elif entity_type == "deviation":
+                    rows = _deviation_rows(payload)
                 elif entity_type == "armor":
                     rows = _armor_pieces(payload)
                 elif entity_type == "armor_set":
@@ -259,6 +281,7 @@ class DeadSignalEntityRegistry:
             "armor_set": "Armor Set",
             "recipe": "Crafting Recipe",
             "material": "Crafting Material",
+            "deviation": "Deviation",
         }.get(entity_type, "")
         return {
             "entity_type": entity_type,
