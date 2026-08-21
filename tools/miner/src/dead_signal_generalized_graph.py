@@ -12,6 +12,7 @@ from dead_signal_armor_adapters import ArmorAdapter
 from dead_signal_armor_set_adapter import ArmorSetAdapter
 from dead_signal_attachment_adapter import AttachmentAdapter
 from dead_signal_calibration_adapter import CalibrationAdapter
+from dead_signal_cradle_adapter import CradleAdapter
 from dead_signal_domain_adapters import EvidenceAdapterRegistry, EvidenceDomainAdapter
 from dead_signal_entity_registry import DeadSignalEntityRegistry
 from dead_signal_mod_adapter import ModAdapter
@@ -30,6 +31,7 @@ class DeadSignalGeneralizedGraph:
             ArmorAdapter(output),
             ArmorSetAdapter(output),
             ModAdapter(output),
+            CradleAdapter(output),
         ))
         self.entities = DeadSignalEntityRegistry(output, self.registry)
 
@@ -100,3 +102,7 @@ class DeadSignalGeneralizedGraph:
     def mod_entity_graph(self, identity: object) -> dict[str, Any]:
         """Phase-7 typed current Mod 2.0 graph entry point."""
         return self.entity_graph("mod", identity)
+
+    def cradle_entity_graph(self, identity: object) -> dict[str, Any]:
+        """Phase-8 typed active Cradle graph entry point."""
+        return self.entity_graph("cradle", identity)

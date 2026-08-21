@@ -1,4 +1,4 @@
-"""Project fail-closed Build Lab attachment, calibration, and ammo relationships."""
+"""Project fail-closed Build Lab attachment, calibration, ammo, and Cradle relationships."""
 from __future__ import annotations
 
 import argparse
@@ -14,6 +14,7 @@ from dead_signal_calibration_relations import (
     calibration_weapon_relation,
     is_current_calibration_blueprint,
 )
+from dead_signal_cradle_applicability import enrich_files as enrich_cradle_files
 from normalize_extended import merged_table
 
 
@@ -35,16 +36,19 @@ def _write(path: Path, payload: dict[str, Any]) -> None:
 
 
 def _attachment_relation(weapon: dict, attachment: dict) -> str:
-    """Backward-compatible wrapper around the shared Phase-4 policy."""
     return attachment_weapon_relation(weapon, attachment)
 
 
 def _calibration_relation(weapon: dict, calibration: dict) -> str:
-    """Backward-compatible wrapper around the shared Phase-5 policy."""
     return calibration_weapon_relation(weapon, calibration)
 
 
 def enrich(base: Path, current: Path, published: Path) -> dict[str, Any]:
+    """Enrich Attachment, Calibration, and Ammo relations only.
+
+    Cradle projection is chained by ``main`` so callers of this helper retain the
+    pre-Phase-8 side-effect boundary.
+    """
     data = published / "data"
     reports = published / "reports"
     weapons_path = data / "weapons.json"
@@ -82,10 +86,6 @@ def enrich(base: Path, current: Path, published: Path) -> dict[str, Any]:
         attachment_owner_states[owner_state] += 1
         player_attachments.append(attachment)
 
-    # Historical code filtered on a `status == current` field that the normalizer
-    # never emitted. Phase 5 instead requires an exact gun_correct_print_data
-    # owner and a valid record. Empty subtype-39 items remain unresolved and are
-    # not silently called current or legacy.
     current_calibrations = [
         row for row in calibrations.get("calibrations", [])
         if isinstance(row, dict) and is_current_calibration_blueprint(row)
@@ -163,7 +163,19 @@ def main() -> int:
     parser.add_argument("--current", type=Path, required=True)
     parser.add_argument("--published", type=Path, required=True)
     args = parser.parse_args()
-    print(json.dumps(enrich(args.base, args.current, args.published), indent=2))
+
+    report = enrich(args.base, args.current, args.published)
+    # Phase 8 pipeline seam: project active Cradles after the existing weapon
+    # compatibility file has been written. This appends Cradle relationships to
+    # the same weapons dataset and writes the evidence report consumed by the
+    # typed Cradle adapter. Static data traversal only; no game bytecode runs.
+    cradle_report = enrich_cradle_files(
+        args.base,
+        args.current,
+        args.published.parent,
+    )
+    report["cradle_record_counts"] = cradle_report.get("record_counts", {})
+    print(json.dumps(report, indent=2))
     return 0
 
 
