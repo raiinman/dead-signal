@@ -13,7 +13,6 @@ from typing import Any, Iterable
 
 from dead_signal_domain_adapters import EvidenceAdapterRegistry
 
-
 REGISTRY_SCHEMA = "dead-signal-entity-registry"
 REGISTRY_SCHEMA_VERSION = 1
 
@@ -29,13 +28,7 @@ def _records(payload: Any) -> list[dict[str, Any]]:
     return []
 
 
-def _family_variants(
-    payload: dict[str, Any],
-    *,
-    canonical_prefix: str,
-    identity_field: str,
-) -> list[dict[str, Any]]:
-    """Flatten browse families into exact source variants without merging identity."""
+def _family_variants(payload: dict[str, Any], *, canonical_prefix: str, identity_field: str) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     for family in payload.get("families", []):
         if not isinstance(family, dict):
@@ -55,11 +48,7 @@ def _family_variants(
 
 
 def _calibration_variants(payload: dict[str, Any]) -> list[dict[str, Any]]:
-    rows = _family_variants(
-        payload,
-        canonical_prefix="ds-cal-var",
-        identity_field="item_id",
-    )
+    rows = _family_variants(payload, canonical_prefix="ds-cal-var", identity_field="item_id")
     for row in rows:
         calibration_id = row.get("calibration_id") or row.get("id") or row.get("item_id")
         row["calibration_id"] = calibration_id
@@ -68,16 +57,23 @@ def _calibration_variants(payload: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _mod_variants(payload: dict[str, Any]) -> list[dict[str, Any]]:
-    """Index exact Mod item variants; mod_code remains a searchable family alias."""
-    return _family_variants(
-        payload,
-        canonical_prefix="ds-mod-var",
-        identity_field="item_id",
-    )
+    return _family_variants(payload, canonical_prefix="ds-mod-var", identity_field="item_id")
+
+
+def _cradle_variants(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """Index only installed active Cradles; inactive legacy variants are excluded."""
+    rows = _family_variants(payload, canonical_prefix="ds-cradle", identity_field="id")
+    result = []
+    for row in rows:
+        if not row.get("active_config_keys"):
+            continue
+        row["cradle_id"] = row.get("id")
+        row["classification"] = "Active Cradle"
+        result.append(row)
+    return result
 
 
 def _armor_pieces(payload: dict[str, Any]) -> list[dict[str, Any]]:
-    """Flatten suit pieces and standalone Key Armor without merging identities."""
     result: list[dict[str, Any]] = []
     for armor_set in payload.get("armor_sets", []):
         if not isinstance(armor_set, dict):
@@ -125,8 +121,6 @@ def _normalize_identity_state(value: object) -> str:
 
 
 class DeadSignalEntityRegistry:
-    """Read-only searchable registry over adapter-backed published entities."""
-
     def __init__(self, output: Path | str, adapters: EvidenceAdapterRegistry):
         self.output = Path(output).expanduser().resolve()
         self.adapters = adapters
@@ -153,7 +147,6 @@ class DeadSignalEntityRegistry:
         return published / "web"
 
     def rebuild(self) -> dict[str, Any]:
-        """Rebuild from source-derived datasets for currently registered adapters."""
         self._entities.clear()
         self._aliases.clear()
         web = self._published_web()
@@ -182,6 +175,8 @@ class DeadSignalEntityRegistry:
                 rows = _calibration_variants(payload)
             elif entity_type == "mod":
                 rows = _mod_variants(payload)
+            elif entity_type == "cradle":
+                rows = _cradle_variants(payload)
             elif entity_type == "armor":
                 rows = _armor_pieces(payload)
             elif entity_type == "armor_set":
