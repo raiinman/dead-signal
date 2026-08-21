@@ -278,6 +278,7 @@ def self_test_with_extended_publisher():
         "dead_signal_discovery", "dead_signal_discovery_tab", "dead_signal_verification",
         "dead_signal_verification_tab", "dead_signal_analytics", "dead_signal_evidence_graph",
         "dead_signal_workflow_lab", "dead_signal_pipeline_inspector", "dead_signal_publication_gate",
+        "dead_signal_generalized_workspace", "dead_signal_phase13_shell",
         "neox_data_explorer", "investigate_weapon_descriptions", "investigate_weapon_description_sources",
         "duckdb", "polars", "pyarrow",
     ):
@@ -306,8 +307,10 @@ research_window.open_research_console = open_dead_signal_data_intelligence
 # update checks cannot mistake a finished daemon thread's final unwind for active
 # mining.
 import dead_signal_miner as _miner_ui  # noqa: E402
+from dead_signal_phase13_shell import install_phase13_shell  # noqa: E402
 
 _original_set_idle_buttons = _miner_ui.DeadSignalMinerApp._set_idle_buttons
+_original_build_ui = _miner_ui.DeadSignalMinerApp._build_ui
 
 
 def _set_idle_buttons_and_clear_worker(self):
@@ -315,7 +318,13 @@ def _set_idle_buttons_and_clear_worker(self):
     return _original_set_idle_buttons(self)
 
 
+def _build_ui_with_phase13_shell(self):
+    _original_build_ui(self)
+    install_phase13_shell(self)
+
+
 _miner_ui.DeadSignalMinerApp._set_idle_buttons = _set_idle_buttons_and_clear_worker
+_miner_ui.DeadSignalMinerApp._build_ui = _build_ui_with_phase13_shell
 main = _miner_ui.main
 
 
