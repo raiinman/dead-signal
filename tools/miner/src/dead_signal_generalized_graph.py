@@ -28,30 +28,21 @@ class DeadSignalGeneralizedGraph:
     def __init__(self, output: Path | str):
         self.output = Path(output)
         self.registry = EvidenceAdapterRegistry((
-            WeaponAdapter(output),
-            AttachmentAdapter(output),
-            CalibrationAdapter(output),
-            ArmorAdapter(output),
-            ArmorSetAdapter(output),
-            ModAdapter(output),
-            CradleAdapter(output),
-            RecipeAdapter(output),
-            MaterialAdapter(output),
+            WeaponAdapter(output), AttachmentAdapter(output), CalibrationAdapter(output),
+            ArmorAdapter(output), ArmorSetAdapter(output), ModAdapter(output),
+            CradleAdapter(output), RecipeAdapter(output), MaterialAdapter(output),
             DeviationAdapter(output),
         ))
         self.entities = DeadSignalEntityRegistry(output, self.registry)
         self.invalidation = DependencyInvalidationStore(output)
 
     def register_adapter(self, adapter: EvidenceDomainAdapter) -> None:
-        """Register a new typed domain without changing core routing code."""
         self.registry.register(adapter)
 
     def entity_graph(self, entity_type: str, identity: object, **kwargs: Any) -> dict[str, Any]:
-        """Route a generalized trace to the exact registered domain adapter."""
         return self.registry.graph(entity_type, identity, **kwargs)
 
     def dependency_invalidation_plan(self) -> dict[str, Any]:
-        """Return persisted claims whose exact source dependencies changed."""
         return self.invalidation.invalidation_plan()
 
     def evaluate_dependency_invalidation(
@@ -60,31 +51,25 @@ class DeadSignalGeneralizedGraph:
         *,
         page_resolver: Callable[[str, str, str], Iterable[str]] | None = None,
         full_snapshot: bool = True,
+        removed_claim_keys: Iterable[str] = (),
         persist: bool = True,
     ) -> dict[str, Any]:
-        """Persist recomputed claims and queue stale/removed proof for review."""
-        kwargs: dict[str, Any] = {"full_snapshot": full_snapshot, "persist": persist}
+        kwargs: dict[str, Any] = {
+            "full_snapshot": full_snapshot,
+            "removed_claim_keys": removed_claim_keys,
+            "persist": persist,
+        }
         if page_resolver is not None:
             kwargs["page_resolver"] = page_resolver
         return self.invalidation.evaluate(graphs, **kwargs)
 
     def rebuild_entity_registry(self) -> dict[str, Any]:
-        """Reindex source-derived entities for all currently registered adapters."""
         return self.entities.rebuild()
 
-    def search_entities(
-        self,
-        query: object,
-        *,
-        entity_type: str | None = None,
-        unresolved_only: bool = False,
-        limit: int = 100,
-    ) -> list[dict[str, Any]]:
-        """Search exact IDs and source-proven names without creating evidence edges."""
+    def search_entities(self, query: object, *, entity_type: str | None = None, unresolved_only: bool = False, limit: int = 100) -> list[dict[str, Any]]:
         return self.entities.search(query, entity_type=entity_type, unresolved_only=unresolved_only, limit=limit)
 
     def registered_entity(self, entity_type: str, canonical_id: object) -> dict[str, Any]:
-        """Return one registry entity and record it in the recent-trace list."""
         return self.entities.get(entity_type, canonical_id)
 
     def recent_entities(self) -> list[dict[str, Any]]:
@@ -93,29 +78,12 @@ class DeadSignalGeneralizedGraph:
     def weapon_entity_graph(self, identity: object, *, max_occurrences_per_id: int = 80) -> dict[str, Any]:
         return self.entity_graph("weapon", identity, max_occurrences_per_id=max_occurrences_per_id)
 
-    def attachment_entity_graph(self, identity: object) -> dict[str, Any]:
-        return self.entity_graph("attachment", identity)
-
-    def calibration_entity_graph(self, identity: object) -> dict[str, Any]:
-        return self.entity_graph("calibration", identity)
-
-    def armor_entity_graph(self, identity: object) -> dict[str, Any]:
-        return self.entity_graph("armor", identity)
-
-    def armor_set_entity_graph(self, identity: object) -> dict[str, Any]:
-        return self.entity_graph("armor_set", identity)
-
-    def mod_entity_graph(self, identity: object) -> dict[str, Any]:
-        return self.entity_graph("mod", identity)
-
-    def cradle_entity_graph(self, identity: object) -> dict[str, Any]:
-        return self.entity_graph("cradle", identity)
-
-    def recipe_entity_graph(self, identity: object) -> dict[str, Any]:
-        return self.entity_graph("recipe", identity)
-
-    def material_entity_graph(self, identity: object) -> dict[str, Any]:
-        return self.entity_graph("material", identity)
-
-    def deviation_entity_graph(self, identity: object) -> dict[str, Any]:
-        return self.entity_graph("deviation", identity)
+    def attachment_entity_graph(self, identity: object) -> dict[str, Any]: return self.entity_graph("attachment", identity)
+    def calibration_entity_graph(self, identity: object) -> dict[str, Any]: return self.entity_graph("calibration", identity)
+    def armor_entity_graph(self, identity: object) -> dict[str, Any]: return self.entity_graph("armor", identity)
+    def armor_set_entity_graph(self, identity: object) -> dict[str, Any]: return self.entity_graph("armor_set", identity)
+    def mod_entity_graph(self, identity: object) -> dict[str, Any]: return self.entity_graph("mod", identity)
+    def cradle_entity_graph(self, identity: object) -> dict[str, Any]: return self.entity_graph("cradle", identity)
+    def recipe_entity_graph(self, identity: object) -> dict[str, Any]: return self.entity_graph("recipe", identity)
+    def material_entity_graph(self, identity: object) -> dict[str, Any]: return self.entity_graph("material", identity)
+    def deviation_entity_graph(self, identity: object) -> dict[str, Any]: return self.entity_graph("deviation", identity)
