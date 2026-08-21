@@ -1,9 +1,9 @@
 """Project normalized Mod 2.0 frame evidence into compact web Mod variants.
 
 The projector joins only by exact normalized ``item_id``. It copies already
-proven frame/sub-entry identities and preserves the unresolved positional
-boundary: source list order is retained, but no frame_lv_1..4 assignment is
-invented.
+proven Mod 2.0 system ownership and frame/sub-entry identities and preserves the
+unresolved positional boundary: source list order is retained, but no
+frame_lv_1..4 assignment is invented.
 """
 
 from __future__ import annotations
@@ -14,6 +14,8 @@ from pathlib import Path
 
 
 PROVEN_STATUS = "proven-frame-and-sub-entry-family-identities"
+CURRENT_MOD_SYSTEM = "current-mod-2.0"
+CURRENT_ITEM_OWNER_STATE = "exact-new-mod-item-owner"
 
 
 def project(normalized_payload: dict, web_payload: dict) -> dict:
@@ -34,6 +36,7 @@ def project(normalized_payload: dict, web_payload: dict) -> dict:
     missing_normalized_item_ids = []
     used_frame_codes = set()
     used_sub_entries = set()
+    classification_failures = []
 
     for family in families:
         for variant in family.get("variants") or []:
@@ -42,6 +45,26 @@ def project(normalized_payload: dict, web_payload: dict) -> dict:
             item_id = variant.get("item_id")
             normalized = by_item.get(str(item_id))
             evidence = normalized.get("frame_sub_entry_evidence") if normalized else None
+            if not isinstance(normalized, dict):
+                unresolved += 1
+                missing_normalized_item_ids.append(item_id)
+                variant["mod_system"] = "unresolved"
+                variant["owner_state"] = "unresolved"
+                variant["frame_sub_entry_evidence"] = {
+                    "status": "normalized-frame-evidence-missing",
+                    "order_semantics": "source-order-preserved; frame_lv_1..4 positional mapping unproven",
+                }
+                continue
+
+            variant["mod_system"] = normalized.get("mod_system") or "unresolved"
+            variant["owner_state"] = normalized.get("owner_state") or "unresolved"
+            variant["owner_source_table"] = normalized.get("owner_source_table") or ""
+            if (
+                variant["mod_system"] != CURRENT_MOD_SYSTEM
+                or variant["owner_state"] != CURRENT_ITEM_OWNER_STATE
+            ):
+                classification_failures.append(item_id)
+
             if not isinstance(evidence, dict):
                 unresolved += 1
                 missing_normalized_item_ids.append(item_id)
@@ -68,6 +91,10 @@ def project(normalized_payload: dict, web_payload: dict) -> dict:
     counts["frame_evidence_unresolved_variants"] = unresolved
     counts["used_frame_codes"] = len(used_frame_codes)
     counts["used_sub_entry_families"] = len(used_sub_entries)
+    counts["mod_system_classification_failures"] = len(classification_failures)
+    web_payload["mod_system"] = CURRENT_MOD_SYSTEM
+    web_payload["legacy_random_roll_records_included"] = False
+    web_payload["mod_system_classification_failure_item_ids"] = classification_failures
     web_payload["mod_frame_evidence_status"] = (
         "proven-entry-identities-positional-level-mapping-unresolved"
         if unresolved == 0
