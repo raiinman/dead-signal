@@ -29,6 +29,27 @@ def _records(payload: Any) -> list[dict[str, Any]]:
     return []
 
 
+def _calibration_variants(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """Flatten browse families into exact source variants for registry identity."""
+    result: list[dict[str, Any]] = []
+    for family in payload.get("families", []):
+        if not isinstance(family, dict):
+            continue
+        family_id = str(family.get("canonical_id") or "")
+        for variant in family.get("variants", []):
+            if not isinstance(variant, dict):
+                continue
+            row = dict(variant)
+            calibration_id = row.get("calibration_id") or row.get("id") or row.get("item_id")
+            if calibration_id in (None, ""):
+                continue
+            row.setdefault("calibration_id", calibration_id)
+            row.setdefault("canonical_id", f"ds-cal-var-{calibration_id}")
+            row["family_canonical_id"] = family_id
+            result.append(row)
+    return result
+
+
 def _first(row: dict[str, Any], keys: Iterable[str]) -> Any:
     for key in keys:
         value = row.get(key)
@@ -86,6 +107,7 @@ class DeadSignalEntityRegistry:
         source_map = {
             "weapon": web / "weapons.json",
             "attachment": web / "attachments.json",
+            "calibration": web / "calibrations.json",
             "armor": web / "armor.json",
             "mod": web / "mods.json",
             "cradle": web / "cradles.json",
@@ -102,8 +124,9 @@ class DeadSignalEntityRegistry:
             except (OSError, ValueError):
                 indexed_by_type[entity_type] = 0
                 continue
+            rows = _calibration_variants(payload) if entity_type == "calibration" else _records(payload)
             count = 0
-            for row in _records(payload):
+            for row in rows:
                 entity = self._entity_from_row(entity_type, row, path)
                 if entity is None:
                     continue
@@ -124,13 +147,13 @@ class DeadSignalEntityRegistry:
         }
 
     def _entity_from_row(self, entity_type: str, row: dict[str, Any], path: Path) -> dict[str, Any] | None:
-        canonical = _first(row, ("canonical_id", "blueprint_id", "item_id", "attachment_id", "mod_id", "cradle_id", "deviation_id"))
+        canonical = _first(row, ("canonical_id", "calibration_id", "blueprint_id", "item_id", "attachment_id", "mod_id", "cradle_id", "deviation_id"))
         name = _first(row, ("name", "display_name", "title"))
         if canonical in (None, "") or name in (None, ""):
             return None
         canonical_text = str(canonical)
         aliases: list[str] = [canonical_text, str(name)]
-        for key in ("blueprint_id", "item_id", "prototype_id", "attachment_id", "accessory_id", "mod_id", "cradle_id", "deviation_id"):
+        for key in ("calibration_id", "blueprint_id", "item_id", "prototype_id", "attachment_id", "accessory_id", "mod_id", "cradle_id", "deviation_id", "family_canonical_id"):
             value = row.get(key)
             if value not in (None, ""):
                 aliases.append(str(value))
@@ -145,7 +168,7 @@ class DeadSignalEntityRegistry:
             "category": str(_first(row, ("category", "classification", "slot", "type")) or ""),
             "source_owner": source_owner,
             "identity_state": identity_state,
-            "artwork_reference": _first(row, ("artwork", "artwork_reference", "icon", "icon_path", "image")),
+            "artwork_reference": _first(row, ("artwork", "artwork_reference", "image_reference", "icon", "icon_path", "image")),
             "availability_state": str(_first(row, ("availability_state", "availability", "status")) or "UNRESOLVED"),
             "graph_target": {"entity_type": entity_type, "canonical_id": canonical_text},
         }
