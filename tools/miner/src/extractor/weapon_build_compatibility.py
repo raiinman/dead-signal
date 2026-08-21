@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from attachment_compatibility import direct_compatibility_evidence
+from dead_signal_attachment_relations import attachment_weapon_relation
 from normalize_extended import merged_table
 
 
@@ -30,20 +31,8 @@ def _write(path: Path, payload: dict[str, Any]) -> None:
 
 
 def _attachment_relation(weapon: dict, attachment: dict) -> str:
-    if weapon.get("category") == "Melee":
-        return "not-applicable"
-    evidence = attachment["compatibility_evidence"]
-    if evidence.get("all_weapons"):
-        return "compatible"
-    categories = set(evidence.get("compatible_weapon_categories") or [])
-    if weapon.get("category") in categories:
-        return "compatible"
-    if categories and not evidence.get("named_weapon_text_present"):
-        return "incompatible"
-    typed_ids = set(attachment.get("compatible_weapon_item_ids") or [])
-    if typed_ids:
-        return "compatible" if weapon.get("item_id") in typed_ids else "incompatible"
-    return "unresolved"
+    """Backward-compatible wrapper around the shared Phase-4 policy."""
+    return attachment_weapon_relation(weapon, attachment)
 
 
 def enrich(base: Path, current: Path, published: Path) -> dict[str, Any]:
