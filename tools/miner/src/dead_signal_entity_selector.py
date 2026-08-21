@@ -44,8 +44,11 @@ class RegistrySelectorModel:
 
     def __init__(self, graph: DeadSignalGeneralizedGraph):
         self.graph = graph
+        registry = getattr(self.graph, "registry", None)
+        entity_types = getattr(registry, "entity_types", None)
+        adapter_types = list(entity_types()) if callable(entity_types) else []
         self.summary: dict[str, Any] = {
-            "adapter_types": list(self.graph.registry.entity_types()),
+            "adapter_types": adapter_types,
             "deferred": True,
         }
         self._choices: dict[str, dict[str, Any]] = {}
@@ -58,7 +61,12 @@ class RegistrySelectorModel:
         self._registry_ready = True
 
     def entity_types(self) -> tuple[str, ...]:
-        return tuple(self.summary.get("adapter_types") or self.graph.registry.entity_types())
+        types = tuple(self.summary.get("adapter_types") or ())
+        if types:
+            return types
+        registry = getattr(self.graph, "registry", None)
+        entity_types = getattr(registry, "entity_types", None)
+        return tuple(entity_types()) if callable(entity_types) else ()
 
     def search(
         self,
