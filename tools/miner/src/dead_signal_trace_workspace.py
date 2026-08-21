@@ -1,6 +1,6 @@
-"""Interactive Weapon Identity Trace workspace for Data Intelligence.
+"""Interactive Evidence Graph workspace for Data Intelligence.
 
-This is the visual operations surface for the exact Evidence Graph.  It does
+This is the visual operations surface for the exact Evidence Graph. It does
 not create evidence: every displayed relationship is derived from the existing
 graph/schema/publication artifacts and missing relationships remain unresolved.
 """
@@ -12,6 +12,7 @@ import tkinter as tk
 from pathlib import Path
 from tkinter import messagebox, ttk
 
+from dead_signal_entity_selector import EntityRegistrySelector
 from dead_signal_evidence_graph import DeadSignalEvidenceGraph
 from dead_signal_weapon_schema_trace import DeadSignalWeaponSchemaTrace
 from research_console import ResearchConsole
@@ -48,7 +49,12 @@ def _identity(value: str) -> str:
 
 
 class WeaponIdentityTraceWorkspace:
-    """Render and operate the complete Weapon Identity Trace screen."""
+    """Render and operate the Evidence Graph entity trace screen.
+
+    Phase 3 generalizes entity discovery/navigation while the current renderer
+    remains the proven Weapons v1 renderer. New adapters can enter the selector
+    without being silently rendered as weapons.
+    """
 
     BRANCHES = (
         ("EFFECT", ("fixed_skill_code", "skill_id", "buff_id"), True),
@@ -72,13 +78,17 @@ class WeaponIdentityTraceWorkspace:
         self.current_weapon: dict = {}
         self.node_items: dict[int, dict] = {}
         self.running = False
+        self.entity_selector: EntityRegistrySelector | None = None
         self.subject_var = tk.StringVar()
         self.status_var = tk.StringVar(value="READY")
         self.snapshot_var = tk.StringVar(value="INSTALLED SNAPSHOT")
         self._build()
-        if self.weapons:
+        initialized = bool(self.entity_selector and self.entity_selector.set_initial("last valor"))
+        if not initialized and self.weapons:
             initial = next((row for row in self.weapons if "last valor" in str(row.get("name", "")).casefold()), self.weapons[0])
             self.subject_var.set(f"{initial.get('name')}  [{initial.get('canonical_id') or initial.get('blueprint_id')}]")
+            initialized = True
+        if initialized:
             self.parent.after_idle(self.run_trace)
 
     def _button(self, parent, text, command, *, primary=False, width=None):
@@ -123,14 +133,18 @@ class WeaponIdentityTraceWorkspace:
         titlebar.pack(fill="x")
         left_title = tk.Frame(titlebar, bg=BG)
         left_title.pack(side="left", fill="x", expand=True)
-        tk.Label(left_title, text="WEAPON IDENTITY TRACE", bg=BG, fg=INK,
+        tk.Label(left_title, text="EVIDENCE GRAPH", bg=BG, fg=INK,
                  font=("Bahnschrift SemiCondensed", 19, "bold")).pack(anchor="w")
-        tk.Label(left_title, text="Exact-owner graph · no fuzzy joins · publication remains fail-closed",
+        tk.Label(left_title, text="Adapter-backed entity search · exact-owner graph · publication remains fail-closed",
                  bg=BG, fg=MUTED, font=("Segoe UI", 8)).pack(anchor="w")
-        choices = [f"{row.get('name')}  [{row.get('canonical_id') or row.get('blueprint_id')}]" for row in self.weapons]
-        selector = ttk.Combobox(titlebar, textvariable=self.subject_var, values=choices, state="normal", width=43)
-        selector.pack(side="right", ipady=4)
-        selector.bind("<<ComboboxSelected>>", lambda _event: self.run_trace())
+
+        self.entity_selector = EntityRegistrySelector(
+            center,
+            self.output,
+            subject_var=self.subject_var,
+            on_select=self.run_trace,
+        )
+        self.entity_selector.pack(fill="x", padx=16, pady=(0, 9))
 
         graph_frame = tk.Frame(center, bg=BG, highlightbackground=BORDER, highlightthickness=1)
         graph_frame.pack(fill="both", expand=True, padx=16)
@@ -183,8 +197,22 @@ class WeaponIdentityTraceWorkspace:
         if self.running:
             return
         identity = _identity(self.subject_var.get())
+        if self.entity_selector is not None:
+            try:
+                target = self.entity_selector.selected_target()
+            except (KeyError, ValueError) as error:
+                messagebox.showinfo("Dead Signal Trace", str(error), parent=self._window())
+                return
+            if target.get("entity_type") != "weapon":
+                messagebox.showinfo(
+                    "Dead Signal Trace",
+                    f"{target.get('entity_type')} is registered, but its graph renderer is not enabled yet.",
+                    parent=self._window(),
+                )
+                return
+            identity = str(target.get("canonical_id") or "")
         if not identity:
-            messagebox.showinfo("Dead Signal Trace", "Choose a weapon first.", parent=self._window())
+            messagebox.showinfo("Dead Signal Trace", "Choose an entity first.", parent=self._window())
             return
         self.running = True
         self.status_var.set("TRACING…")
@@ -200,7 +228,7 @@ class WeaponIdentityTraceWorkspace:
                 return
             self._window().after(0, lambda: self._trace_complete(graph, trace, weapon))
 
-        threading.Thread(target=worker, name="DeadSignalIdentityTrace", daemon=True).start()
+        threading.Thread(target=worker, name="DeadSignalEntityTrace", daemon=True).start()
 
     def _trace_failed(self, error):
         self.running = False
