@@ -68,6 +68,10 @@ class AdapterContract:
 class EvidenceDomainAdapter(ABC):
     """Base interface for one exact evidence domain.
 
+    ``graph`` remains the one mandatory implementation point. The remaining
+    adapter views are deterministic projections of that validated graph and may be
+    overridden by a domain when it needs specialized aggregation semantics.
+
     Adapters resolve evidence and presentation only. They intentionally expose no
     publish method; publication remains a separate reviewed projection boundary.
     """
@@ -83,25 +87,58 @@ class EvidenceDomainAdapter(ABC):
     def entity_type(self) -> str:
         return self.contract.entity_type
 
-    @abstractmethod
     def identify(self, identity: object, **kwargs: Any) -> dict[str, Any]:
         """Return the validated generalized entity contract."""
+        return dict(self.graph(identity, **kwargs)["entity"])
 
-    @abstractmethod
     def claims(self, identity: object, **kwargs: Any) -> list[dict[str, Any]]:
         """Return deterministic claims supported by this adapter."""
+        return [dict(row) for row in self.graph(identity, **kwargs).get("claims", [])]
 
-    @abstractmethod
     def resolve_claim(self, identity: object, claim_type: str, **kwargs: Any) -> dict[str, Any]:
         """Resolve exactly one declared claim type or fail closed."""
+        requested = str(claim_type or "").strip()
+        if requested not in self.contract.supported_claims:
+            raise KeyError(f"Unsupported {self.entity_type} claim: {claim_type}")
+        matches = [
+            claim
+            for claim in self.claims(identity, **kwargs)
+            if claim.get("claim_type") == requested
+        ]
+        if not matches:
+            raise KeyError(f"No {self.entity_type} claim resolved for: {claim_type}")
+        if len(matches) > 1:
+            raise ValueError(
+                f"Multiple {self.entity_type} claims resolved for {claim_type}; "
+                "the domain must override resolve_claim with explicit aggregation semantics"
+            )
+        return matches[0]
 
-    @abstractmethod
     def dependencies(self, identity: object, **kwargs: Any) -> list[str]:
-        """Return dependency fingerprints used by the entity's claims."""
+        """Return the exact declared dependencies used by the entity's claims."""
+        values = {
+            str(dependency)
+            for claim in self.claims(identity, **kwargs)
+            for dependency in claim.get("dependencies", [])
+            if str(dependency or "").strip()
+        }
+        return sorted(values)
 
-    @abstractmethod
     def presentation(self, identity: object, **kwargs: Any) -> dict[str, Any]:
         """Return non-publishing presentation data from validated evidence."""
+        graph = self.graph(identity, **kwargs)
+        entity = graph["entity"]
+        assessment = graph["assessment"]
+        return {
+            "entity_type": entity["entity_type"],
+            "canonical_id": entity["canonical_id"],
+            "name": entity["name"],
+            "classification": entity["classification"],
+            "identity_state": entity["identity_state"],
+            "assessment": assessment["result"],
+            "claim_counts": assessment["claim_counts"],
+            "publication_authority": False,
+        }
 
     @abstractmethod
     def graph(self, identity: object, **kwargs: Any) -> dict[str, Any]:
