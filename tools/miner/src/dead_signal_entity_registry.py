@@ -29,8 +29,13 @@ def _records(payload: Any) -> list[dict[str, Any]]:
     return []
 
 
-def _calibration_variants(payload: dict[str, Any]) -> list[dict[str, Any]]:
-    """Flatten browse families into exact source variants for registry identity."""
+def _family_variants(
+    payload: dict[str, Any],
+    *,
+    canonical_prefix: str,
+    identity_field: str,
+) -> list[dict[str, Any]]:
+    """Flatten browse families into exact source variants without merging identity."""
     result: list[dict[str, Any]] = []
     for family in payload.get("families", []):
         if not isinstance(family, dict):
@@ -40,14 +45,35 @@ def _calibration_variants(payload: dict[str, Any]) -> list[dict[str, Any]]:
             if not isinstance(variant, dict):
                 continue
             row = dict(variant)
-            calibration_id = row.get("calibration_id") or row.get("id") or row.get("item_id")
-            if calibration_id in (None, ""):
+            identity = row.get(identity_field)
+            if identity in (None, ""):
                 continue
-            row.setdefault("calibration_id", calibration_id)
-            row.setdefault("canonical_id", f"ds-cal-var-{calibration_id}")
+            row.setdefault("canonical_id", f"{canonical_prefix}-{identity}")
             row["family_canonical_id"] = family_id
             result.append(row)
     return result
+
+
+def _calibration_variants(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    rows = _family_variants(
+        payload,
+        canonical_prefix="ds-cal-var",
+        identity_field="item_id",
+    )
+    for row in rows:
+        calibration_id = row.get("calibration_id") or row.get("id") or row.get("item_id")
+        row["calibration_id"] = calibration_id
+        row["canonical_id"] = f"ds-cal-var-{calibration_id}"
+    return rows
+
+
+def _mod_variants(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """Index exact Mod item variants; mod_code remains a searchable family alias."""
+    return _family_variants(
+        payload,
+        canonical_prefix="ds-mod-var",
+        identity_field="item_id",
+    )
 
 
 def _armor_pieces(payload: dict[str, Any]) -> list[dict[str, Any]]:
@@ -154,6 +180,8 @@ class DeadSignalEntityRegistry:
                 continue
             if entity_type == "calibration":
                 rows = _calibration_variants(payload)
+            elif entity_type == "mod":
+                rows = _mod_variants(payload)
             elif entity_type == "armor":
                 rows = _armor_pieces(payload)
             elif entity_type == "armor_set":
@@ -188,7 +216,7 @@ class DeadSignalEntityRegistry:
             return None
         canonical_text = str(canonical)
         aliases: list[str] = [canonical_text, str(name)]
-        for key in ("calibration_id", "suit_id", "blueprint_id", "item_id", "prototype_id", "attachment_id", "accessory_id", "mod_id", "cradle_id", "deviation_id", "family_canonical_id", "set_canonical_id"):
+        for key in ("calibration_id", "suit_id", "blueprint_id", "item_id", "prototype_id", "attachment_id", "accessory_id", "mod_id", "mod_code", "cradle_id", "deviation_id", "family_canonical_id", "set_canonical_id"):
             value = row.get(key)
             if value not in (None, ""):
                 aliases.append(str(value))
