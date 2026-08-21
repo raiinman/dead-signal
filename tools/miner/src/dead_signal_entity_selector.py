@@ -79,18 +79,24 @@ class RegistrySelectorModel:
         return rows
 
     def target_for_choice(self, choice: object, *, entity_type: str | None = None) -> dict[str, Any]:
-        self._ensure_registry()
         label = str(choice or "").strip()
         row = self._choices.get(label)
         canonical_id = row.get("canonical_id") if row else identity_from_choice(label)
         resolved_type = str((row or {}).get("entity_type") or entity_type or "").strip().casefold()
         if not resolved_type or not canonical_id:
             raise KeyError("Entity selection is incomplete")
+        if row is None:
+            # Navigation by an already-known canonical ID does not need the browse
+            # registry. The typed adapter remains the identity/proof boundary and
+            # will reject an invalid target during the trace itself.
+            return {"entity_type": resolved_type, "canonical_id": str(canonical_id)}
+        self._ensure_registry()
         entity = self.graph.registered_entity(resolved_type, canonical_id)
         return dict(entity["graph_target"])
 
     def recent(self) -> list[dict[str, Any]]:
-        self._ensure_registry()
+        if not self._registry_ready:
+            return []
         return self.graph.recent_entities()
 
 
