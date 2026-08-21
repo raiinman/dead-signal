@@ -1,7 +1,7 @@
 """Versioned generalized evidence contracts for Dead Signal.
 
 Phase 1 deliberately separates the new strict contracts from the protected
-Weapons v1 payload.  Legacy weapon graphs can be projected into this schema
+Weapons v1 payload. Legacy weapon graphs can be projected into this schema
 without mutating ``weapon_graph(identity)``.
 """
 from __future__ import annotations
@@ -336,6 +336,12 @@ def project_legacy_weapon_graph(legacy: dict[str, Any]) -> dict[str, Any]:
         generalized_edges.append(edge)
 
         evidence_id = f"edge:{fingerprint}"
+        if state == "PARTIAL":
+            missing = ["relationship partially resolved"]
+        elif state == "UNRESOLVED":
+            missing = ["relationship unresolved"]
+        else:
+            missing = []
         claim = {
             "schema_version": CLAIM_SCHEMA_VERSION,
             "claim_type": f"weapon.{relationship.replace('-', '_')}",
@@ -343,7 +349,7 @@ def project_legacy_weapon_graph(legacy: dict[str, Any]) -> dict[str, Any]:
             "result": state,
             "requirements": ["exact authoritative relationship", "complete edge provenance"],
             "evidence": [evidence_id] if state in {"PROVEN", "PARTIAL", "CONFLICT"} else [],
-            "missing": ["relationship unresolved"] if state == "UNRESOLVED" else [],
+            "missing": missing,
             "conflicts": [evidence_id] if state == "CONFLICT" else [],
             "dependencies": [fingerprint],
         }
