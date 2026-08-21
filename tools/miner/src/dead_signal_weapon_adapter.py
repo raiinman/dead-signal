@@ -51,7 +51,7 @@ WEAPON_CONTRACT = AdapterContract(
     ),
     typed_destination_tables=(
         ("prototype_id", ("game_common/data/weapon_prototype_data.json",)),
-        ("gun_no", ("game_common/data/gun_data.json", "game_common/data/equip_data.json")),
+        ("gun_no", ("game_common/data/equip_data.json",)),
         ("fixed_skill_code", ("game_common/data/passive_skill_data.json", "game_common/data/gun_blueprint_attr_data.json")),
     ),
     collision_prone_fields=("prototype_id", "gun_no", "fixed_skill_code"),
