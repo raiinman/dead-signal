@@ -7,9 +7,21 @@ from pathlib import Path
 from dead_signal_generalized_workspace import GeneralizedEvidencePanel, OverviewPanel, ReviewQueuePanel
 
 
+def _snapshot_fallback(parent, app, title: str) -> None:
+    panel = app._panel(parent, padx=28, pady=26)
+    panel.pack(fill="both", expand=True)
+    tk.Label(panel, text=title, bg="#111519", fg="#eef1f4",
+             font=("Segoe UI", 22, "bold")).pack(anchor="w")
+    tk.Label(panel, text="Complete one local snapshot before opening generalized intelligence.",
+             bg="#111519", fg="#9aa3ac", font=("Segoe UI", 11)).pack(anchor="w", pady=(5, 18))
+    app._button(panel, "OPEN RUN PIPELINE", lambda: app._show_workspace("Run Pipeline"),
+                primary=True).pack(anchor="w")
+
+
 def install_phase13_shell(app) -> None:
     """Replace weapon-centric navigation with generalized intelligence/operations surfaces."""
     output = Path(app.output_var.get().strip()).expanduser().resolve()
+    snapshot_ready = (output / "last-run.json").is_file()
 
     # Reuse existing operational pages under Phase-13 names.
     if "Explore Data" in app.workspaces:
@@ -22,40 +34,55 @@ def install_phase13_shell(app) -> None:
     if evidence_page is not None:
         for child in evidence_page.winfo_children():
             child.destroy()
-        app.generalized_evidence = GeneralizedEvidencePanel(
-            evidence_page,
-            output,
-            on_open_review=lambda: app._show_workspace("Review Queue"),
-        )
-        app.generalized_evidence.pack(fill="both", expand=True)
+        if snapshot_ready:
+            app.generalized_evidence = GeneralizedEvidencePanel(
+                evidence_page,
+                output,
+                on_open_review=lambda: app._show_workspace("Review Queue"),
+            )
+            app.generalized_evidence.pack(fill="both", expand=True)
+        else:
+            app.generalized_evidence = None
+            _snapshot_fallback(evidence_page, app, "EVIDENCE GRAPH")
 
     overview = app._workspace("Overview")
-    app.generalized_overview = OverviewPanel(
-        overview,
-        output,
-        open_graph=lambda: app._show_workspace("Evidence Graph"),
-    )
-    app.generalized_overview.pack(fill="both", expand=True)
+    if snapshot_ready:
+        app.generalized_overview = OverviewPanel(
+            overview,
+            output,
+            open_graph=lambda: app._show_workspace("Evidence Graph"),
+        )
+        app.generalized_overview.pack(fill="both", expand=True)
+    else:
+        app.generalized_overview = None
+        _snapshot_fallback(overview, app, "INTELLIGENCE OVERVIEW")
 
     review = app._workspace("Review Queue")
 
     def open_entity(entity_type: str, canonical_id: str) -> None:
+        if app.generalized_evidence is None:
+            app._show_workspace("Run Pipeline")
+            return
         app._show_workspace("Evidence Graph")
         app.generalized_evidence.set_target(entity_type, canonical_id)
 
-    app.generalized_review = ReviewQueuePanel(review, output, open_entity)
-    app.generalized_review.pack(fill="both", expand=True)
+    if snapshot_ready:
+        app.generalized_review = ReviewQueuePanel(review, output, open_entity)
+        app.generalized_review.pack(fill="both", expand=True)
+    else:
+        app.generalized_review = None
+        _snapshot_fallback(review, app, "REVIEW QUEUE")
 
     reports = app._workspace("Reports")
     panel = app._panel(reports, padx=24, pady=22)
     panel.pack(fill="both", expand=True)
-    tk.Label(panel, text="REPORTS", bg=app.PANEL if hasattr(app, "PANEL") else "#111519", fg="#eef1f4",
+    tk.Label(panel, text="REPORTS", bg="#111519", fg="#eef1f4",
              font=("Segoe UI", 20, "bold")).pack(anchor="w")
     tk.Label(panel, text="Open bounded evidence, invalidation, coverage, and snapshot diagnostics.",
              bg="#111519", fg="#9aa3ac", font=("Segoe UI", 10)).pack(anchor="w", pady=(4, 18))
     report_items = (
         ("Claim invalidation", output / "reports" / "claim-invalidation.json"),
-        ("Snapshot data diff", output / "reports" / "snapshot-data-diff.json"),
+        ("Snapshot data diff", output / "published" / "reports" / "snapshot-data-diff.json"),
         ("Published reports", output / "published" / "reports"),
         ("Research review data", output / "research"),
     )
