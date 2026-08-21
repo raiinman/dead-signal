@@ -179,6 +179,8 @@ class DeadSignalEntityRegistry:
             "armor_set": web / "armor.json",
             "mod": web / "mods.json",
             "deviation": web / "deviations.json",
+            "recipe": web.parent / "data" / "crafting.json",
+            "material": web.parent / "data" / "materials.json",
         }
         indexed_by_type: dict[str, int] = {}
         for entity_type in self.adapters.entity_types():
@@ -233,30 +235,40 @@ class DeadSignalEntityRegistry:
 
     def _entity_from_row(self, entity_type: str, row: dict[str, Any], path: Path) -> dict[str, Any] | None:
         canonical = _first(row, ("canonical_id", "calibration_id", "suit_id", "blueprint_id", "item_id", "attachment_id", "mod_id", "cradle_id", "deviation_id"))
-        name = _first(row, ("name", "display_name", "title"))
+        name = _first(row, ("name", "display_name", "title", "output_name"))
         if canonical in (None, "") or name in (None, ""):
             return None
         canonical_text = str(canonical)
         aliases: list[str] = [canonical_text, str(name)]
-        for key in ("calibration_id", "suit_id", "blueprint_id", "item_id", "prototype_id", "attachment_id", "accessory_id", "mod_id", "mod_code", "cradle_id", "deviation_id", "family_canonical_id", "set_canonical_id"):
+        for key in ("calibration_id", "suit_id", "blueprint_id", "item_id", "prototype_id", "attachment_id", "accessory_id", "mod_id", "mod_code", "cradle_id", "deviation_id", "family_canonical_id", "set_canonical_id", "record_key"):
             value = row.get(key)
             if value not in (None, ""):
                 aliases.append(str(value))
+        if entity_type == "recipe":
+            forge_no = row.get("forge_no")
+            server_no = row.get("server_no")
+            if forge_no not in (None, "") and server_no not in (None, ""):
+                aliases.append(f"{forge_no}:{server_no}")
         for tier in row.get("tiers", []) if isinstance(row.get("tiers"), list) else []:
             if isinstance(tier, dict) and tier.get("item_id") not in (None, ""):
                 aliases.append(str(tier.get("item_id")))
         aliases = sorted(set(aliases), key=lambda item: (item.casefold(), item))
         identity_state = _normalize_identity_state(_first(row, ("identity_state", "state", "evidence_state")) or "PROVEN")
         source_owner = path.relative_to(self.output).as_posix()
+        default_category = {
+            "armor_set": "Armor Set",
+            "recipe": "Crafting Recipe",
+            "material": "Crafting Material",
+        }.get(entity_type, "")
         return {
             "entity_type": entity_type,
             "canonical_id": canonical_text,
             "aliases": aliases,
             "display_name": str(name),
-            "category": str(_first(row, ("category", "classification", "slot", "type")) or ("Armor Set" if entity_type == "armor_set" else "")),
+            "category": str(_first(row, ("category", "classification", "slot", "type")) or default_category),
             "source_owner": source_owner,
             "identity_state": identity_state,
-            "artwork_reference": _first(row, ("artwork", "artwork_reference", "image_asset", "image_reference", "icon", "icon_path", "image")),
+            "artwork_reference": _first(row, ("artwork", "artwork_reference", "image_asset", "image_reference", "output_image_reference", "icon", "icon_path", "image")),
             "availability_state": str(_first(row, ("availability_state", "availability", "status")) or "UNRESOLVED"),
             "graph_target": {"entity_type": entity_type, "canonical_id": canonical_text},
         }
