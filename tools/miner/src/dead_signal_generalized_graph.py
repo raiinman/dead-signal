@@ -18,6 +18,7 @@ from dead_signal_dependency_invalidation import DependencyInvalidationStore
 from dead_signal_deviation_adapter import DeviationAdapter
 from dead_signal_domain_adapters import EvidenceAdapterRegistry, EvidenceDomainAdapter
 from dead_signal_entity_registry import DeadSignalEntityRegistry
+from dead_signal_evidence_review import ManualReviewStore, assess_claim, build_review_queue, export_evidence_bundle
 from dead_signal_mod_adapter import ModAdapter
 from dead_signal_weapon_adapter import WeaponAdapter
 
@@ -41,6 +42,7 @@ class DeadSignalGeneralizedGraph:
         ))
         self.entities = DeadSignalEntityRegistry(output, self.registry)
         self.invalidation = DependencyInvalidationStore(output)
+        self.manual_reviews = ManualReviewStore(output)
 
     def register_adapter(self, adapter: EvidenceDomainAdapter) -> None:
         """Register a new typed domain without changing core routing code."""
@@ -72,6 +74,33 @@ class DeadSignalGeneralizedGraph:
         if page_resolver is not None:
             kwargs["page_resolver"] = page_resolver
         return self.invalidation.evaluate(graphs, **kwargs)
+
+    def assess_claim(self, graph: dict[str, Any], claim: dict[str, Any]) -> dict[str, Any]:
+        """Return requirement-by-requirement assessment without changing proof."""
+        return assess_claim(graph, claim)
+
+    def evidence_review_queue(
+        self,
+        graphs: Iterable[dict[str, Any]],
+        *,
+        invalidation_report: dict[str, Any] | None = None,
+        domain: str | None = None,
+    ) -> dict[str, Any]:
+        """Build a deterministic review queue and shared-missing-owner groups."""
+        return build_review_queue(graphs, invalidation_report=invalidation_report, domain=domain)
+
+    def record_manual_review(self, claim_key: object, *, state: str, reviewer: str, note: str,
+                             source_ref: str = "") -> dict[str, Any]:
+        """Record an attributable review overlay; never changes deterministic proof."""
+        return self.manual_reviews.record(claim_key, state=state, reviewer=reviewer, note=note, source_ref=source_ref)
+
+    def remove_manual_review(self, claim_key: object) -> bool:
+        """Remove one human review overlay without editing evidence data."""
+        return self.manual_reviews.remove(claim_key)
+
+    def export_review_bundle(self, graphs: Iterable[dict[str, Any]], claim_keys: Iterable[str], destination: Path | str) -> dict[str, Any]:
+        """Export a bounded research-only evidence bundle."""
+        return export_evidence_bundle(graphs, claim_keys, destination)
 
     def rebuild_entity_registry(self) -> dict[str, Any]:
         """Reindex source-derived entities for all currently registered adapters."""
