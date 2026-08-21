@@ -191,6 +191,8 @@ class EntityRegistrySelector(tk.Frame):
         self.status_var.set(f"{len(rows)} MATCHES")
         if labels and self.subject_var.get().strip() not in labels:
             self.subject_var.set(labels[0])
+        elif not labels:
+            self.subject_var.set("")
         self._refresh_recent()
 
     def set_initial(self, name_fragment: str = "last valor") -> bool:
