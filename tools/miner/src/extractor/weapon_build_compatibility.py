@@ -1,4 +1,4 @@
-"""Project fail-closed Build Lab attachment, calibration, and ammo relationships."""
+"""Project fail-closed Build Lab attachment, calibration, ammo, and Cradle relationships."""
 from __future__ import annotations
 
 import argparse
@@ -14,6 +14,7 @@ from dead_signal_calibration_relations import (
     calibration_weapon_relation,
     is_current_calibration_blueprint,
 )
+from dead_signal_cradle_applicability import enrich_files as enrich_cradle_files
 from normalize_extended import merged_table
 
 
@@ -35,12 +36,10 @@ def _write(path: Path, payload: dict[str, Any]) -> None:
 
 
 def _attachment_relation(weapon: dict, attachment: dict) -> str:
-    """Backward-compatible wrapper around the shared Phase-4 policy."""
     return attachment_weapon_relation(weapon, attachment)
 
 
 def _calibration_relation(weapon: dict, calibration: dict) -> str:
-    """Backward-compatible wrapper around the shared Phase-5 policy."""
     return calibration_weapon_relation(weapon, calibration)
 
 
@@ -82,10 +81,6 @@ def enrich(base: Path, current: Path, published: Path) -> dict[str, Any]:
         attachment_owner_states[owner_state] += 1
         player_attachments.append(attachment)
 
-    # Historical code filtered on a `status == current` field that the normalizer
-    # never emitted. Phase 5 instead requires an exact gun_correct_print_data
-    # owner and a valid record. Empty subtype-39 items remain unresolved and are
-    # not silently called current or legacy.
     current_calibrations = [
         row for row in calibrations.get("calibrations", [])
         if isinstance(row, dict) and is_current_calibration_blueprint(row)
@@ -148,12 +143,20 @@ def enrich(base: Path, current: Path, published: Path) -> dict[str, Any]:
             "attachment": "Direct installed wording and typed selectors only; named-model spelling never establishes identity.",
             "calibration": "Exact current gun_correct_print_data weapon_type_lst selector compared with the weapon's exact prototype weapon_type. Legacy gear calibration is excluded from this lane.",
             "ammo": "Exact slot-8 bullet-pack relationships only.",
+            "cradle": "Cradle applicability is projected immediately after this stage from active configuration -> entry -> buff/logic tree -> positive hold_item_check(type/sub_type).",
         },
     }
     reports.mkdir(parents=True, exist_ok=True)
     _write(weapons_path, weapons)
     _write(attachments_path, attachments)
     _write(reports / "weapon-build-compatibility.json", report)
+
+    # Phase 8: use this existing compatibility stage as the deterministic
+    # pipeline seam for active Cradle evidence. enrich_files reloads the just-
+    # written weapons, appends cradle compatibility, enriches normalized Cradles,
+    # and writes weapon-cradle-applicability.json. No game bytecode is executed.
+    cradle_report = enrich_cradle_files(base, current, published.parent)
+    report["cradle_record_counts"] = cradle_report.get("record_counts", {})
     return report
 
 
