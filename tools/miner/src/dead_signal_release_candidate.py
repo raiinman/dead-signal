@@ -40,11 +40,12 @@ def validate_real_snapshot(output: Path | str, *, sample_per_domain: int = 3, pe
         registry = {"total": 0, "by_entity_type": {}}
         blockers.append(f"registry-rebuild-failed:{type(exc).__name__}:{exc}")
 
-    contract_audit = audit_adapter_contracts(engine.registry.adapters())
+    domains = tuple(engine.registry.entity_types())
+    adapters = tuple(engine.registry.get(domain) for domain in domains)
+    contract_audit = audit_adapter_contracts(adapters)
     if not contract_audit.get("ok"):
         blockers.append("adapter-contract-audit-failed")
 
-    domains = tuple(engine.registry.entity_types())
     smoke_rows: list[dict[str, Any]] = []
     for domain in domains:
         rows = engine.search_entities("", entity_type=domain, limit=max(1, min(int(sample_per_domain), 10)))
