@@ -70,8 +70,21 @@ class WeaponAdapter(EvidenceDomainAdapter):
     contract = WEAPON_CONTRACT
 
     def __init__(self, output: Path | str):
-        self.legacy = DeadSignalEvidenceGraph(output)
+        self.output = Path(output)
+        self._legacy: DeadSignalEvidenceGraph | None = None
         super().__init__()
+
+    @property
+    def legacy(self) -> DeadSignalEvidenceGraph:
+        """Initialize the heavyweight Weapons v1 research graph only on demand.
+
+        Registry construction and non-weapon domain work must not require a
+        complete Base/Current research snapshot merely because the Weapon adapter
+        is registered beside another adapter.
+        """
+        if self._legacy is None:
+            self._legacy = DeadSignalEvidenceGraph(self.output)
+        return self._legacy
 
     def graph(
         self,
