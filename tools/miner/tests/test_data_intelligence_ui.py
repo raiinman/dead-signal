@@ -65,15 +65,18 @@ class DataIntelligenceUiTests(unittest.TestCase):
     def test_evidence_graph_uses_complete_identity_trace_workspace(self):
         advanced = (SRC / "dead_signal_intelligence_advanced.py").read_text(encoding="utf-8")
         workspace = (SRC / "dead_signal_trace_workspace.py").read_text(encoding="utf-8")
+        selector = (SRC / "dead_signal_entity_selector.py").read_text(encoding="utf-8")
         self.assertIn("install_weapon_identity_trace(frame, self.output, self.host)", advanced)
         for label in (
-            "WEAPON IDENTITY TRACE",
+            "EVIDENCE GRAPH",
             "EVIDENCE INSPECTOR",
             "AUTOMATED RECOMPUTATION",
             "HUMAN REVIEW QUEUE",
             "RUN TRACE",
         ):
             self.assertIn(label, workspace)
+        for label in ("ENTITY TYPE", "SEARCH", "UNRESOLVED ONLY", "RECENT"):
+            self.assertIn(label, selector)
         for relationship in ("EFFECT", "ATTACHMENTS", "CALIBRATION", "AMMO", "CRAFTING", "PROGRESSION"):
             self.assertIn(f'"{relationship}"', workspace)
 
