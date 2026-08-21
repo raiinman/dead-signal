@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import tkinter as tk
 from pathlib import Path
+from tkinter import messagebox
 
 from dead_signal_generalized_workspace import GeneralizedEvidencePanel, OverviewPanel, ReviewQueuePanel
+from dead_signal_publication_integration import PublicationIntegration
 
 
 def _snapshot_fallback(parent, app, title: str) -> None:
@@ -78,9 +80,36 @@ def install_phase13_shell(app) -> None:
     panel.pack(fill="both", expand=True)
     tk.Label(panel, text="REPORTS", bg="#111519", fg="#eef1f4",
              font=("Segoe UI", 20, "bold")).pack(anchor="w")
-    tk.Label(panel, text="Open bounded evidence, invalidation, coverage, and snapshot diagnostics.",
+    tk.Label(panel, text="Open bounded evidence, invalidation, coverage, snapshot, and publication diagnostics.",
              bg="#111519", fg="#9aa3ac", font=("Segoe UI", 10)).pack(anchor="w", pady=(4, 18))
+
+    publication_status = tk.StringVar(value="CLAIM-BACKED PUBLICATION AUDIT READY" if (output / "published" / "reports" / "evidence-publication-contracts.json").is_file() else "AUDIT NOT BUILT")
+    audit_row = tk.Frame(panel, bg="#111519")
+    audit_row.pack(fill="x", pady=(0, 12))
+    tk.Label(audit_row, textvariable=publication_status, bg="#111519", fg="#9aa3ac",
+             font=("Segoe UI", 8, "bold")).pack(side="right")
+
+    def build_publication_audit() -> None:
+        if not snapshot_ready:
+            app._show_workspace("Run Pipeline")
+            return
+        publication_status.set("BUILDING…")
+        try:
+            result = PublicationIntegration(output).build(persist=True)
+        except Exception as error:
+            publication_status.set("AUDIT FAILED")
+            messagebox.showerror("Publication Audit", str(error), parent=app.root)
+            return
+        counts = result.get("record_counts") or {}
+        publication_status.set(
+            f"{counts.get('publishable', 0)} PUBLISHABLE / {counts.get('blocked', 0)} BLOCKED / {counts.get('omitted', 0)} OMITTED"
+        )
+
+    app._button(audit_row, "BUILD CLAIM-BACKED PUBLICATION AUDIT", build_publication_audit,
+                primary=True).pack(side="left")
+
     report_items = (
+        ("Publication contracts", output / "published" / "reports" / "evidence-publication-contracts.json"),
         ("Claim invalidation", output / "reports" / "claim-invalidation.json"),
         ("Snapshot data diff", output / "published" / "reports" / "snapshot-data-diff.json"),
         ("Published reports", output / "published" / "reports"),
