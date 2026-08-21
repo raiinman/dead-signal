@@ -10,6 +10,14 @@ The engine does **not** hard-code the observed corpus size. The active corpus is
 
 Inactive entry rows are historical/legacy evidence and are excluded from the current Cradle registry and adapter.
 
+## Pipeline seam
+
+`weapon_build_compatibility.py` remains the normal compatibility pipeline stage. Its CLI now chains the existing `dead_signal_cradle_applicability.enrich_files()` pass after Attachment/Calibration/Ammo projection.
+
+That pass updates normalized `published/data/weapons.json`, enriches `published/data/cradles.json`, and writes `published/reports/weapon-cradle-applicability.json` before final website publication and manifest generation. The imported `enrich()` helper itself keeps its pre-Phase-8 side-effect boundary.
+
+The Cradle Evidence Graph does not depend on `published/web/cradles.json`; identity and active membership come directly from normalized data plus the applicability evidence report.
+
 ## Claims
 
 The adapter exposes:
@@ -48,7 +56,7 @@ The two directions must agree exactly. Any mismatch becomes `CONFLICT`; neither 
 
 ## Scenario gate
 
-Installed `active_config_keys` and `active_season_ids` prove configuration/season membership. They do not prove which scenario/configuration is active for the player at runtime.
+Installed configuration keys and season IDs prove configuration/season membership. They do not prove which scenario/configuration is active for the player at runtime.
 
 Therefore scenario availability remains a separate `PARTIAL` claim until current runtime scenario selection is independently proven.
 
@@ -64,15 +72,15 @@ A later source-preserving extraction may promote this claim without changing Cra
 
 ## Effect ownership
 
-`cradle_override_entry_data.buff_id` is an exact effect reference. The existing applicability report also retains visited buff IDs and logic-tree names from the static traversal.
+`cradle_override_entry_data.buff_id` is an exact effect reference. The applicability report also retains visited buff IDs and logic-tree names from the static traversal.
 
 Missing buff or consumer evidence remains `PARTIAL`/`UNRESOLVED`; localized description text is not used as effect ownership proof.
 
 ## Registry
 
-The Phase 3 entity registry now flattens Cradle browse families into exact `ds-cradle-<entry_id>` variants and filters them by installed active configuration membership.
+The Phase 3 entity registry joins normalized `published/data/cradles.json` to the active selector rows in `published/reports/weapon-cradle-applicability.json`. Each active entry becomes exact identity `ds-cradle-<entry_id>`.
 
-Display-name families remain browsing aids only.
+The registry therefore remains correct even when compact web Cradle presentation has not yet been generated. Display-name families remain browsing aids only and are not identity proof.
 
 ## False-proof controls
 
