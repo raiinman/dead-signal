@@ -50,6 +50,33 @@ def _calibration_variants(payload: dict[str, Any]) -> list[dict[str, Any]]:
     return result
 
 
+def _armor_pieces(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """Flatten suit pieces and standalone Key Armor without merging identities."""
+    result: list[dict[str, Any]] = []
+    for armor_set in payload.get("armor_sets", []):
+        if not isinstance(armor_set, dict):
+            continue
+        for piece in armor_set.get("pieces", []):
+            if not isinstance(piece, dict):
+                continue
+            row = dict(piece)
+            row.setdefault("classification", "Set Armor")
+            row["set_canonical_id"] = armor_set.get("canonical_id")
+            row["suit_id"] = armor_set.get("suit_id")
+            result.append(row)
+    for piece in payload.get("key_armor", []):
+        if not isinstance(piece, dict):
+            continue
+        row = dict(piece)
+        row.setdefault("classification", "Key Armor")
+        result.append(row)
+    return result
+
+
+def _armor_sets(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    return [row for row in payload.get("armor_sets", []) if isinstance(row, dict)]
+
+
 def _first(row: dict[str, Any], keys: Iterable[str]) -> Any:
     for key in keys:
         value = row.get(key)
@@ -109,6 +136,7 @@ class DeadSignalEntityRegistry:
             "attachment": web / "attachments.json",
             "calibration": web / "calibrations.json",
             "armor": web / "armor.json",
+            "armor_set": web / "armor.json",
             "mod": web / "mods.json",
             "cradle": web / "cradles.json",
             "deviation": web / "deviations.json",
@@ -124,7 +152,14 @@ class DeadSignalEntityRegistry:
             except (OSError, ValueError):
                 indexed_by_type[entity_type] = 0
                 continue
-            rows = _calibration_variants(payload) if entity_type == "calibration" else _records(payload)
+            if entity_type == "calibration":
+                rows = _calibration_variants(payload)
+            elif entity_type == "armor":
+                rows = _armor_pieces(payload)
+            elif entity_type == "armor_set":
+                rows = _armor_sets(payload)
+            else:
+                rows = _records(payload)
             count = 0
             for row in rows:
                 entity = self._entity_from_row(entity_type, row, path)
@@ -147,16 +182,19 @@ class DeadSignalEntityRegistry:
         }
 
     def _entity_from_row(self, entity_type: str, row: dict[str, Any], path: Path) -> dict[str, Any] | None:
-        canonical = _first(row, ("canonical_id", "calibration_id", "blueprint_id", "item_id", "attachment_id", "mod_id", "cradle_id", "deviation_id"))
+        canonical = _first(row, ("canonical_id", "calibration_id", "suit_id", "blueprint_id", "item_id", "attachment_id", "mod_id", "cradle_id", "deviation_id"))
         name = _first(row, ("name", "display_name", "title"))
         if canonical in (None, "") or name in (None, ""):
             return None
         canonical_text = str(canonical)
         aliases: list[str] = [canonical_text, str(name)]
-        for key in ("calibration_id", "blueprint_id", "item_id", "prototype_id", "attachment_id", "accessory_id", "mod_id", "cradle_id", "deviation_id", "family_canonical_id"):
+        for key in ("calibration_id", "suit_id", "blueprint_id", "item_id", "prototype_id", "attachment_id", "accessory_id", "mod_id", "cradle_id", "deviation_id", "family_canonical_id", "set_canonical_id"):
             value = row.get(key)
             if value not in (None, ""):
                 aliases.append(str(value))
+        for tier in row.get("tiers", []) if isinstance(row.get("tiers"), list) else []:
+            if isinstance(tier, dict) and tier.get("item_id") not in (None, ""):
+                aliases.append(str(tier.get("item_id")))
         aliases = sorted(set(aliases), key=lambda item: (item.casefold(), item))
         identity_state = _normalize_identity_state(_first(row, ("identity_state", "state", "evidence_state")) or "PROVEN")
         source_owner = path.relative_to(self.output).as_posix()
@@ -165,10 +203,10 @@ class DeadSignalEntityRegistry:
             "canonical_id": canonical_text,
             "aliases": aliases,
             "display_name": str(name),
-            "category": str(_first(row, ("category", "classification", "slot", "type")) or ""),
+            "category": str(_first(row, ("category", "classification", "slot", "type")) or ("Armor Set" if entity_type == "armor_set" else "")),
             "source_owner": source_owner,
             "identity_state": identity_state,
-            "artwork_reference": _first(row, ("artwork", "artwork_reference", "image_reference", "icon", "icon_path", "image")),
+            "artwork_reference": _first(row, ("artwork", "artwork_reference", "image_asset", "image_reference", "icon", "icon_path", "image")),
             "availability_state": str(_first(row, ("availability_state", "availability", "status")) or "UNRESOLVED"),
             "graph_target": {"entity_type": entity_type, "canonical_id": canonical_text},
         }
