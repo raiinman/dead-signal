@@ -14,12 +14,12 @@ from tkinter import messagebox, simpledialog, ttk
 from typing import Any, Callable
 
 from dead_signal_entity_selector import EntityRegistrySelector
+from dead_signal_evidence_review import navigation_targets
 from dead_signal_generalized_graph import DeadSignalGeneralizedGraph
 
 BG = "#07090b"; PANEL = "#0e1317"; PANEL_2 = "#131a20"; INK = "#eef4f6"
 MUTED = "#7f8b93"; CYAN = "#24c7d9"; RED = "#ef3944"; GREEN = "#60d394"
 AMBER = "#e3aa48"; BORDER = "#26323a"; NA = "#66717a"
-STATE_COLOR = {"PROVEN": GREEN, "PARTIAL": AMBER, "UNRESOLVED": RED, "CONFLICT": RED, "NOT APPLICABLE": NA}
 
 
 def _load(path: Path) -> dict[str, Any]:
@@ -52,7 +52,7 @@ class IntelligenceWorkspaceModel:
         claim_rows = list((dep.get("claims") or {}).values())
         state_counts = Counter(str(row.get("result") or "UNRESOLVED") for row in claim_rows if isinstance(row, dict))
         invalidation = _load(self.output / "reports" / "claim-invalidation.json")
-        review = self.graph.review_queue(self.all_graphs(), invalidation_report=invalidation)
+        review = self.graph.evidence_review_queue(self.all_graphs(), invalidation_report=invalidation)
         snapshot = _load(self.output / "reports" / "snapshot-data-diff.json")
         return {
             "registry": self.registry_summary,
@@ -66,24 +66,25 @@ class IntelligenceWorkspaceModel:
 
     def queue(self, domain: str | None = None) -> dict[str, Any]:
         invalidation = _load(self.output / "reports" / "claim-invalidation.json")
-        return self.graph.review_queue(self.all_graphs(entity_type=domain), invalidation_report=invalidation, domain=domain)
+        return self.graph.evidence_review_queue(self.all_graphs(entity_type=domain), invalidation_report=invalidation, domain=domain)
 
 
 class OverviewPanel(tk.Frame):
     def __init__(self, parent: tk.Misc, output: Path | str, open_graph: Callable[[], None]):
         super().__init__(parent, bg=BG)
-        self.output = Path(output); self.open_graph = open_graph; self.model: IntelligenceWorkspaceModel | None = None
+        self.output = Path(output); self.open_graph = open_graph
         self._build(); self.refresh()
 
     def _build(self):
         header = tk.Frame(self, bg=BG); header.pack(fill="x", pady=(4, 12))
         tk.Label(header, text="INTELLIGENCE OVERVIEW", bg=BG, fg=INK, font=("Bahnschrift SemiCondensed", 22, "bold")).pack(side="left")
-        tk.Button(header, text="REFRESH", command=self.refresh, bg=PANEL_2, fg=INK, relief="flat", padx=12, pady=7).pack(side="right")
+        tk.Button(header, text="OPEN EVIDENCE GRAPH", command=self.open_graph, bg=CYAN, fg="#041013", relief="flat", padx=12, pady=7, font=("Segoe UI",8,"bold")).pack(side="right")
+        tk.Button(header, text="REFRESH", command=self.refresh, bg=PANEL_2, fg=INK, relief="flat", padx=12, pady=7).pack(side="right", padx=8)
         self.status = tk.Label(header, text="", bg=BG, fg=CYAN, font=("Segoe UI", 8, "bold")); self.status.pack(side="right", padx=12)
         self.cards = tk.Frame(self, bg=BG); self.cards.pack(fill="x")
-        self.body = tk.PanedWindow(self, orient="horizontal", bg=BORDER, sashwidth=4, bd=0); self.body.pack(fill="both", expand=True, pady=(12,0))
-        left = tk.Frame(self.body, bg=PANEL, padx=14, pady=12); right = tk.Frame(self.body, bg=PANEL, padx=14, pady=12)
-        self.body.add(left, minsize=520, stretch="always"); self.body.add(right, minsize=420, stretch="always")
+        body = tk.PanedWindow(self, orient="horizontal", bg=BORDER, sashwidth=4, bd=0); body.pack(fill="both", expand=True, pady=(12,0))
+        left = tk.Frame(body, bg=PANEL, padx=14, pady=12); right = tk.Frame(body, bg=PANEL, padx=14, pady=12)
+        body.add(left, minsize=520, stretch="always"); body.add(right, minsize=420, stretch="always")
         tk.Label(left,text="DOMAIN INVENTORY",bg=PANEL,fg=INK,font=("Segoe UI",10,"bold")).pack(anchor="w")
         self.domains = ttk.Treeview(left, columns=("domain","entities"), show="headings", height=12)
         self.domains.heading("domain",text="DOMAIN"); self.domains.heading("entities",text="ENTITIES"); self.domains.pack(fill="both",expand=True,pady=(8,0))
@@ -103,7 +104,8 @@ class OverviewPanel(tk.Frame):
     def _render(self,data):
         self.status.configure(text="READY")
         for child in self.cards.winfo_children(): child.destroy()
-        states=data.get("claim_states") or {}; cards=(("ENTITIES",data["registry"].get("total",0),CYAN),("PROVEN",states.get("PROVEN",0),GREEN),("REVIEW",data.get("review_items",0),AMBER),("INVALIDATED",data.get("invalidated",0),RED))
+        states=data.get("claim_states") or {}
+        cards=(("ENTITIES",data["registry"].get("total",0),CYAN),("PROVEN",states.get("PROVEN",0),GREEN),("REVIEW",data.get("review_items",0),AMBER),("INVALIDATED",data.get("invalidated",0),RED))
         for label,value,color in cards:
             card=tk.Frame(self.cards,bg=PANEL,highlightbackground=BORDER,highlightthickness=1,padx=18,pady=12); card.pack(side="left",fill="x",expand=True,padx=(0,8))
             tk.Label(card,text=str(value),bg=PANEL,fg=color,font=("Segoe UI",20,"bold")).pack(); tk.Label(card,text=label,bg=PANEL,fg=MUTED,font=("Segoe UI",8,"bold")).pack()
@@ -164,12 +166,13 @@ class GeneralizedEvidencePanel(tk.Frame):
         for i,edge in enumerate(graph.get("edges") or []): self.edges.insert("","end",iid=str(i),values=(edge.get("state"),edge.get("relationship_type"),edge.get("destination")))
         self._show_json({"entity":ent,"source_records":ent.get("source_records")})
     def _claim_selected(self,_evt=None):
-        sel=self.claims.selection();
+        sel=self.claims.selection()
         if not sel:return
         claim=(self.current_graph.get("claims") or [])[int(sel[0])]; self.current_claim=claim
-        assessment=self.engine.assess_claim(self.current_graph,claim); self._show_json({"assessment":assessment,"claim":claim,"navigation":self.engine.review.navigation_targets(self.current_graph,claim)})
+        assessment=self.engine.assess_claim(self.current_graph,claim)
+        self._show_json({"assessment":assessment,"claim":claim,"navigation":navigation_targets(self.current_graph,claim)})
     def _edge_selected(self,_evt=None):
-        sel=self.edges.selection();
+        sel=self.edges.selection()
         if not sel:return
         edge=(self.current_graph.get("edges") or [])[int(sel[0])]; self._show_json(edge)
     def _show_json(self,value): self.detail.delete("1.0","end"); self.detail.insert("1.0",json.dumps(value,ensure_ascii=False,indent=2,default=str))
@@ -202,13 +205,14 @@ class ReviewQueuePanel(tk.Frame):
     def _item(self):
         sel=self.rows.selection(); return (self.queue.get("items") or [])[int(sel[0])] if sel else None
     def _selected(self,_e=None):
-        row=self._item();
-        if row:self.detail.delete("1.0","end"); self.detail.insert("1.0",json.dumps(row,ensure_ascii=False,indent=2,default=str))
+        row=self._item()
+        if not row:return
+        self.detail.delete("1.0","end"); self.detail.insert("1.0",json.dumps(row,ensure_ascii=False,indent=2,default=str))
     def _open_selected(self):
-        row=self._item();
+        row=self._item()
         if row:self.open_entity(str(row.get("entity_type")),str(row.get("canonical_id")))
     def _record(self):
-        row=self._item();
+        row=self._item()
         if not row or self.model is None:return
         reviewer=simpledialog.askstring("Manual Review","Reviewer name:",parent=self); note=simpledialog.askstring("Manual Review","Evidence note:",parent=self)
         if not reviewer or not note:return
@@ -216,5 +220,5 @@ class ReviewQueuePanel(tk.Frame):
         try:self.model.graph.record_manual_review(row["claim_key"],state=chosen,reviewer=reviewer,note=note); self.refresh()
         except Exception as exc:messagebox.showerror("Manual Review",str(exc),parent=self)
     def _remove(self):
-        row=self._item();
+        row=self._item()
         if row and self.model:self.model.graph.remove_manual_review(row["claim_key"]); self.refresh()
