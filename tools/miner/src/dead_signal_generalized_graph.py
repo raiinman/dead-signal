@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from dead_signal_domain_adapters import EvidenceAdapterRegistry, EvidenceDomainAdapter
+from dead_signal_entity_registry import DeadSignalEntityRegistry
 from dead_signal_weapon_adapter import WeaponAdapter
 
 
@@ -18,6 +19,7 @@ class DeadSignalGeneralizedGraph:
     def __init__(self, output: Path | str):
         self.output = Path(output)
         self.registry = EvidenceAdapterRegistry((WeaponAdapter(output),))
+        self.entities = DeadSignalEntityRegistry(output, self.registry)
 
     def register_adapter(self, adapter: EvidenceDomainAdapter) -> None:
         """Register a new typed domain without changing core routing code."""
@@ -26,6 +28,33 @@ class DeadSignalGeneralizedGraph:
     def entity_graph(self, entity_type: str, identity: object, **kwargs: Any) -> dict[str, Any]:
         """Route a generalized trace to the exact registered domain adapter."""
         return self.registry.graph(entity_type, identity, **kwargs)
+
+    def rebuild_entity_registry(self) -> dict[str, Any]:
+        """Reindex source-derived entities for all currently registered adapters."""
+        return self.entities.rebuild()
+
+    def search_entities(
+        self,
+        query: object,
+        *,
+        entity_type: str | None = None,
+        unresolved_only: bool = False,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """Search exact IDs and source-proven names without creating evidence edges."""
+        return self.entities.search(
+            query,
+            entity_type=entity_type,
+            unresolved_only=unresolved_only,
+            limit=limit,
+        )
+
+    def registered_entity(self, entity_type: str, canonical_id: object) -> dict[str, Any]:
+        """Return one registry entity and record it in the recent-trace list."""
+        return self.entities.get(entity_type, canonical_id)
+
+    def recent_entities(self) -> list[dict[str, Any]]:
+        return self.entities.recent()
 
     def weapon_entity_graph(
         self,
