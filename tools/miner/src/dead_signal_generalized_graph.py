@@ -1,23 +1,31 @@
-"""Phase-1 generalized Evidence Graph entry points.
+"""Generalized Dead Signal Evidence Graph entry points.
 
-This facade keeps the protected ``DeadSignalEvidenceGraph.weapon_graph`` API
-unchanged while exposing a versioned generalized contract for migration and
-future domain adapters.
+The facade preserves the protected ``DeadSignalEvidenceGraph.weapon_graph`` API
+while routing generalized entity traces through registered typed domain adapters.
 """
 from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
 
-from dead_signal_evidence_contracts import project_legacy_weapon_graph
-from dead_signal_evidence_graph import DeadSignalEvidenceGraph
+from dead_signal_domain_adapters import EvidenceAdapterRegistry, EvidenceDomainAdapter
+from dead_signal_weapon_adapter import WeaponAdapter
 
 
 class DeadSignalGeneralizedGraph:
-    """Generalized graph facade introduced after the Weapons v1 freeze."""
+    """Adapter-routed generalized Evidence Graph engine."""
 
     def __init__(self, output: Path | str):
-        self.legacy = DeadSignalEvidenceGraph(output)
+        self.output = Path(output)
+        self.registry = EvidenceAdapterRegistry((WeaponAdapter(output),))
+
+    def register_adapter(self, adapter: EvidenceDomainAdapter) -> None:
+        """Register a new typed domain without changing core routing code."""
+        self.registry.register(adapter)
+
+    def entity_graph(self, entity_type: str, identity: object, **kwargs: Any) -> dict[str, Any]:
+        """Route a generalized trace to the exact registered domain adapter."""
+        return self.registry.graph(entity_type, identity, **kwargs)
 
     def weapon_entity_graph(
         self,
@@ -25,9 +33,9 @@ class DeadSignalGeneralizedGraph:
         *,
         max_occurrences_per_id: int = 80,
     ) -> dict[str, Any]:
-        """Return a strict Phase-1 graph without mutating the legacy payload."""
-        legacy = self.legacy.weapon_graph(
+        """Backward-compatible Phase-1 weapon generalized entry point."""
+        return self.entity_graph(
+            "weapon",
             identity,
             max_occurrences_per_id=max_occurrences_per_id,
         )
-        return project_legacy_weapon_graph(legacy)
