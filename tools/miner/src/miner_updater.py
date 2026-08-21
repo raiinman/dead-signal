@@ -17,6 +17,7 @@ from pathlib import Path, PurePosixPath
 
 
 EXPECTED_EXECUTABLE = "Dead Signal Miner.exe"
+EXPECTED_UPDATER = "Dead Signal Miner Updater.exe"
 MAX_UPDATE_BYTES = 250 * 1024 * 1024
 MAX_EXTRACTED_BYTES = 1024 * 1024 * 1024
 
@@ -87,6 +88,50 @@ def validate_target(target: Path) -> Path:
     return target
 
 
+def _validate_staged_runtime(path: Path) -> None:
+    if not (path / EXPECTED_EXECUTABLE).is_file():
+        raise ValueError("Staged update is missing Dead Signal Miner.exe")
+    if not (path / EXPECTED_UPDATER).is_file():
+        raise ValueError("Staged update is missing Dead Signal Miner Updater.exe")
+
+
+def _stage_clean_runtime(payload: Path, target: Path) -> Path:
+    """Copy the extracted payload into a fresh sibling directory on target's volume."""
+    staged = Path(tempfile.mkdtemp(prefix=f".{target.name}.stage-", dir=target.parent))
+    try:
+        shutil.copytree(payload, staged, dirs_exist_ok=True)
+        _validate_staged_runtime(staged)
+        return staged
+    except Exception:
+        shutil.rmtree(staged, ignore_errors=True)
+        raise
+
+
+def _swap_clean_runtime(staged: Path, target: Path) -> int:
+    """Atomically swap a staged onedir runtime, rolling back the old runtime on failure."""
+    _validate_staged_runtime(staged)
+    backup = target.parent / f".{target.name}.backup-{os.getpid()}-{time.time_ns()}"
+    file_count = sum(1 for path in staged.rglob("*") if path.is_file())
+    target.rename(backup)
+    try:
+        staged.rename(target)
+    except Exception:
+        try:
+            if target.exists():
+                shutil.rmtree(target, ignore_errors=True)
+            backup.rename(target)
+        finally:
+            if staged.exists():
+                shutil.rmtree(staged, ignore_errors=True)
+        raise
+
+    # The new runtime is now authoritative. Cleanup failure must not roll back a
+    # successfully installed build; a leftover hidden backup is safe to remove
+    # manually and contains no Miner output/snapshots.
+    shutil.rmtree(backup, ignore_errors=True)
+    return file_count
+
+
 def apply_update(package: Path, target: Path, expected_sha256: str) -> int:
     package = package.resolve()
     target = validate_target(target)
@@ -96,41 +141,23 @@ def apply_update(package: Path, target: Path, expected_sha256: str) -> int:
     if actual_sha256.casefold() != expected_sha256.casefold():
         raise ValueError("Update package SHA-256 verification failed")
 
+    staged_runtime: Path | None = None
     with tempfile.TemporaryDirectory(prefix="DeadSignalMinerApply-") as temporary:
         temporary = Path(temporary)
-        staging = temporary / "staging"
-        backup = temporary / "backup"
-        staging.mkdir()
-        backup.mkdir()
+        extraction = temporary / "staging"
+        extraction.mkdir()
         with zipfile.ZipFile(package) as archive:
             members = safe_members(archive)
-            archive.extractall(staging, members)
-        payload = locate_payload_root(staging)
+            archive.extractall(extraction, members)
+        payload = locate_payload_root(extraction)
+        _validate_staged_runtime(payload)
+        staged_runtime = _stage_clean_runtime(payload, target)
 
-        copied = []
-        try:
-            for source in sorted(payload.rglob("*")):
-                if not source.is_file():
-                    continue
-                relative = source.relative_to(payload)
-                destination = target / relative
-                if destination.exists():
-                    backup_file = backup / relative
-                    backup_file.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(destination, backup_file)
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(source, destination)
-                copied.append(relative)
-        except Exception:
-            for relative in reversed(copied):
-                backup_file = backup / relative
-                destination = target / relative
-                if backup_file.exists():
-                    shutil.copy2(backup_file, destination)
-                else:
-                    destination.unlink(missing_ok=True)
-            raise
-    return len(copied)
+    # Swap only after the verified payload has been fully copied to a sibling on
+    # the same volume. This avoids overlaying a new PyInstaller onedir build on top
+    # of stale runtime files from the previous version.
+    assert staged_runtime is not None
+    return _swap_clean_runtime(staged_runtime, target)
 
 
 def status_path() -> Path:
@@ -161,8 +188,9 @@ def main() -> int:
     try:
         wait_for_process(args.parent_pid)
         copied = apply_update(args.package, args.target, args.expected_sha256)
-        write_status("complete", files_copied=copied, target=str(args.target))
-        subprocess.Popen([str(args.relaunch.resolve())], close_fds=True)
+        write_status("complete", files_copied=copied, target=str(args.target), install_mode="clean-runtime-swap")
+        relaunch = args.target.resolve() / EXPECTED_EXECUTABLE
+        subprocess.Popen([str(relaunch)], close_fds=True)
         return 0
     except Exception as error:
         write_status("failed", error=f"{type(error).__name__}: {error}", target=str(args.target))
