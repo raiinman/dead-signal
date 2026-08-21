@@ -49,7 +49,13 @@ class AdapterContract:
                 errors.append(f"generic identity seed is forbidden: {seed}")
 
         destinations = self.destinations()
+        identity_fields = set(self.identity_seeds)
         for field in self.collision_prone_fields:
+            # Collision-prone identity components are protected by the adapter's
+            # canonical owner tables. Only collision-prone outbound relationships
+            # require explicit typed destination tables.
+            if field in identity_fields:
+                continue
             if not destinations.get(field):
                 errors.append(f"collision-prone field requires explicit destination tables: {field}")
 
