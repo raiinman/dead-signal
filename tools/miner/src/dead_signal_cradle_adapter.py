@@ -33,8 +33,8 @@ CRADLE_CONTRACT = AdapterContract(
     entity_type="cradle",
     identity_seeds=("cradle_id", "entry_id"),
     canonical_owner_tables=(
-        "published/web/cradles.json",
         "published/data/cradles.json",
+        REPORT_PATH,
         ENTRY_TABLE,
         CONFIG_TABLE,
         BUFF_TABLE,
@@ -42,20 +42,20 @@ CRADLE_CONTRACT = AdapterContract(
     ),
     allowed_outbound_fields=(
         "entry_id", "buff_id", "keyword_id", "style_code",
-        "active_config_keys", "active_season_ids", "positive_item_selectors",
+        "config_keys", "season_ids", "positive_item_selectors",
     ),
     typed_destination_tables=(
         ("entry_id", (ENTRY_TABLE, CONFIG_TABLE)),
         ("buff_id", (ENTRY_TABLE, BUFF_TABLE)),
         ("keyword_id", (ENTRY_TABLE,)),
         ("style_code", (ENTRY_TABLE,)),
-        ("active_config_keys", (CONFIG_TABLE,)),
-        ("active_season_ids", (CONFIG_TABLE,)),
+        ("config_keys", (CONFIG_TABLE,)),
+        ("season_ids", (CONFIG_TABLE,)),
         ("positive_item_selectors", (LOGIC_TABLE, ITEM_TABLE)),
     ),
     collision_prone_fields=(
         "entry_id", "buff_id", "keyword_id", "style_code",
-        "active_config_keys", "active_season_ids", "positive_item_selectors",
+        "config_keys", "season_ids", "positive_item_selectors",
     ),
     blocked_generic_fields=("id", "no", "code", "record_id"),
     terminal_presentation_fields=(
@@ -73,8 +73,8 @@ CRADLE_CONTRACT = AdapterContract(
         "cradle.artwork",
     ),
     applicability_rules=(
-        "only installed override_unlock_lst members enter the active graph",
-        "inactive legacy entries are excluded",
+        "only selector rows derived from installed override_unlock_lst enter the active graph",
+        "inactive legacy entry rows are excluded",
         "positive hold_item_check type/sub_type selectors prove weapon applicability",
         "raw attack/keyword selectors remain unresolved",
         "no weapon selector means NOT APPLICABLE to weapon selection only",
@@ -98,22 +98,6 @@ def _int(value: object) -> int:
         return int(value)
     except (TypeError, ValueError):
         return 0
-
-
-def _variants(payload: dict[str, Any]) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    for family in payload.get("families", []):
-        if not isinstance(family, dict):
-            continue
-        for variant in family.get("variants", []):
-            if not isinstance(variant, dict) or variant.get("id") in (None, ""):
-                continue
-            row = dict(variant)
-            row.setdefault("cradle_id", row["id"])
-            row.setdefault("canonical_id", f"ds-cradle-{row['id']}")
-            row["family_canonical_id"] = family.get("canonical_id")
-            rows.append(row)
-    return rows
 
 
 def _claim(kind: str, canonical_id: str, result: str, *, evidence=None, missing=None, conflicts=None, dependencies=None, requirements=None) -> dict[str, Any]:
@@ -193,15 +177,34 @@ class CradleAdapter(EvidenceDomainAdapter):
     def _sources(self):
         published = self._published()
         return (
-            _read(published / "web" / "cradles.json"),
             _read(published / "data" / "cradles.json"),
             _read(published / "data" / "weapons.json"),
             _read(published / "reports" / "weapon-cradle-applicability.json"),
         )
 
     @staticmethod
-    def _active_rows(web: dict[str, Any]) -> list[dict[str, Any]]:
-        return [row for row in _variants(web) if row.get("active_config_keys")]
+    def _active_rows(data: dict[str, Any], report: dict[str, Any]) -> list[dict[str, Any]]:
+        """Join exact normalized Cradle records to report selectors (active IDs only)."""
+        by_id = {
+            _int(row.get("id")): row
+            for row in data.get("cradles", [])
+            if isinstance(row, dict) and _int(row.get("id"))
+        }
+        rows: list[dict[str, Any]] = []
+        for selector in report.get("selectors", []):
+            if not isinstance(selector, dict):
+                continue
+            entry_id = _int(selector.get("entry_id"))
+            source = by_id.get(entry_id)
+            if not source:
+                continue
+            row = dict(source)
+            row["cradle_id"] = entry_id
+            row["canonical_id"] = f"ds-cradle-{entry_id}"
+            row["active_config_keys"] = list(selector.get("config_keys") or row.get("active_config_keys") or [])
+            row["active_season_ids"] = list(selector.get("season_ids") or row.get("active_season_ids") or [])
+            rows.append(row)
+        return rows
 
     @staticmethod
     def _match(identity: object, rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -271,11 +274,10 @@ class CradleAdapter(EvidenceDomainAdapter):
         return result
 
     def graph(self, identity: object, **_: Any) -> dict[str, Any]:
-        web, data, weapons, report = self._sources()
-        active = self._active_rows(web)
+        data, weapons, report = self._sources()
+        active = self._active_rows(data, report)
         row = self._match(identity, active)
         entry_id = _int(row.get("cradle_id") or row.get("id"))
-        data_row = self._one_by_id(data.get("cradles", []), entry_id, "id")
         selector = self._one_by_id(report.get("selectors", []), entry_id, "entry_id")
         canonical_id = str(row.get("canonical_id") or f"ds-cradle-{entry_id}")
         configs = sorted({str(v) for v in row.get("active_config_keys", []) if str(v).strip()})
@@ -285,7 +287,7 @@ class CradleAdapter(EvidenceDomainAdapter):
             "schema_version": ENTITY_SCHEMA_VERSION,
             "entity_type": "cradle",
             "canonical_id": canonical_id,
-            "name": str(row.get("name") or data_row.get("name") or f"Cradle {entry_id}"),
+            "name": str(row.get("name") or f"Cradle {entry_id}"),
             "classification": "Active Cradle",
             "identity_state": "PROVEN",
             "source_records": (
@@ -299,13 +301,13 @@ class CradleAdapter(EvidenceDomainAdapter):
         claims.append(_claim(
             "cradle.exact_identity", canonical_id, "PROVEN",
             evidence=[{"entry_id": entry_id, "active_config_keys": configs}],
-            dependencies=[ENTRY_TABLE, CONFIG_TABLE],
-            requirements=["exact entry owner", "at least one active configuration membership"],
+            dependencies=[ENTRY_TABLE, CONFIG_TABLE, REPORT_PATH],
+            requirements=["exact entry owner", "active selector row derived from override_unlock_lst"],
         ))
         claims.append(_claim(
             "cradle.active_configuration", canonical_id, "PROVEN",
             evidence=[{"config_keys": configs, "season_ids": seasons}],
-            dependencies=[CONFIG_TABLE],
+            dependencies=[CONFIG_TABLE, REPORT_PATH],
             requirements=["exact override_unlock_lst membership"],
         ))
         for key in configs:
@@ -315,16 +317,14 @@ class CradleAdapter(EvidenceDomainAdapter):
                 authority="exact-active-cradle-membership",
             ))
 
-        # The current report preserves membership but not the nested outer-list
-        # position. Fail closed until that exact slot/group owner is retained.
         claims.append(_claim(
             "cradle.slot", canonical_id, "UNRESOLVED",
             missing=["outer override_unlock_lst slot/group position not retained in published evidence"],
-            dependencies=[CONFIG_TABLE],
+            dependencies=[CONFIG_TABLE, REPORT_PATH],
             requirements=["exact configuration slot position owner"],
         ))
 
-        buff_id = _int(data_row.get("buff_id"))
+        buff_id = _int(row.get("buff_id"))
         visited = [_int(v) for v in selector.get("visited_buff_ids", []) if _int(v)]
         logic_trees = [str(v) for v in selector.get("logic_trees", []) if str(v).strip()]
         effect_evidence = []
@@ -346,7 +346,7 @@ class CradleAdapter(EvidenceDomainAdapter):
         claims.append(_claim(
             "cradle.effect_owner", canonical_id, effect_result,
             evidence=effect_evidence, missing=effect_missing,
-            dependencies=[ENTRY_TABLE, BUFF_TABLE, LOGIC_TABLE],
+            dependencies=[ENTRY_TABLE, BUFF_TABLE, LOGIC_TABLE, REPORT_PATH],
             requirements=["exact entry buff reference", "retained consumer chain"],
         ))
 
@@ -393,12 +393,12 @@ class CradleAdapter(EvidenceDomainAdapter):
             "cradle.scenario_availability", canonical_id, "PARTIAL",
             evidence=[{"config_keys": configs, "season_ids": seasons}],
             missing=["current runtime scenario/config selection"],
-            dependencies=[CONFIG_TABLE],
+            dependencies=[CONFIG_TABLE, REPORT_PATH],
             requirements=["installed config/season membership", "separate current-scenario gate"],
         ))
 
         images = {
-            key: str(data_row.get(key) or row.get(key) or "").strip()
+            key: str(row.get(key) or "").strip()
             for key in ("image_reference", "selected_image_reference", "equipped_image_reference", "disabled_image_reference")
         }
         present = {key: value for key, value in images.items() if value}
