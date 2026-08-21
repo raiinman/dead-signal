@@ -37,10 +37,6 @@ def _claim_key(entity_type: str, canonical_id: str, claim_type: str) -> str:
     return f"{entity_type}:{canonical_id}:{claim_type}"
 
 
-def _entity_prefix(entity_type: str, canonical_id: str) -> str:
-    return f"{entity_type}:{canonical_id}:"
-
-
 def _dependencies(claim: dict[str, Any]) -> list[str]:
     return sorted({str(value).strip() for value in claim.get("dependencies", []) if str(value or "").strip()})
 
@@ -80,31 +76,28 @@ def _dependency_files(output: Path, dependency: str) -> list[Path]:
     current, base, published = _roots(output)
     dep = dependency.replace("\\", "/").lstrip("/")
 
-    # Explicit published dependencies resolve only in the publication tree.
-    if dep.startswith("published/"):
-        if published is None:
+    def matches(root: Path | None, rel: str) -> list[Path]:
+        if root is None:
             return []
-        rel = dep[len("published/"):]
-        pattern = published / rel
-        return sorted(path for path in pattern.parent.glob(pattern.name) if path.is_file()) if "*" in pattern.name else ([pattern] if pattern.is_file() else [])
+        pattern = root / rel
+        if "*" in pattern.name:
+            return sorted(path for path in pattern.parent.glob(pattern.name) if path.is_file())
+        return [pattern] if pattern.is_file() else []
 
-    # Installed-game tables use Current as a patch layer and fall back to Base.
+    if dep.startswith("published/"):
+        return matches(published, dep[len("published/"):])
+
+    # Current is a patch layer: absence here is not deletion; fall back to Base.
     for root in (current, base):
-        if root is None:
-            continue
-        pattern = root / dep
-        matches = sorted(path for path in pattern.parent.glob(pattern.name) if path.is_file()) if "*" in pattern.name else ([pattern] if pattern.is_file() else [])
-        if matches:
-            return matches
+        found = matches(root, dep)
+        if found:
+            return found
 
-    # Normalized reports/data may be relative to published or the output root.
+    # Normalized evidence/report dependencies may live under published/output.
     for root in (published, output):
-        if root is None:
-            continue
-        pattern = root / dep
-        matches = sorted(path for path in pattern.parent.glob(pattern.name) if path.is_file()) if "*" in pattern.name else ([pattern] if pattern.is_file() else [])
-        if matches:
-            return matches
+        found = matches(root, dep)
+        if found:
+            return found
     return []
 
 
@@ -113,10 +106,7 @@ def current_dependency_fingerprints(output: Path | str, dependencies: Iterable[s
     result: dict[str, str] = {}
     for dependency in sorted({str(value).strip() for value in dependencies if str(value or "").strip()}):
         files = _dependency_files(root, dependency)
-        if not files:
-            result[dependency] = "MISSING"
-            continue
-        result[dependency] = _hash([(path.as_posix(), _file_sha(path)) for path in files])
+        result[dependency] = "MISSING" if not files else _hash([(path.as_posix(), _file_sha(path)) for path in files])
     return result
 
 
@@ -193,39 +183,25 @@ class DependencyInvalidationStore:
         *,
         page_resolver: Callable[[str, str, str], Iterable[str]] = default_page_resolver,
         full_snapshot: bool = True,
+        removed_claim_keys: Iterable[str] = (),
         persist: bool = True,
     ) -> dict[str, Any]:
         """Persist recomputed claims and invalidate stale/removed proof.
 
-        With ``full_snapshot=False`` only supplied entities are replaced, allowing
-        callers to recompute exactly the dirty entities returned by
-        :meth:`invalidation_plan` while untouched claims remain byte-for-byte
-        current.
+        ``full_snapshot=False`` is claim-scoped: only claims supplied in ``graphs``
+        are replaced. Unchanged siblings remain untouched. If a dirty claim no
+        longer resolves, its exact key must be supplied in ``removed_claim_keys``.
         """
         previous = self.load()
         old_claims = previous.get("claims") or {}
         if not isinstance(old_claims, dict):
             raise ValueError("Claim dependency store claims must be an object")
         graph_list = [graph for graph in graphs if isinstance(graph, dict)]
-        target_entities = {
-            (str((graph.get("entity") or {}).get("entity_type") or ""), str((graph.get("entity") or {}).get("canonical_id") or ""))
-            for graph in graph_list
-        }
-        dependency_names = {
-            dep for graph in graph_list for claim in graph.get("claims", []) if isinstance(claim, dict) for dep in _dependencies(claim)
-        }
+        dependency_names = {dep for graph in graph_list for claim in graph.get("claims", []) if isinstance(claim, dict) for dep in _dependencies(claim)}
         fingerprints = current_dependency_fingerprints(self.output, dependency_names)
         current = {} if full_snapshot else dict(old_claims)
         invalidated: list[dict[str, Any]] = []
         recomputed: set[str] = set()
-
-        # Selective mode replaces all claims for each recomputed entity so a claim
-        # that disappeared cannot remain stale PROVEN.
-        if not full_snapshot:
-            for entity_type, canonical_id in target_entities:
-                prefix = _entity_prefix(entity_type, canonical_id)
-                for key in [key for key in current if key.startswith(prefix)]:
-                    current.pop(key)
 
         for graph in graph_list:
             entity = graph.get("entity") or {}
@@ -267,18 +243,16 @@ class DependencyInvalidationStore:
                     })
 
         if full_snapshot:
-            removed_keys = sorted(set(old_claims) - set(current))
+            removed = set(old_claims) - set(current)
         else:
-            removed_keys = sorted(
-                key for key in old_claims
-                if any(key.startswith(_entity_prefix(entity_type, canonical_id)) for entity_type, canonical_id in target_entities)
-                and key not in current
-            )
+            removed = {str(key) for key in removed_claim_keys if str(key) in old_claims and str(key) not in recomputed}
+        removed_keys = sorted(removed)
         for key in removed_keys:
             old = old_claims[key]
+            current.pop(key, None)
             invalidated.append({
                 "claim_key": key,
-                "reason": "claim-or-entity-removed",
+                "reason": "claim-or-owner-removed",
                 "changed_dependencies": list((old.get("dependency_fingerprints") or {}).keys()),
                 "previous_result": old.get("result"),
                 "current_result": "UNRESOLVED",
