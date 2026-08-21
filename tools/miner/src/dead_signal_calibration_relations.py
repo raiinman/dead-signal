@@ -10,6 +10,7 @@ from typing import Any
 
 FOUR_STATE_RELATIONSHIPS = ("compatible", "incompatible", "unresolved", "not-applicable")
 CURRENT_CALIBRATION_SYSTEM = "current-calibration-blueprint"
+PRINT_SOURCE_TABLE = "game_common/data/gun_correct_print_data.json"
 
 
 def _int_set(values: Any) -> set[int]:
@@ -24,13 +25,44 @@ def _int_set(values: Any) -> set[int]:
     return result
 
 
-def is_current_calibration_blueprint(calibration: dict[str, Any]) -> bool:
-    """Return True only for an exact current Calibration Blueprint owner."""
-    return (
-        calibration.get("calibration_system") == CURRENT_CALIBRATION_SYSTEM
-        and calibration.get("owner_state") == "exact-gun-correct-print-owner"
-        and bool(calibration.get("is_valid", True))
+def exact_print_owner(calibration: dict[str, Any]) -> bool:
+    """Detect an exact gun_correct_print_data owner without guessing legacy state.
+
+    Newer normalized records may carry the explicit owner fields. Older retained
+    snapshots predate those fields, so the fallback requires at least one value
+    that is populated only from a gun_correct_print_data rule. Empty subtype-39
+    items remain unresolved rather than being called legacy.
+    """
+    explicit_system = calibration.get("calibration_system")
+    explicit_owner = calibration.get("owner_state")
+    if explicit_system is not None or explicit_owner is not None:
+        return (
+            explicit_system == CURRENT_CALIBRATION_SYSTEM
+            and explicit_owner == "exact-gun-correct-print-owner"
+        )
+    return any(
+        calibration.get(field) not in (None, "", 0, "0", [], {}, ())
+        for field in (
+            "weapon_type_codes",
+            "calibration_style_code",
+            "group_id",
+            "buff_id",
+            "season_state",
+            "affix_val_range",
+            "affix_ids_weight",
+            "affix_ids",
+        )
     )
+
+
+def calibration_system_classification(calibration: dict[str, Any]) -> str:
+    """Classify only the current Blueprint lane; never invent a legacy owner."""
+    return CURRENT_CALIBRATION_SYSTEM if exact_print_owner(calibration) else "unresolved"
+
+
+def is_current_calibration_blueprint(calibration: dict[str, Any]) -> bool:
+    """Return True only for an exact, valid current Calibration Blueprint owner."""
+    return exact_print_owner(calibration) and bool(calibration.get("is_valid", True))
 
 
 def calibration_weapon_relation(weapon: dict[str, Any], calibration: dict[str, Any]) -> str:
