@@ -88,8 +88,12 @@ class WeaponIdentityTraceWorkspace:
             initial = next((row for row in self.weapons if "last valor" in str(row.get("name", "")).casefold()), self.weapons[0])
             self.subject_var.set(f"{initial.get('name')}  [{initial.get('canonical_id') or initial.get('blueprint_id')}]")
             initialized = True
+        # Do not trace the default weapon during startup. The exact graph walk
+        # can traverse a large reference index and can monopolize Tk before the
+        # window gets a chance to paint. Users can run it explicitly once the
+        # workspace is visible.
         if initialized:
-            self.parent.after_idle(self.run_trace)
+            self.status_var.set("READY — SELECT RUN TRACE")
 
     def _button(self, parent, text, command, *, primary=False, width=None):
         return tk.Button(
