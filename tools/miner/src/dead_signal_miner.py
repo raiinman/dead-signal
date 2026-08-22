@@ -211,13 +211,47 @@ class DeadSignalMinerApp:
         self.workspace_host = tk.Frame(shell, bg=BG, padx=12, pady=12)
         self.workspace_host.pack(side="left", fill="both", expand=True)
         self.workspaces: dict[str, tk.Frame] = {}
-        self._build_evidence_graph_workspace()
+        # Evidence Graph construction can touch a large completed snapshot.
+        # Defer it until Tk has entered its event loop so the application window
+        # paints immediately instead of appearing to hang during startup.
+        self._build_startup_placeholder()
         self._build_run_workspace()
         self._build_explore_workspace()
         self._build_publish_workspace()
         self._show_workspace("Evidence Graph")
         self._append_log("Ready. Game files are read-only; nothing in the installation will be changed.")
         self._refresh_coverage()
+        self.root.after(100, self._build_deferred_evidence_graph)
+
+    def _build_startup_placeholder(self) -> None:
+        page = self._workspace("Evidence Graph")
+        panel = self._panel(page, padx=28, pady=26)
+        panel.pack(fill="both", expand=True)
+        tk.Label(panel, text="EVIDENCE GRAPH", bg=PANEL, fg=TEXT,
+                 font=("Segoe UI", 22, "bold")).pack(anchor="w")
+        self._startup_status = tk.Label(
+            panel, text="Preparing workspace…", bg=PANEL, fg=MUTED,
+            font=("Segoe UI", 10),
+        )
+        self._startup_status.pack(anchor="w", pady=(8, 0))
+
+    def _build_deferred_evidence_graph(self) -> None:
+        page = self.workspaces.get("Evidence Graph")
+        if page is None or getattr(self, "_evidence_graph_ready", False):
+            return
+        for child in page.winfo_children():
+            child.destroy()
+        try:
+            self._build_evidence_graph_workspace()
+            self._evidence_graph_ready = True
+            self._show_workspace("Evidence Graph")
+        except Exception as error:
+            fallback = self._panel(page, padx=28, pady=26)
+            fallback.pack(fill="both", expand=True)
+            tk.Label(fallback, text="EVIDENCE GRAPH", bg=PANEL, fg=TEXT,
+                     font=("Segoe UI", 22, "bold")).pack(anchor="w")
+            tk.Label(fallback, text=f"Workspace unavailable: {error}", bg=PANEL, fg=AMBER,
+                     font=("Segoe UI", 10), wraplength=900, justify="left").pack(anchor="w", pady=(8, 0))
 
     def _panel(self, parent: tk.Widget, **kwargs) -> tk.Frame:
         return tk.Frame(parent, bg=PANEL, highlightbackground=BORDER, highlightthickness=1, **kwargs)
