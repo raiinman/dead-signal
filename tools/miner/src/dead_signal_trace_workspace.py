@@ -14,6 +14,7 @@ from tkinter import messagebox, ttk
 
 from dead_signal_entity_selector import EntityRegistrySelector
 from dead_signal_evidence_graph import DeadSignalEvidenceGraph
+from dead_signal_generalized_graph import DeadSignalGeneralizedGraph
 from dead_signal_weapon_schema_trace import DeadSignalWeaponSchemaTrace
 from research_console import ResearchConsole
 
@@ -71,6 +72,7 @@ class WeaponIdentityTraceWorkspace:
         self.host = host
         self.console = ResearchConsole(self.output)
         self.graph = DeadSignalEvidenceGraph(self.output)
+        self.generalized_graph = DeadSignalGeneralizedGraph(self.output)
         self.schema = DeadSignalWeaponSchemaTrace(self.output)
         self.weapons = list(self.console.weapons())
         self.current_graph: dict = {}
@@ -207,12 +209,9 @@ class WeaponIdentityTraceWorkspace:
             except (KeyError, ValueError) as error:
                 messagebox.showinfo("Dead Signal Trace", str(error), parent=self._window())
                 return
-            if target.get("entity_type") != "weapon":
-                messagebox.showinfo(
-                    "Dead Signal Trace",
-                    f"{target.get('entity_type')} is registered, but its graph renderer is not enabled yet.",
-                    parent=self._window(),
-                )
+            entity_type = str(target.get("entity_type") or "").casefold()
+            if entity_type != "weapon":
+                self._run_generalized_trace(entity_type, str(target.get("canonical_id") or ""))
                 return
             identity = str(target.get("canonical_id") or "")
         if not identity:
@@ -234,6 +233,24 @@ class WeaponIdentityTraceWorkspace:
 
         threading.Thread(target=worker, name="DeadSignalEntityTrace", daemon=True).start()
 
+    def _run_generalized_trace(self, entity_type: str, canonical_id: str) -> None:
+        if not canonical_id:
+            messagebox.showinfo("Dead Signal Trace", "Choose an entity first.", parent=self._window())
+            return
+        self.running = True
+        self.status_var.set("TRACING…")
+        self.run_button.configure(state="disabled")
+
+        def worker():
+            try:
+                graph = self.generalized_graph.entity_graph(entity_type, canonical_id)
+            except Exception as error:
+                self._window().after(0, lambda exc=error: self._trace_failed(exc))
+                return
+            self._window().after(0, lambda: self._generalized_trace_complete(graph))
+
+        threading.Thread(target=worker, name="DeadSignalGeneralizedTrace", daemon=True).start()
+
     def _trace_failed(self, error):
         self.running = False
         self.status_var.set("TRACE FAILED")
@@ -251,6 +268,47 @@ class WeaponIdentityTraceWorkspace:
         self._draw_graph()
         self._render_recomputation()
         self._render_queue()
+
+    def _generalized_trace_complete(self, graph):
+        self.running = False
+        self.current_graph = graph
+        self.current_trace = {}
+        self.current_weapon = {}
+        self.status_var.set("SCAN COMPLETE")
+        self.run_button.configure(state="normal")
+        self._draw_generic_graph()
+        self._render_generic_details()
+
+    def _draw_generic_graph(self):
+        self.canvas.delete("all")
+        self.node_items.clear()
+        entity = self.current_graph.get("entity") or {}
+        nodes = [{"kind": "entity", "label": entity.get("name") or entity.get("canonical_id"),
+                  "value": entity.get("canonical_id"), "state": "PROVEN"}]
+        for claim in self.current_graph.get("claims") or []:
+            nodes.append({"kind": "claim", "label": claim.get("claim_type"),
+                          "value": claim.get("result"), "state": claim.get("result")})
+        x, y = 150, 100
+        for index, node in enumerate(nodes):
+            if index:
+                x = 150 + ((index - 1) % 3) * 300
+                y = 250 + ((index - 1) // 3) * 120
+            self._draw_node(x, y, node, width=250)
+        for index, edge in enumerate(self.current_graph.get("edges") or []):
+            if index >= len(nodes) - 1:
+                break
+            self.canvas.create_line(150, 134, 150 + (index % 3) * 300, 216 + (index // 3) * 120,
+                                    fill=CYAN, arrow="last", width=2)
+        self.canvas.configure(scrollregion=(0, 0, 1100, max(500, 300 + len(nodes) * 80)))
+
+    def _render_generic_details(self):
+        entity = self.current_graph.get("entity") or {}
+        self._render_inspector({
+            "label": entity.get("name") or entity.get("canonical_id"),
+            "value": entity.get("canonical_id"),
+            "state": "PROVEN",
+            "kind": entity.get("entity_type"),
+        })
 
     def _trace_nodes(self):
         nodes = list(self.current_graph.get("nodes") or [])
