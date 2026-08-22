@@ -320,7 +320,6 @@ def _set_idle_buttons_and_clear_worker(self):
 
 def _build_ui_with_phase13_shell(self):
     _original_build_ui(self)
-    install_phase13_shell(self)
 
 
 _miner_ui.DeadSignalMinerApp._set_idle_buttons = _set_idle_buttons_and_clear_worker
