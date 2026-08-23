@@ -8,7 +8,7 @@ This document is intentionally self-contained. A human operator or a replacement
 
 | Item | Canonical value |
 | --- | --- |
-| Stable Miner release | `v1.5.14.71` |
+| Stable Miner release | `v1.5.14.72` |
 | Source repository | `raiinman/dead-signal` |
 | Source branch | `main` |
 | Editable source | `tools/miner/` in this repository |
