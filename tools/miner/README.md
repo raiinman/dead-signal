@@ -8,7 +8,7 @@ This document is intentionally self-contained. A human operator or a replacement
 
 | Item | Canonical value |
 | --- | --- |
-| Stable Miner release | `v1.5.14.64` |
+| Stable Miner release | `v1.5.14.70` |
 | Source repository | `raiinman/dead-signal` |
 | Source branch | `main` |
 | Editable source | `tools/miner/` in this repository |
@@ -16,8 +16,8 @@ This document is intentionally self-contained. A human operator or a replacement
 | Typical installed game | `C:\Program Files (x86)\Steam\steamapps\common\Once Human` |
 | Canonical generated output | `C:\Users\mikea\Documents\Dead Signal Miner` |
 | Primary UI | Evidence Graph workspace |
-| Current schema-locked domain | Weapons v1 |
-| Current expansion state | Evidence Graph Expansion Phase 0 complete; Phase 1 next |
+| Current schema-locked domain | Weapons v1 plus Armor/Armor Set evidence graphs |
+| Current expansion state | Weapons and Armor graph rendering available; additional domains remain staged |
 | Source test baseline | 213 tests passing at the Phase 0 handoff |
 
 Never hard-code the observed weapon count, external catalog counts, or snapshot totals. Counts describe one installed snapshot; identity comes from exact installed-game owners and player-facing filtering rules.
