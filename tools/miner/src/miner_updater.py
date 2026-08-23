@@ -107,19 +107,34 @@ def _stage_clean_runtime(payload: Path, target: Path) -> Path:
         raise
 
 
+def _rename_with_retry(source: Path, destination: Path, *, timeout_seconds: int = 30) -> None:
+    """Rename a runtime path, allowing Windows a short time to release file handles."""
+    deadline = time.monotonic() + timeout_seconds
+    while True:
+        try:
+            source.rename(destination)
+            return
+        except OSError as error:
+            # WinError 5/32 are the transient access and sharing violations that
+            # can occur immediately after the parent miner process exits.
+            if getattr(error, "winerror", None) not in {5, 32} or time.monotonic() >= deadline:
+                raise
+            time.sleep(0.5)
+
+
 def _swap_clean_runtime(staged: Path, target: Path) -> int:
     """Atomically swap a staged onedir runtime, rolling back the old runtime on failure."""
     _validate_staged_runtime(staged)
     backup = target.parent / f".{target.name}.backup-{os.getpid()}-{time.time_ns()}"
     file_count = sum(1 for path in staged.rglob("*") if path.is_file())
-    target.rename(backup)
+    _rename_with_retry(target, backup)
     try:
-        staged.rename(target)
+        _rename_with_retry(staged, target)
     except Exception:
         try:
             if target.exists():
                 shutil.rmtree(target, ignore_errors=True)
-            backup.rename(target)
+            _rename_with_retry(backup, target)
         finally:
             if staged.exists():
                 shutil.rmtree(staged, ignore_errors=True)
