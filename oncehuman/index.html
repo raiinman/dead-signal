@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07090b">
+  <meta name="description" content="Search the Dead Signal Once Human database and turn verified player-facing data into complete builds.">
+  <title>Dead Signal — Once Human Database & Build Planner</title>
+  <link rel="stylesheet" href="shared/readability.css">
+  <link rel="stylesheet" href="shared/workstation-shell.css">
+  <link rel="stylesheet" href="landing-workstation.css?v=2.0.0">
+  <link rel="preload" as="image" href="assets/hero/dead-signal-environment-hero-v2.png" fetchpriority="high">
+  <script src="shared/readability.js" defer></script>
+  <script src="shared/workstation-shell.js" defer></script>
+  <script src="site.js?v=4.1.0" defer></script>
+  <style>
+    .official-feed{align-self:center;min-width:0;border:1px solid #3f4a51;border-top-color:#8d3038;border-radius:16px;background:linear-gradient(180deg,rgba(11,16,20,.96),rgba(6,9,11,.96));box-shadow:0 35px 90px rgba(0,0,0,.5);overflow:hidden}
+    .official-feed-head{min-height:62px;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:11px 16px 11px 18px;border-bottom:1px solid #303b42;background:linear-gradient(90deg,rgba(230,50,62,.08),transparent 54%)}
+    .official-feed-title{display:grid;grid-template-columns:auto 1fr;column-gap:10px;align-items:center}
+    .official-feed-title>i{grid-row:1/3;width:8px;height:8px;border-radius:50%;background:#59e0af;box-shadow:0 0 0 0 rgba(89,224,175,.45);animation:signal-pulse 2.1s ease-out infinite}
+    .official-feed-title small{color:#f0646d;font-size:.58rem;font-weight:900;letter-spacing:.16em;text-transform:uppercase}
+    .official-feed-title strong{margin-top:2px;color:#edf1f3;font-size:.88rem;letter-spacing:.035em}
+    .official-feed-head>a{flex:0 0 auto;padding:8px 10px;border:1px solid #354149;border-radius:4px;background:#0c1115;color:#86d9dd;text-decoration:none;font-size:.58rem;font-weight:900;letter-spacing:.1em;text-transform:uppercase;transition:transform 140ms cubic-bezier(.16,1,.3,1),border-color 140ms ease,color 140ms ease}
+    .official-feed-head>a:hover,.official-feed-head>a:focus-visible{transform:translateY(-1px);border-color:#58c7cc;color:#fff;outline:0}
+    .official-feed-body{height:360px;min-height:360px;overflow:hidden;background:#07090b}
+    .official-feed-body>.official-x-frame{display:block;width:100%;height:100%;border:0;background:#07090b}
+    .official-feed-meta{display:flex;align-items:center;justify-content:space-between;gap:14px;min-height:42px;padding:0 17px;border-top:1px solid #293238;color:#748189;font-size:.57rem;font-weight:750;letter-spacing:.09em;text-transform:uppercase}
+    .official-feed-meta span:first-child{color:#9eabb2}
+    .official-feed-meta b{color:#58c7cc;font-weight:900}
+
+    /* Landing command strip: one canonical search, shared across desktop and mobile. */
+    .landing-commandbar{isolation:isolate}
+    .landing-commandbar p span{display:inline-grid;place-items:center;min-width:30px;height:28px;padding:0 7px;border:1px solid #652329;border-radius:3px;background:linear-gradient(180deg,#190d10,#0c0a0c);color:#f24a55;font-size:.64rem;letter-spacing:.12em;box-shadow:inset 0 0 0 1px rgba(255,255,255,.02)}
+    .landing-command-search{position:relative;display:block}
+    .landing-command-search::before{content:"⌕";position:absolute;left:15px;top:50%;z-index:1;transform:translateY(-52%);color:#78858d;font-size:1.15rem;line-height:1;pointer-events:none;transition:color 140ms ease,transform 140ms cubic-bezier(.16,1,.3,1)}
+    .landing-command-search::after{content:"/";position:absolute;right:11px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:22px;height:22px;border:1px solid #39434a;border-radius:3px;background:#11171b;color:#738089;font:700 .66rem/1 "Segoe UI",sans-serif;pointer-events:none}
+    .landing-command-search input{padding-left:42px!important;padding-right:42px!important;background:linear-gradient(180deg,#0d1317,#0b1014)!important;box-shadow:inset 0 1px rgba(255,255,255,.025)}
+    .landing-command-search:focus-within::before{color:#58c7cc;transform:translateY(-52%) scale(1.06)}
+    .landing-command-search:focus-within::after{border-color:#3f656b;color:#9ee9ec}
+    .verified-state{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:34px;padding:0 10px;border:1px solid #24494e;border-radius:999px;background:linear-gradient(180deg,rgba(20,63,68,.24),rgba(8,22,25,.4));white-space:nowrap}
+    .verified-state::before{width:16px;height:16px;margin-right:0!important;font-size:.68rem;background:#0a1719}
+    .landing-commandbar>a{min-height:44px;gap:16px;padding-inline:18px;box-shadow:inset 0 1px rgba(255,255,255,.08)}
+    .database-landing{margin-top:38px}
+    .search-status[hidden]{display:none}
+
+    @keyframes signal-pulse{0%{box-shadow:0 0 0 0 rgba(89,224,175,.45)}70%,100%{box-shadow:0 0 0 9px rgba(89,224,175,0)}}
+    @media(min-width:1101px){.landing-commandbar{position:sticky;top:0;z-index:60;min-height:66px;grid-template-columns:auto minmax(320px,620px) 1fr auto;gap:clamp(16px,2vw,32px);padding-top:9px;padding-bottom:9px;background:linear-gradient(180deg,rgba(7,9,11,.98),rgba(7,9,11,.93));box-shadow:0 12px 32px rgba(0,0,0,.2);backdrop-filter:blur(18px) saturate(115%)}}
+    @media(min-width:1101px) and (max-width:1450px){.landing-commandbar{grid-template-columns:minmax(280px,1fr) auto auto;gap:16px}.landing-commandbar p{display:none}.verified-state{display:inline-flex}}
+    @media(max-width:1100px){.landing-commandbar{min-height:64px;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:10px 16px 10px 76px}.landing-commandbar p,.verified-state{display:none}.landing-command-search input{min-height:42px}}
+    @media(max-width:900px){.landing-hero{row-gap:46px;padding-bottom:68px}.landing-hero-copy{max-width:720px}.official-feed{width:min(780px,100%);justify-self:start;margin-top:4px}.official-feed-head{padding:13px 16px 13px 18px}}
+    @media(max-width:620px){.landing-commandbar{grid-template-columns:minmax(0,1fr);min-height:62px;padding:10px 12px 10px 76px}.landing-command-search{display:block}.landing-command-search::after{display:none}.landing-command-search input{padding-right:14px!important}.landing-commandbar>a{display:none}.landing-hero{row-gap:32px;padding-bottom:54px}.official-feed{margin-top:0;border-radius:10px}.official-feed-head{align-items:flex-start;gap:12px;padding:12px 13px 12px 14px}.official-feed-head>a{margin-top:1px}.official-feed-body{height:340px;min-height:340px}.official-feed-meta{align-items:flex-start;flex-direction:column;justify-content:center;gap:3px;padding:9px 14px}.database-landing{margin-top:28px}}
+    @media(prefers-reduced-motion:reduce){.official-feed-title>i{animation:none}}
+  </style>
+</head>
+<body class="landing-page">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <main id="main">
+    <header class="landing-commandbar">
+      <p><span aria-hidden="true">DS</span> Once Human intelligence</p>
+      <label class="landing-command-search"><span class="sr-only">Search Dead Signal database systems</span><input id="databaseQuery" type="search" placeholder="Search Dead Signal..." autocomplete="off"></label>
+      <span class="verified-state">Verified player-facing data</span>
+      <a href="/build-planner/">Open Build Lab <span aria-hidden="true">→</span></a>
+    </header>
+
+    <section class="landing-hero" id="top">
+      <picture class="landing-hero-art" aria-hidden="true">
+        <img src="assets/hero/dead-signal-environment-hero-v2.png" width="1672" height="941" alt="" fetchpriority="high" decoding="async">
+      </picture>
+      <div class="landing-hero-copy">
+        <p class="landing-kicker">Database + build intelligence</p>
+        <h1>Know the data.<br><em>Build beyond it.</em></h1>
+        <p>Research the systems behind a Once Human build, then carry verified records directly into one complete planning workspace.</p>
+        <div class="landing-actions"><a class="landing-primary" href="/build-planner/">Open Build Lab <span>→</span></a><a class="landing-secondary" href="#database">Explore Database</a></div>
+      </div>
+      <aside class="official-feed" aria-labelledby="official-feed-title">
+        <header class="official-feed-head">
+          <div class="official-feed-title"><i aria-hidden="true"></i><small>Recent posts from @OnceHuman_</small><strong id="official-feed-title">Official Once Human Feed</strong></div>
+          <a href="https://x.com/OnceHuman_" target="_blank" rel="noopener noreferrer">Open on X <span aria-hidden="true">↗</span></a>
+        </header>
+        <div class="official-feed-body">
+          <iframe class="official-x-frame" title="Official Once Human posts on X" src="/api/twitter/cache/" loading="eager" referrerpolicy="same-origin"></iframe>
+        </div>
+        <footer class="official-feed-meta"><span>Official profile <b>@OnceHuman_</b></span><span>Cached from official X profile</span></footer>
+      </aside>
+    </section>
+
+    <section class="database-landing" id="database" aria-labelledby="database-title">
+      <p id="searchStatus" class="search-status" aria-live="polite" hidden></p>
+      <div class="database-title-row"><div><p>Database</p><h2 id="database-title">Choose a system.</h2></div><span>Current mined snapshot</span></div>
+      <div class="landing-category-grid" id="categoryGrid">
+        <a class="landing-category weapons" href="database/weapons/" data-search="weapons guns melee attack firearm"><picture><source type="image/avif" srcset="assets/database-icons/weapons-v2-256.avif 256w, assets/database-icons/weapons-v2-512.avif 512w"><img src="assets/database-icons/weapons-v2-256.webp" srcset="assets/database-icons/weapons-v2-256.webp 256w, assets/database-icons/weapons-v2-512.webp 512w" alt="" width="256" height="256"></picture><div><span>DB // 01</span><h3>Weapons</h3><p>Progression, stats, effects, ammo, and configuration evidence.</p><strong>130 identities <i>→</i></strong></div></a>
+        <a class="landing-category attachments" href="database/attachments/" data-search="attachments accessories sights optics muzzles grips tactical magazines compatibility"><picture><source type="image/avif" srcset="assets/database-icons/attachments-256.avif?v=2 256w, assets/database-icons/attachments-512.avif?v=2 512w"><img src="assets/database-icons/attachments-256.webp?v=2" srcset="assets/database-icons/attachments-256.webp?v=2 256w, assets/database-icons/attachments-512.webp?v=2 512w" alt="" width="256" height="256"></picture><div><span>DB // 07</span><h3>Attachments</h3><p>Sights, muzzles, tactical accessories, magazines, effects, acquisition, and exact fit evidence.</p><strong>119 records <i>→</i></strong></div></a>
+        <article class="landing-category armor" data-status="future" data-search="armor gear sets helmet mask gloves pants boots" aria-label="Armor & Sets — coming soon"><picture><source type="image/avif" srcset="assets/database-icons/armor-sets-256.avif 256w, assets/database-icons/armor-sets-512.avif 512w"><img src="assets/database-icons/armor-sets-256.webp" srcset="assets/database-icons/armor-sets-256.webp 256w, assets/database-icons/armor-sets-512.webp 512w" alt="" width="256" height="256"></picture><div><span>DB // 02</span><h3>Armor & Sets</h3><p>Gear pieces, key armor, set membership, and activation.</p><strong>173 pieces · 23 sets <i>SOON</i></strong></div></article>
+        <article class="landing-category mods" data-status="future" data-search="mods mod 2.0 attributes suffix shiny" aria-label="Mods — coming soon"><picture><source type="image/avif" srcset="assets/database-icons/mods-256.avif 256w, assets/database-icons/mods-512.avif 512w"><img src="assets/database-icons/mods-256.webp" srcset="assets/database-icons/mods-256.webp 256w, assets/database-icons/mods-512.webp 512w" alt="" width="256" height="256"></picture><div><span>DB // 03</span><h3>Mods</h3><p>Current families, main attributes, and fixed sub-attributes.</p><strong>105 families <i>SOON</i></strong></div></article>
+        <article class="landing-category calibrations" data-status="future" data-search="calibrations blueprints styles weapon damage rng secondary" aria-label="Calibrations — coming soon"><picture><source type="image/avif" srcset="assets/database-icons/calibrations-256.avif 256w, assets/database-icons/calibrations-512.avif 512w"><img src="assets/database-icons/calibrations-256.webp" srcset="assets/database-icons/calibrations-256.webp 256w, assets/database-icons/calibrations-512.webp 512w" alt="" width="256" height="256"></picture><div><span>DB // 04</span><h3>Calibrations</h3><p>Style effects, rarity records, and legal roll ranges.</p><strong>94 records <i>SOON</i></strong></div></article>
+        <article class="landing-category deviations" data-status="future" data-search="deviations combat companions powers" aria-label="Deviations — coming soon"><picture><source type="image/avif" srcset="assets/database-icons/deviations-butterfly-emissary-256.avif 256w, assets/database-icons/deviations-butterfly-emissary-512.avif 512w"><img src="assets/database-icons/deviations-butterfly-emissary-256.webp" srcset="assets/database-icons/deviations-butterfly-emissary-256.webp 256w, assets/database-icons/deviations-butterfly-emissary-512.webp 512w" alt="" width="256" height="256"></picture><div><span>DB // 05</span><h3>Deviations</h3><p>Player-facing companions and their build-relevant roles.</p><strong>97 records <i>SOON</i></strong></div></article>
+        <article class="landing-category cradle" data-status="future" data-search="cradle overrides perks seasonal build systems" aria-label="Cradle Overrides — coming soon"><picture><source type="image/avif" srcset="assets/database-icons/cradle-overrides-256.avif 256w, assets/database-icons/cradle-overrides-512.avif 512w"><img src="assets/database-icons/cradle-overrides-256.webp" srcset="assets/database-icons/cradle-overrides-256.webp 256w, assets/database-icons/cradle-overrides-512.webp 512w" alt="" width="256" height="256"></picture><div><span>DB // 06</span><h3>Cradle Overrides</h3><p>Build-system options organized across all eight slots.</p><strong>120 options <i>SOON</i></strong></div></article>
+      </div>
+      <div class="no-results" id="noResults" hidden><b>No signal found</b><span>Try “armor,” “RNG,” or “Cradle.”</span></div>
+    </section>
+  </main>
+  <footer class="landing-footer"><b>DEAD SIGNAL</b><p>Independent Once Human build-planning project. Not affiliated with Starry Studio or NetEase Games.</p><span>© <span id="year">2026</span></span></footer>
+</body>
+</html>
